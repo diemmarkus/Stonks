@@ -1,0 +1,14 @@
+{
+  "updatedAt": "2026-11-14T20:34:00.389Z",
+  "source": "Yahoo Finance",
+  "byIsin": {},
+  "failed": [
+    "IE00BK5BQT80",
+    "US0378331005",
+    "IE00B4L5Y983",
+    "AT0000743059"
+  ],
+  "fx": {
+    "USD": null
+  }
+}
