@@ -13,7 +13,7 @@
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
   <link rel="preload" href="fonts/manrope.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=29" />
+  <link rel="stylesheet" href="css/style.css?v=30" />
 </head>
 <body>
   <header class="top">
@@ -27,15 +27,20 @@
         <span>Sign in</span>
       </button>
       <div class="user" id="user" hidden>
-        <img class="user__avatar" id="user-avatar" alt="" referrerpolicy="no-referrer" />
-        <span class="user__name" id="user-name"></span>
-        <button class="btn btn--ghost" id="signout" type="button">Sign out</button>
+        <button class="user__btn" id="user-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu" aria-label="Account">
+          <img class="user__avatar" id="user-avatar" alt="" referrerpolicy="no-referrer" />
+        </button>
+        <span class="user__name" id="user-name" hidden></span>
+        <div class="user__menu" id="user-menu" role="menu" hidden>
+          <button class="user__item" id="signout" type="button" role="menuitem">Sign out</button>
+        </div>
       </div>
     </div>
   </header>
 
   <main>
    <div class="view" id="view-home">
+    <div class="page-head markets-head"><h2 class="page-title">Markets</h2><span class="page-meta" id="mk-asof"></span></div>
     <section class="hero">
       <p class="eyebrow" id="asof">Today's movers</p>
       <h1>Sometimes <em>up.</em><br />A number of <em class="down">downs.</em></h1>
@@ -49,6 +54,7 @@
     <div class="switch" id="kind-switch" role="tablist" aria-label="Asset class">
       <button role="tab" aria-selected="true" data-kind="stocks" type="button">Stocks</button>
       <button role="tab" aria-selected="false" data-kind="etfs" type="button">ETFs</button>
+      <button role="tab" aria-selected="false" data-kind="analysts" type="button">Buy/Sell</button>
     </div>
 
     <section class="boards" id="boards" aria-live="polite">
@@ -63,6 +69,19 @@
     <div id="ov-body"></div>
    </div>
 
+   <div class="view" id="view-you" hidden>
+    <div class="page-head"><h2 class="page-title">You</h2></div>
+    <div class="card you">
+      <div class="you__id">
+        <img class="you__avatar" id="you-avatar" alt="" referrerpolicy="no-referrer" />
+        <div><div class="you__name" id="you-name"></div><div class="you__mail" id="you-mail"></div></div>
+      </div>
+      <p class="you__note">Your holdings and names are stored in your own Firestore account; only you can read them. Prices for your holdings are fetched by this browser from onvista; nothing public shows what you own.</p>
+      <button class="btn btn--ghost you__signout" id="you-signout" type="button">Sign out</button>
+    </div>
+    <p class="you__links"><a href="#/imprint">Imprint</a> · <a href="#/privacy">Privacy</a></p>
+   </div>
+
    <div class="view" id="view-portfolio" hidden>
     <div class="page-head"><h2 class="page-title">Portfolio</h2><span class="page-meta" id="pf-count"></span></div>
     <div id="pf-body"></div>
@@ -75,6 +94,10 @@
   </footer>
 
   <nav class="tabbar" id="tabbar" aria-label="Main" hidden>
+    <a class="tab" href="#/markets" data-tab="home">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5.5-5.5 4 4L21 7"/><path d="M15 7h6v6"/></svg>
+      <span>Markets</span>
+    </a>
     <a class="tab" href="#/overview" data-tab="overview">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M15 3.3A9 9 0 0 1 20.7 9H15z"/></svg>
       <span>Overview</span>
@@ -85,6 +108,10 @@
     <a class="tab" href="#/portfolio" data-tab="portfolio">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2V7M3 13h18"/></svg>
       <span>Portfolio</span>
+    </a>
+    <a class="tab" href="#/you" data-tab="you">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5"/></svg>
+      <span>You</span>
     </a>
   </nav>
 
@@ -137,6 +164,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=28"></script>
+  <script type="module" src="js/app.js?v=30"></script>
 </body>
 </html>

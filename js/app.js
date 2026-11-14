@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=28";
-import { legalDoc } from "./legal.js?v=28";
-import { isCryptoCode } from "./crypto.js?v=28";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=30";
+import { legalDoc } from "./legal.js?v=30";
+import { isCryptoCode } from "./crypto.js?v=30";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -101,8 +101,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=28").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=28").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=30").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=30").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -165,6 +165,40 @@ function moverCard(d, title, body) {
     </article>`;
 }
 
+// Analyst consensus: score from -2 (all strong sell) to +2 (all strong buy)
+const ratingLabel = (score) => (score >= 1.2 ? "Strong buy" : score >= 0.5 ? "Buy" : score > -0.5 ? "Hold" : score > -1.2 ? "Sell" : "Strong sell");
+function analystRows(items) {
+  return items.map((r, idx) => {
+    const buy = r.strongBuy + r.buy, hold = r.hold, sell = r.sell + r.strongSell;
+    const seg = (n, cls) => (n ? `<span class="rating__seg ${cls}" style="flex:${n}"></span>` : "");
+    return `
+    <li class="row row--link" data-chart="${esc(r.symbol)}" tabindex="0" role="button" aria-label="Show chart for ${esc(r.symbol)}">
+      <span class="row__rank">${idx + 1}</span>
+      <div class="row__id">
+        <div class="row__sym">${esc(r.symbol)}</div>
+        <div class="row__name">${esc(r.name)}</div>
+        <div class="rating" role="img" aria-label="${buy} buy, ${hold} hold, ${sell} sell">${seg(buy, "is-buy")}${seg(hold, "is-hold")}${seg(sell, "is-sell")}</div>
+        <div class="rating__counts">${buy} buy · ${hold} hold · ${sell} sell</div>
+      </div>
+      <div class="row__nums">
+        <span class="pill ${r.score >= 0.5 ? "up" : r.score <= -0.5 ? "down" : ""}">${ratingLabel(r.score)}</span>
+      </div>
+    </li>`; }).join("");
+}
+
+function analystGroup(a) {
+  const body = (items) => (a ? analystRows(items) : skeletonRows());
+  return `
+      <div class="group ${activeKind === "analysts" ? "is-active" : ""}" data-kind="analysts">
+        <h2 class="group__title">Analyst ratings</h2>
+        <div class="group__cards">
+          <article class="card card--up"><div class="card__head"><h3 class="card__title">Top buys</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body(a?.buys || [])}</ol></article>
+          <article class="card card--down"><div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body(a?.sells || [])}</ol></article>
+        </div>
+        <p class="note">${a ? `Consensus of Wall Street analysts' 12-month ratings for ${a.count} large US stocks (Finnhub, ${esc(a.period || "")}). Their opinion, not advice from stonks — always do your own research.` : "Analyst ratings appear after the next price update."}</p>
+      </div>`;
+}
+
 function renderHome() {
   const data = state.market;
   $("boards").innerHTML = GROUPS.map(({ kind, title }) => {
@@ -177,10 +211,11 @@ function renderHome() {
           ${moverCard("down", "Top losers", g ? moverRows(g.losers, "down") : skeletonRows())}
         </div>
       </div>`;
-  }).join("");
+  }).join("") + analystGroup(data?.analysts);
   if (!data) return;
   const stamp = stampOf(data.updatedAt);
   $("asof").textContent = `Movers · ${stamp}`;
+  $("mk-asof").textContent = `Updated · ${stamp}`;
   $("note").innerHTML = data.sample
     ? `<span class="badge">● Sample data.</span> Live numbers appear once the “Update movers” GitHub Action has run.`
     : `Based on ${data.quotes?.length ?? 0} US-listed stocks and ETFs · prices via ${esc(data.source || "market data")} · updated ${stamp}.`;
@@ -511,7 +546,7 @@ document.addEventListener("change", async (e) => {
   if (!el.value) delete state.venues[key];
   renderCurrent();
   try {
-    const { setVenue } = await import("./store.js?v=28");
+    const { setVenue } = await import("./store.js?v=30");
     await setVenue(state.user.uid, key, el.value);
     toast(el.value ? `Valued with ${el.value} prices` : "Back to automatic prices");
   } catch (err) {
@@ -531,7 +566,7 @@ document.addEventListener("focusout", async (e) => {
   const name = el.value.trim();
   if ((state.names[key] || "") === name) return;
   try {
-    const { setName } = await import("./store.js?v=28");
+    const { setName } = await import("./store.js?v=30");
     await setName(state.user.uid, key, name);
     toast(name ? `Renamed to ${name}` : "Back to the original name");
   } catch (err) {
@@ -771,7 +806,7 @@ form.addEventListener("submit", async (ev) => {
   const btn = $("f-submit");
   btn.disabled = true;
   try {
-    const { saveHolding } = await import("./store.js?v=28");
+    const { saveHolding } = await import("./store.js?v=30");
     await saveHolding(state.user.uid, editingId, {
       isin, quantity, buyPrice, buyDate: f.date.value,
       type: q?.type || guessType(isin), name: q?.name || "",
@@ -797,7 +832,7 @@ $("f-delete").addEventListener("click", async () => {
   resetDelete();
   const label = state.isin[f.isin.value]?.name || f.isin.value || "holding";
   try {
-    const { deleteHolding } = await import("./store.js?v=28");
+    const { deleteHolding } = await import("./store.js?v=30");
     await deleteHolding(state.user.uid, editingId);
     toast(`Removed ${label}`);
     closeAdd();
@@ -838,7 +873,7 @@ function openChart(symbol, isin) {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=28");
+  const { mountPriceChart } = await import("./chart.js?v=30");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -866,7 +901,7 @@ window.addEventListener("hashchange", closeChart);
 /* ======================================================================
    Router
    ====================================================================== */
-const PROTECTED = ["overview", "portfolio"];
+const PROTECTED = ["overview", "portfolio", "you"];
 const LEGAL = ["imprint", "privacy"];
 
 function renderLegal(kind) {
@@ -895,7 +930,7 @@ function route() {
   }
 
   // Signed in, the overview is the start page; the market movers live at #/movers.
-  let view = PROTECTED.includes(name) || LEGAL.includes(name) ? name : name === "movers" ? "home" : state.user ? "overview" : "home";
+  let view = PROTECTED.includes(name) || LEGAL.includes(name) ? name : name === "movers" || name === "markets" ? "home" : state.user ? "overview" : "home";
 
   if (PROTECTED.includes(view) && !state.user) {
     if (!state.authReady) { document.querySelectorAll(".view").forEach((v) => (v.hidden = true)); return; }
@@ -916,17 +951,20 @@ function route() {
 
   if (changed) window.scrollTo(0, 0);
   if (section === "legal") renderLegal(view);
+  if (section === "you") renderYou();
   renderCurrent();
 }
 let pendingRoute = null;
 window.addEventListener("hashchange", route);
 
 /* Swipe left/right to switch between Overview and Portfolio (like the tabs in Snapchat). */
-const SWIPE_TABS = ["overview", "portfolio"];
+const SWIPE_TABS = ["home", "overview", "portfolio", "you"];
+const TAB_HASH = { home: "#/markets", overview: "#/overview", portfolio: "#/portfolio", you: "#/you" };
 let swipe = null;
 document.addEventListener("touchstart", (e) => {
   swipe = null;
   if (!state.user || e.touches.length !== 1 || !SWIPE_TABS.includes(state.view)) return;
+  if (e.target.closest?.(".switch")) return;
   if (!$("add-sheet").hidden || !$("sheet").hidden) return;
   // charts use horizontal drags to read prices; inputs and buttons keep their own gestures
   if (e.target.closest?.(".pchart, input, textarea, select, .tabbar")) return;
@@ -946,8 +984,17 @@ document.addEventListener("touchend", (e) => {
   el.classList.remove("slide-from-right", "slide-from-left");
   void el.offsetWidth; // restart the animation
   el.classList.add(dx < 0 ? "slide-from-right" : "slide-from-left");
-  location.hash = `#/${next}`;
+  location.hash = TAB_HASH[next];
 }, { passive: true });
+
+function renderYou() {
+  const u = state.user;
+  if (!u) return;
+  $("you-name").textContent = u.displayName || "Signed in";
+  $("you-mail").textContent = u.email || "";
+  if (u.photoURL) $("you-avatar").src = u.photoURL;
+  else $("you-avatar").removeAttribute("src");
+}
 
 /* ======================================================================
    Auth
@@ -967,7 +1014,18 @@ async function handleSignIn() {
 
 $("signin").addEventListener("click", handleSignIn);
 $("cta-signin").addEventListener("click", handleSignIn);
+$("you-signout").addEventListener("click", () => $("signout").click());
+// Tap your picture → small menu with Sign out
+function setUserMenu(open) {
+  $("user-menu").hidden = !open;
+  $("user-btn").setAttribute("aria-expanded", String(open));
+  if (open) $("signout").focus();
+}
+$("user-btn").addEventListener("click", (e) => { e.stopPropagation(); setUserMenu($("user-menu").hidden); });
+document.addEventListener("click", (e) => { if (!e.target.closest?.("#user")) setUserMenu(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") setUserMenu(false); });
 $("signout").addEventListener("click", async () => {
+  setUserMenu(false);
   try { await signOutUser(); location.hash = "#/"; } catch (e) { console.error(e); }
 });
 
@@ -976,7 +1034,7 @@ async function startHoldings(uid) {
   state.names = {};
   let store;
   try {
-    store = await import("./store.js?v=28");
+    store = await import("./store.js?v=30");
   } catch (e) {
     console.error("Couldn't load store.js", e);
     state.holdings = [];
