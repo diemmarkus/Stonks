@@ -1,0 +1,43 @@
+name: Update movers
+
+on:
+  schedule:
+    # Every 30 min while US markets are open (≈ 15:30–22:00 Vienna time), Mon–Fri,
+    # plus one run after the close. Times are UTC.
+    - cron: "*/30 14-20 * * 1-5"
+    - cron: "15 21 * * 1-5"
+  workflow_dispatch: # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-movers
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch quotes
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: node scripts/update-movers.mjs
+
+      - name: Commit if changed
+        run: |
+          git config user.name "stonks-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/movers.json
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Update movers"
+            git push
+          fi
