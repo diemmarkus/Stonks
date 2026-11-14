@@ -32,7 +32,7 @@ function imprint() {
       { h: "Purpose", p: ["stonks is a personal, non-commercial project of mine. There are no ads and no paid features."] },
       { h: "Editorial line", p: ["Information about the daily price changes of selected US stocks and ETFs, and a private tool to keep track of your own holdings."] },
       { h: "No investment advice", p: ["Nothing on this site is investment advice, a recommendation or an offer to buy or sell securities. The \"top movers\" are simply the largest daily price changes within a fixed watchlist."] },
-      { h: "Liability", p: ["Prices come from Finnhub and Tradegate and may be delayed or wrong; charts come from TradingView. All figures without guarantee. Operators of linked sites are responsible for their content."] },
+      { h: "Liability", p: ["Prices come from Finnhub and onvista and may be delayed or wrong; charts come from TradingView. All figures without guarantee. Operators of linked sites are responsible for their content."] },
     ],
   };
 }
@@ -60,7 +60,7 @@ function privacy() {
         "Firebase Authentication and Cloud Firestore (Google Ireland Ltd., Gordon House, Barrow Street, Dublin 4, Ireland): sign-in and storing your holdings. The Firebase program code is loaded from Google's servers (www.gstatic.com), and your Google profile picture is loaded from Google's servers; both send your IP address to Google.",
         "GitHub Pages (GitHub B.V., Netherlands, a subsidiary of GitHub Inc., USA): hosting the website.",
         "TradingView (TradingView Inc., USA): the price chart that opens when you tap a ticker. Only after you tap \"Load chart\", your browser loads the chart from TradingView, which receives your IP address and the ticker, and may set its own cookies or similar storage. See tradingview.com/privacy-policy/.",
-        "Finnhub (Finnhub Stock API), Tradegate, OpenFIGI and frankfurter.app (ECB rates): our server job fetches prices and security names from them. Your browser never contacts them and no personal data is sent to them.",
+        "Finnhub (Finnhub Stock API), onvista and frankfurter.app (ECB rates): our server job fetches prices and security names from them. Your browser never contacts them and no personal data is sent to them.",
         "Fonts are served by stonks itself, not by Google.",
         "Google and GitHub are certified under the EU-US Data Privacy Framework; transfers to the USA rely on it (Art. 45 GDPR) and on standard contractual clauses. For TradingView, the transfer happens only with your consent (Art. 49 (1)(a) GDPR); the USA may not offer the same level of data protection as the EU, and US authorities may be able to access data.",
       ] },

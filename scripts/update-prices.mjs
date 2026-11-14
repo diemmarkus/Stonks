@@ -2,9 +2,9 @@
 //
 // 1. Reads the ISINs from the public `symbols` collection in Firestore
 //    (doc id = ISIN, written by the app when a holding is saved).
-// 2. Looks up name, type and Xetra ticker via OpenFIGI (free, no key needed).
-// 3. Fetches the latest EUR price and today's change from Tradegate (Berlin exchange).
-// 4. Writes data/prices.json, which the portfolio and overview read.
+// 2. Looks each ISIN up on onvista (name, type, ticker) and takes the EUR quote,
+//    preferring Xetra, then Tradegate.
+// 3. Writes data/prices.json, which the portfolio and overview read.
 //
 //   node scripts/update-prices.mjs
 //   node scripts/update-prices.mjs IE00BK5BQT80 US0378331005   (extra ISINs, handy for testing)
@@ -29,20 +29,6 @@ export function isValidIsin(isin) {
   return sum % 10 === 0;
 }
 
-// "1.234,56" / "1234.56" / "+0,52%" / 12.3 → number
-function num(v) {
-  if (typeof v === "number") return v;
-  if (v == null) return null;
-  let s = String(v).replace(/[%\s€+]/g, "").replace(/&nbsp;/g, "");
-  if (!s || s === "-" || s === "./.") return null;
-  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
-}
-
-const titleCase = (s) => s.toLowerCase().replace(/(^|[\s\-/(])([a-z])/g, (m, p, c) => p + c.toUpperCase())
-  .replace(/\b(Etf|Ucits|Msci|Ftse|Usd|Eur|Acc|Dist|Ag|Se|Plc|Inc|Nv|Sa|Asa|Ab|Spa|Esg|S&p|Us|Uk|Em)\b/g, (w) => w.toUpperCase());
-
 async function trackedIsins() {
   const { projectId, apiKey } = firebaseConfig;
   const out = new Map();
@@ -60,61 +46,6 @@ async function trackedIsins() {
     pageToken = body.nextPageToken || "";
   } while (pageToken);
   return out;
-}
-
-// --- OpenFIGI: ISIN → name, type, Xetra ticker ------------------------------
-async function figi(isins) {
-  const out = {};
-  // 10 jobs per request without an API key; two jobs per ISIN (Xetra first, then any listing).
-  for (let i = 0; i < isins.length; i += 5) {
-    const chunk = isins.slice(i, i + 5);
-    const jobs = chunk.flatMap((isin) => [
-      { idType: "ID_ISIN", idValue: isin, exchCode: "GY" },
-      { idType: "ID_ISIN", idValue: isin },
-    ]);
-    const res = await fetch("https://api.openfigi.com/v3/mapping", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": UA },
-      body: JSON.stringify(jobs),
-    });
-    if (!res.ok) { console.warn(`OpenFIGI: HTTP ${res.status}`); await sleep(3000); continue; }
-    const body = await res.json();
-    chunk.forEach((isin, k) => {
-      const xetra = body[2 * k]?.data?.[0];
-      const any = body[2 * k + 1]?.data?.[0];
-      const d = xetra || any;
-      if (!d) return;
-      const t = `${d.securityType || ""} ${d.securityType2 || ""}`.toUpperCase();
-      out[isin] = {
-        name: d.name ? titleCase(d.name) : "",
-        type: /ETP|ETF|FUND|MUTUAL/.test(t) ? "etf" : "stock",
-        tv: xetra?.ticker ? `XETR:${xetra.ticker}` : "",
-      };
-    });
-    await sleep(2600); // 25 requests/minute without a key
-  }
-  return out;
-}
-
-// --- Tradegate: ISIN → EUR price + change today -----------------------------
-async function tradegate(isin) {
-  const res = await fetch(`https://www.tradegatebank.de/refresh.php?isin=${isin}`, {
-    headers: { "User-Agent": UA, Accept: "application/json, text/javascript, */*", Referer: `https://www.tradegatebank.de/Handelshistorie.php?isin=${isin}` },
-  });
-  if (!res.ok) throw new Error(`Tradegate HTTP ${res.status}`);
-  const text = await res.text();
-  let d;
-  try { d = JSON.parse(text); } catch { throw new Error(`Tradegate: not JSON (${text.slice(0, 80)})`); }
-  const bid = num(d.bid), ask = num(d.ask);
-  const last = num(d.last);
-  const price = last ?? (bid != null && ask != null ? (bid + ask) / 2 : bid ?? ask);
-  if (price == null || price === 0) return null;
-  const close = num(d.close);
-  let changePct = num(d.delta);
-  let change = null;
-  if (close) { change = price - close; changePct ??= (change / close) * 100; }
-  else if (changePct != null) change = price - price / (1 + changePct / 100);
-  return { price, change: change ?? 0, changePct: changePct ?? 0 };
 }
 
 // --- onvista (fallback): ISIN → EUR price + change today ---------------------
@@ -155,7 +86,9 @@ async function onvista(isin) {
   const prevClose = q.previousLast ?? (q.performance != null ? price - q.performance : null);
   const change = q.performance ?? (prevClose != null ? price - prevClose : 0);
   const changePct = q.performancePct ?? (prevClose ? (change / prevClose) * 100 : 0);
-  return { price, change, changePct, name: hit.name, type: /FUND|ETF/.test(hit.entityType) ? "etf" : "stock", venue: q.market?.name || "onvista" };
+  const venue = q.market?.name || "onvista";
+  const tv = hit.symbol && /xetra/i.test(venue) ? `XETR:${hit.symbol}` : hit.symbol && /tradegate/i.test(venue) ? `XETR:${hit.symbol}` : "";
+  return { price, change, changePct, name: hit.name, type: /FUND|ETF/.test(hit.entityType) ? "etf" : "stock", venue, tv };
 }
 
 async function eurUsd(previous) {
@@ -177,46 +110,31 @@ const wanted = await trackedIsins();
 for (const extra of process.argv.slice(2)) if (isValidIsin(extra)) wanted.set(extra, wanted.get(extra) || { type: "", name: "" });
 console.log(`ISINs to price: ${wanted.size}`);
 
-// Only look up static data for ISINs we haven't resolved before.
-const needInfo = [...wanted.keys()].filter((i) => !prevByIsin[i]?.infoFrom);
-const info = needInfo.length ? await figi(needInfo).catch((e) => { console.warn(`OpenFIGI: ${e.message}`); return {}; }) : {};
-console.log(`OpenFIGI resolved ${Object.keys(info).length}/${needInfo.length}: ${Object.entries(info).map(([k, v]) => `${k}=${v.name} ${v.type} ${v.tv}`).join("; ")}`);
-
 const byIsin = {};
 const failed = [];
 for (const [isin, meta] of wanted) {
   const prev = prevByIsin[isin] || {};
-  const i = info[isin] || {};
-  const base = {
-    isin,
-    name: prev.name || i.name || meta.name || isin,
-    type: prev.type || i.type || meta.type || "stock",
-    tv: prev.tv ?? i.tv ?? "",
-    venue: "Tradegate",
-    currency: "EUR",
-    infoFrom: prev.infoFrom || (info[isin] ? "openfigi" : undefined),
-  };
   try {
-    let q = null;
-    try { q = await tradegate(isin); }
-    catch (e) { console.warn(`${isin}: Tradegate ${e.message}${e.cause ? ` (${e.cause.code || e.cause.message})` : ""}`); }
-    if (!q) {
-      q = await onvista(isin);
-      if (q) {
-        base.venue = q.venue;
-        if (base.name === isin || !prev.name) base.name = info[isin]?.name || q.name || base.name;
-        if (!prev.type && !info[isin]) base.type = q.type;
-      }
-    }
+    const q = await onvista(isin);
     if (!q) { failed.push(isin); console.warn(`${isin}: no price found`); continue; }
-    byIsin[isin] = { ...base, price: round(q.price), change: round(q.change), changePct: round(q.changePct, 2) };
-    console.log(`${isin} ${base.name} €${q.price.toFixed(2)} ${q.changePct.toFixed(2)}% ${base.venue} ${base.tv}`);
+    byIsin[isin] = {
+      isin,
+      name: q.name || meta.name || isin,
+      type: q.type || meta.type || "stock",
+      tv: q.tv,
+      venue: q.venue,
+      currency: "EUR",
+      price: round(q.price),
+      change: round(q.change),
+      changePct: round(q.changePct, 2),
+    };
+    console.log(`${isin} ${q.name} €${q.price.toFixed(2)} ${q.changePct.toFixed(2)}% ${q.venue} ${q.tv}`);
   } catch (e) {
     console.warn(`${isin}: ${e.message}${e.cause ? ` (${e.cause.code || e.cause.message})` : ""}`);
-    if (prev.price != null) byIsin[isin] = { ...prev, ...base, price: prev.price, change: prev.change, changePct: prev.changePct };
+    if (prev.price != null) byIsin[isin] = prev; // keep the last known price
     else failed.push(isin);
   }
-  await sleep(300);
+  await sleep(400);
 }
 
 const fx = { USD: await eurUsd(previous.fx?.USD) };
@@ -227,6 +145,6 @@ if (same) {
   console.log("No price changes, leaving prices.json as is.");
 } else {
   await mkdir(new URL("../data/", import.meta.url), { recursive: true });
-  await writeFile(OUT, JSON.stringify({ updatedAt: new Date().toISOString(), source: "Tradegate", ...payload }, null, 2) + "\n");
+  await writeFile(OUT, JSON.stringify({ updatedAt: new Date().toISOString(), source: "onvista", ...payload }, null, 2) + "\n");
   console.log(`Wrote ${Object.keys(byIsin).length} prices, ${failed.length} unresolved.`);
 }
