@@ -1,13 +1,57 @@
 {
-  "updatedAt": "2026-11-14T20:37:42.092Z",
+  "updatedAt": "2026-11-14T20:39:59.220Z",
   "source": "Tradegate",
-  "byIsin": {},
-  "failed": [
-    "IE00BK5BQT80",
-    "US0378331005",
-    "IE00B4L5Y983",
-    "AT0000743059"
-  ],
+  "byIsin": {
+    "IE00BK5BQT80": {
+      "isin": "IE00BK5BQT80",
+      "name": "Vang FTSE Aw Usda",
+      "type": "etf",
+      "tv": "",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "infoFrom": "openfigi",
+      "price": 170.72,
+      "change": 0.02,
+      "changePct": 0.01
+    },
+    "US0378331005": {
+      "isin": "US0378331005",
+      "name": "Apple INC",
+      "type": "stock",
+      "tv": "XETR:APC",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "infoFrom": "openfigi",
+      "price": 324.95,
+      "change": 3.7,
+      "changePct": 1.15
+    },
+    "IE00B4L5Y983": {
+      "isin": "IE00B4L5Y983",
+      "name": "Ishares Core MSCI World",
+      "type": "etf",
+      "tv": "",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "infoFrom": "openfigi",
+      "price": 131.105,
+      "change": 0.24,
+      "changePct": 0.18
+    },
+    "AT0000743059": {
+      "isin": "AT0000743059",
+      "name": "Omv AG",
+      "type": "stock",
+      "tv": "XETR:OMV",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "infoFrom": "openfigi",
+      "price": 73.25,
+      "change": 0.65,
+      "changePct": 0.9
+    }
+  },
+  "failed": [],
   "fx": {
     "USD": 1.1052
   }
