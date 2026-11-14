@@ -1,13 +1,14 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=23";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=24";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
-  "1D": { ov: "D1", back: { days: 6 }, cg: 1 },
-  "1W": { ov: "W1", back: { days: 7 }, cg: 7 },
-  "1M": { ov: "M1", back: { months: 1 }, cg: 30 },
+  // res: onvista resolution (tested: 1m, 5m, 15m, 30m, 60m, 2h, 4h are valid)
+  "1D": { ov: "D1", back: { days: 6 }, cg: 1, res: "1m" },
+  "1W": { ov: "W1", back: { days: 7 }, cg: 7, res: "15m" },
+  "1M": { ov: "M1", back: { months: 1 }, cg: 30, res: "60m" },
   "1Y": { ov: "Y1", back: { years: 1 }, cg: 365 },
   "5Y": { ov: "Y5", back: { years: 5 }, cg: null },
   "Max": { ov: "MAX", back: { years: 40 }, cg: null },
@@ -72,6 +73,7 @@ async function history(src, range) {
   } else {
     const p = new URLSearchParams({ chartType: "PRICE", interval: R.ov, startDate: startDate(R.back), endDate: iso(new Date(Date.now() + 864e5)), withEarnings: "false" });
     if (src.notation) p.set("idNotation", src.notation);
+    if (R.res) p.set("resolution", R.res);
     const r = await fetch(`${OV}/instruments/${src.type}/${src.id}/simple_chart_history?${p}`);
     if (!r.ok) throw new Error(`onvista HTTP ${r.status}`);
     const d = await r.json();
@@ -110,13 +112,15 @@ function draw(plot, pts, range, currency) {
   let lo = Math.min(...vals), hi = Math.max(...vals);
   if (hi === lo) { hi += hi * 0.01 || 1; lo -= lo * 0.01 || 1; }
   const t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1;
-  const x = (t) => ((t - t0) / (t1 - t0 || 1)) * (W - padR);
+  // x follows the order of the points, not clock time: nights and weekends don't become flat stretches
+  const n = pts.length - 1 || 1;
+  const xi = (i) => (i / n) * (W - padR);
   const y = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
   const change = vals[vals.length - 1] - vals[0];
   const pct = vals[0] ? (change / vals[0]) * 100 : 0;
   const color = change >= 0 ? UP : DOWN;
-  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
-  const area = `${line}L${x(t1).toFixed(1)},${H - padB}L0,${H - padB}Z`;
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${xi(i).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
+  const area = `${line}L${xi(n).toFixed(1)},${H - padB}L0,${H - padB}Z`;
   const gid = `g${Math.random().toString(36).slice(2, 8)}`;
   const sign = pct > 0 ? "+" : pct < 0 ? "−" : "";
 
@@ -148,14 +152,12 @@ function draw(plot, pts, range, currency) {
   const resting = read.innerHTML;
   const at = (clientX) => {
     const r = svg.getBoundingClientRect();
-    const tx = t0 + ((clientX - r.left) / r.width) * (t1 - t0);
-    let best = pts[0];
-    for (const p of pts) if (Math.abs(p.t - tx) < Math.abs(best.t - tx)) best = p;
-    return best;
+    const i = Math.round(Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * n);
+    return Math.min(i, pts.length - 1);
   };
   const show = (e) => {
-    const p = at(e.clientX);
-    const px = x(p.t), py = y(p.v);
+    const i = at(e.clientX), p = pts[i];
+    const px = xi(i), py = y(p.v);
     hover.style.display = "";
     cross.setAttribute("x1", px); cross.setAttribute("x2", px);
     dot.setAttribute("cx", px); dot.setAttribute("cy", py);

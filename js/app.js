@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=23";
-import { legalDoc } from "./legal.js?v=23";
-import { isCryptoCode } from "./crypto.js?v=23";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=24";
+import { legalDoc } from "./legal.js?v=24";
+import { isCryptoCode } from "./crypto.js?v=24";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -99,8 +99,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=23").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=23").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=24").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=24").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -486,7 +486,7 @@ document.addEventListener("focusout", async (e) => {
   const name = el.value.trim();
   if ((state.names[key] || "") === name) return;
   try {
-    const { setName } = await import("./store.js?v=23");
+    const { setName } = await import("./store.js?v=24");
     await setName(state.user.uid, key, name);
     toast(name ? `Renamed to ${name}` : "Back to the original name");
   } catch (err) {
@@ -726,7 +726,7 @@ form.addEventListener("submit", async (ev) => {
   const btn = $("f-submit");
   btn.disabled = true;
   try {
-    const { saveHolding } = await import("./store.js?v=23");
+    const { saveHolding } = await import("./store.js?v=24");
     await saveHolding(state.user.uid, editingId, {
       isin, quantity, buyPrice, buyDate: f.date.value,
       type: q?.type || guessType(isin), name: q?.name || "",
@@ -752,7 +752,7 @@ $("f-delete").addEventListener("click", async () => {
   resetDelete();
   const label = state.isin[f.isin.value]?.name || f.isin.value || "holding";
   try {
-    const { deleteHolding } = await import("./store.js?v=23");
+    const { deleteHolding } = await import("./store.js?v=24");
     await deleteHolding(state.user.uid, editingId);
     toast(`Removed ${label}`);
     closeAdd();
@@ -793,7 +793,7 @@ function openChart(symbol, isin) {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency) {
-  const { mountPriceChart } = await import("./chart.js?v=23");
+  const { mountPriceChart } = await import("./chart.js?v=24");
   mountPriceChart(host, { id, currency });
 }
 
@@ -931,7 +931,7 @@ async function startHoldings(uid) {
   state.names = {};
   let store;
   try {
-    store = await import("./store.js?v=23");
+    store = await import("./store.js?v=24");
   } catch (e) {
     console.error("Couldn't load store.js", e);
     state.holdings = [];
