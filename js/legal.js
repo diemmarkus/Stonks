@@ -9,12 +9,13 @@ export const OPERATOR = {
   email: "diemmarkus@gmail.com",
 };
 
-export const CHARTS_KEY = "stonks.charts"; // "on" = load TradingView charts without asking
+export const CHARTS_KEY = "stonks-chart-range"; // the chart range you picked last (1D … Max)
 
 // Browser storage. The first entries are strictly necessary (no consent needed, § 165 (3) TKG 2021).
 const STORAGE = [
   ["Firebase (IndexedDB)", "keeps you signed in"],
-  [CHARTS_KEY, "remembers that you chose to always load TradingView charts (only if you ticked that box)"],
+  [CHARTS_KEY, "remembers the chart range you picked last (1D, 1W, …)"],
+  ["stonks-reloaded-…", "session only: makes sure a new app version is loaded once, not in a loop"],
 ];
 
 const contact = () => {
@@ -32,7 +33,7 @@ function imprint() {
       { h: "Purpose", p: ["stonks is a personal, non-commercial project of mine. There are no ads and no paid features."] },
       { h: "Editorial line", p: ["Information about the daily price changes of selected US stocks and ETFs, and a private tool to keep track of your own holdings."] },
       { h: "No investment advice", p: ["Nothing on this site is investment advice, a recommendation or an offer to buy or sell securities. The \"top movers\" are simply the largest daily price changes within a fixed watchlist."] },
-      { h: "Liability", p: ["Prices come from Finnhub and onvista and may be delayed or wrong; charts come from TradingView. All figures without guarantee. Operators of linked sites are responsible for their content."] },
+      { h: "Liability", p: ["Prices come from Finnhub and onvista and may be delayed or wrong; price charts use data from onvista and CoinGecko. All figures without guarantee. Operators of linked sites are responsible for their content."] },
     ],
   };
 }
@@ -43,7 +44,7 @@ function privacy() {
     title: "Privacy policy",
     sections: [
       { h: "Controller", p: [contact()] },
-      { h: "In short", p: ["stonks stores only what it needs to show your portfolio. No tracking, no analytics, no ads, and no selling of data. Charts from TradingView only load after you agree."] },
+      { h: "In short", p: ["stonks stores only what it needs to show your portfolio. No tracking, no analytics, no ads, and no selling of data."] },
       { h: "What data we process", p: [
         "Account: when you sign in with Google, we receive your name, email address, profile picture and a technical user ID from Google.",
         "Holdings: for each holding you add, the ISIN, name, type (stock/ETF), quantity, buy price, buy date and when you added or changed it. Only you can read your holdings.",
@@ -53,17 +54,17 @@ function privacy() {
       { h: "Purpose and legal basis", p: [
         "Account and holdings: to provide the service you choose to use (Art. 6 (1)(b) GDPR).",
         "Hosting and loading the app: secure and reliable operation (legitimate interest, Art. 6 (1)(f) GDPR).",
-        "TradingView charts: your consent (Art. 6 (1)(a) GDPR, § 165 (3) TKG 2021). You can withdraw it at any time below; this does not affect loading done before.",
+        "Looking up prices and price history from your browser (onvista, CoinGecko): to show you the charts and prices you open (Art. 6 (1)(b) and (f) GDPR).",
         "You are not required by law or contract to provide data, but without a Google sign-in you can't use the portfolio.",
       ] },
       { h: "Services we use", p: [
         "Firebase Authentication and Cloud Firestore (Google Ireland Ltd., Gordon House, Barrow Street, Dublin 4, Ireland): sign-in and storing your holdings. The Firebase program code is loaded from Google's servers (www.gstatic.com), and your Google profile picture is loaded from Google's servers; both send your IP address to Google.",
         "GitHub Pages (GitHub B.V., Netherlands, a subsidiary of GitHub Inc., USA): hosting the website.",
-        "TradingView (TradingView Inc., USA): the price chart that opens when you tap a ticker. Only after you tap \"Load chart\", your browser loads the chart from TradingView, which receives your IP address and the ticker, and may set its own cookies or similar storage. See tradingview.com/privacy-policy/.",
         "Finnhub (Finnhub Stock API), onvista and frankfurter.app (ECB rates): our server job fetches prices and security names from them; no personal data is sent to them.",
-        "onvista (onvista media GmbH, Germany): when you enter an ISIN, or hold one, that our price list doesn't cover yet, your browser asks onvista's servers for its name and price straight away. onvista then receives your IP address and that ISIN, nothing else. See onvista.de/datenschutz.",
+        "onvista (onvista media GmbH, Germany): when you enter an ISIN, or hold one, that our price list doesn't cover yet, your browser asks onvista's servers for its name and price straight away; and when you open a price chart, your browser loads its price history from onvista. onvista then receives your IP address and that ISIN or ticker, nothing else. See onvista.de/datenschutz.",
+        "CoinGecko (Gecko Labs Pte. Ltd., Singapore): only for crypto. When you enter or open a coin, your browser loads its price and price history from CoinGecko, which receives your IP address and which coin. Singapore has no EU adequacy decision; the request only happens when you look at crypto yourself (Art. 49 (1)(b) GDPR). See coingecko.com/en/privacy.",
         "Fonts are served by stonks itself, not by Google.",
-        "Google and GitHub are certified under the EU-US Data Privacy Framework; transfers to the USA rely on it (Art. 45 GDPR) and on standard contractual clauses. For TradingView, the transfer happens only with your consent (Art. 49 (1)(a) GDPR); the USA may not offer the same level of data protection as the EU, and US authorities may be able to access data.",
+        "Google and GitHub are certified under the EU-US Data Privacy Framework; transfers to the USA rely on it (Art. 45 GDPR) and on standard contractual clauses.",
       ] },
       { h: "Storage on your device", p: ["stonks itself sets no cookies. Browser storage only holds:",
         ...STORAGE.map(([k, v]) => `• ${k}: ${v}`)] },

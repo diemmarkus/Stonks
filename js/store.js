@@ -45,3 +45,21 @@ async function registerIsin(h) {
     addedAt: serverTimestamp(),
   });
 }
+
+// Your own names for positions, one doc per ISIN: users/{uid}/names/{ISIN} → { name }
+export async function watchNames(uid, callback) {
+  const { db, collection, onSnapshot } = await getDb();
+  return onSnapshot(collection(db, "users", uid, "names"), (snap) => {
+    const out = {};
+    snap.docs.forEach((d) => { if (d.data().name) out[d.id] = d.data().name; });
+    callback(out);
+  }, (e) => console.warn("Names listener failed", e));
+}
+
+export async function setName(uid, key, name) {
+  const { db, doc, setDoc, deleteDoc, serverTimestamp } = await getDb();
+  const ref = doc(db, "users", uid, "names", key);
+  const clean = (name || "").trim().slice(0, 60);
+  if (clean) await setDoc(ref, { name: clean, updatedAt: serverTimestamp() });
+  else await deleteDoc(ref);
+}

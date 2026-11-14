@@ -1,0 +1,222 @@
+// Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
+// drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
+// Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
+import { CRYPTO, isCryptoCode } from "./crypto.js";
+
+const OV = "https://api.onvista.de/api/v1";
+const RANGES = {
+  "1D": { ov: "D1", back: { days: 6 }, cg: 1 },
+  "1W": { ov: "W1", back: { days: 7 }, cg: 7 },
+  "1M": { ov: "M1", back: { months: 1 }, cg: 30 },
+  "1Y": { ov: "Y1", back: { years: 1 }, cg: 365 },
+  "5Y": { ov: "Y5", back: { years: 5 }, cg: null },
+  "Max": { ov: "MAX", back: { years: 40 }, cg: null },
+};
+const RANGE_KEY = "stonks-chart-range";
+
+const iso = (d) => d.toISOString().slice(0, 10);
+function startDate(back) {
+  const d = new Date();
+  if (back.days) d.setDate(d.getDate() - back.days);
+  if (back.months) d.setMonth(d.getMonth() - back.months);
+  if (back.years) d.setFullYear(d.getFullYear() - back.years);
+  return iso(d);
+}
+
+/* ---------- resolving an instrument on onvista (cached) ---------- */
+const sourceCache = new Map();
+
+// `id` is an ISIN, a flatex crypto code or a US ticker (movers). `currency` picks the listing.
+function resolve(id, currency) {
+  const key = `${id}|${currency}`;
+  if (!sourceCache.has(key)) sourceCache.set(key, resolveUncached(id, currency).catch((e) => { sourceCache.delete(key); throw e; }));
+  return sourceCache.get(key);
+}
+
+async function resolveUncached(id, currency) {
+  if (isCryptoCode(id)) return { kind: "crypto", cg: CRYPTO[id].cg, currency: "EUR", credit: "CoinGecko" };
+  const s = await fetch(`${OV}/instruments/search/facet?searchValue=${encodeURIComponent(id)}`);
+  const hits = s.ok ? ((await s.json()).facets || []).flatMap((f) => f.results || []) : [];
+  const hit = hits.find((h) => h.isin === id || h.symbol === id) || hits[0] || {};
+  const byType = { STOCK: "stocks", FUND: "funds", ETF: "funds", BOND: "bonds", DERIVATIVE: "derivatives" };
+  const first = byType[hit.entityType] || "stocks";
+  const isinOrId = hit.isin ? `ISIN:${hit.isin}` : `ISIN:${id}`;
+  for (const k of [first, ...["funds", "stocks", "derivatives", "bonds"].filter((x) => x !== first)]) {
+    const r = await fetch(`${OV}/${k}/${isinOrId}/snapshot`);
+    if (!r.ok) continue;
+    const snap = await r.json();
+    const inst = snap.instrument;
+    if (!inst?.entityValue) continue;
+    const quotes = (snap.quoteList?.list || []).filter((q) => q.market?.idNotation);
+    const want = (q) => (currency === "USD" ? q.isoCurrency === "USD" : /xetra/i.test(q.market.name || ""));
+    const pick = quotes.find(want) || quotes.find((q) => q.isoCurrency === currency) || null;
+    const notation = pick?.market.idNotation || snap.chart?.idNotation || snap.quote?.market?.idNotation;
+    return { kind: "onvista", type: inst.entityType, id: inst.entityValue, notation, currency: pick?.isoCurrency || currency, credit: "onvista" };
+  }
+  throw new Error(`No onvista instrument for ${id}`);
+}
+
+/* ---------- history ---------- */
+const histCache = new Map();
+
+async function history(src, range) {
+  const key = `${src.kind}|${src.id || src.cg}|${src.notation || ""}|${range}`;
+  if (histCache.has(key)) return histCache.get(key);
+  const R = RANGES[range];
+  let pts = [];
+  if (src.kind === "crypto") {
+    if (!R.cg) throw new Error("range not available");
+    const r = await fetch(`https://api.coingecko.com/api/v3/coins/${src.cg}/market_chart?vs_currency=eur&days=${R.cg}`);
+    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
+    pts = ((await r.json()).prices || []).map(([t, v]) => ({ t, v }));
+  } else {
+    const p = new URLSearchParams({ chartType: "PRICE", interval: R.ov, startDate: startDate(R.back), endDate: iso(new Date(Date.now() + 864e5)), withEarnings: "false" });
+    if (src.notation) p.set("idNotation", src.notation);
+    const r = await fetch(`${OV}/instruments/${src.type}/${src.id}/simple_chart_history?${p}`);
+    if (!r.ok) throw new Error(`onvista HTTP ${r.status}`);
+    const d = await r.json();
+    const ts = d.datetimeTick || d.datetimeLast || [];
+    const vs = d.tick || d.last || [];
+    pts = ts.map((t, i) => ({ t: t < 1e12 ? t * 1000 : t, v: vs[i] })).filter((p) => typeof p.v === "number");
+    if (range === "1D" && pts.length) {
+      // only the last trading day
+      const lastDay = new Date(pts[pts.length - 1].t).toDateString();
+      pts = pts.filter((p) => new Date(p.t).toDateString() === lastDay);
+    }
+  }
+  pts.sort((a, b) => a.t - b.t);
+  histCache.set(key, pts);
+  return pts;
+}
+
+/* ---------- drawing ---------- */
+const UP = "#5BD48A", DOWN = "#FF9F4A";
+
+function fmtMoney(v, currency) {
+  const digits = v >= 1000 ? 0 : v >= 1 ? 2 : 4;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v).replace(/^(-?)€/, "$1€");
+}
+function fmtWhen(t, range) {
+  const d = new Date(t);
+  if (range === "1D") return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  if (range === "1W") return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function draw(plot, pts, range, currency) {
+  const W = plot.clientWidth || 320, H = plot.clientHeight || 220;
+  const padT = 26, padB = 22, padR = 4;
+  const vals = pts.map((p) => p.v);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (hi === lo) { hi += hi * 0.01 || 1; lo -= lo * 0.01 || 1; }
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1;
+  const x = (t) => ((t - t0) / (t1 - t0 || 1)) * (W - padR);
+  const y = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+  const change = vals[vals.length - 1] - vals[0];
+  const pct = vals[0] ? (change / vals[0]) * 100 : 0;
+  const color = change >= 0 ? UP : DOWN;
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
+  const area = `${line}L${x(t1).toFixed(1)},${H - padB}L0,${H - padB}Z`;
+  const gid = `g${Math.random().toString(36).slice(2, 8)}`;
+  const sign = pct > 0 ? "+" : pct < 0 ? "−" : "";
+
+  plot.innerHTML = `
+    <svg class="pchart__svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
+      aria-label="Price over ${range}: from ${fmtMoney(vals[0], currency)} to ${fmtMoney(vals[vals.length - 1], currency)}, ${sign}${Math.abs(pct).toFixed(2)}%">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <line x1="0" x2="${W}" y1="${y(hi)}" y2="${y(hi)}" class="pchart__grid"/>
+      <line x1="0" x2="${W}" y1="${y(lo)}" y2="${y(lo)}" class="pchart__grid"/>
+      <path d="${area}" fill="url(#${gid})"/>
+      <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      <text x="${W - padR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
+      <text x="${W - padR}" y="${y(lo) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(lo, currency)}</text>
+      <text x="0" y="${H - 4}" class="pchart__axis">${fmtWhen(t0, range)}</text>
+      <text x="${W - padR}" y="${H - 4}" text-anchor="end" class="pchart__axis">${fmtWhen(t1, range)}</text>
+      <g class="pchart__hover" style="display:none">
+        <line class="pchart__cross" y1="${padT - 6}" y2="${H - padB}"/>
+        <circle r="4.5" class="pchart__dot" fill="${color}"/>
+      </g>
+    </svg>
+    <div class="pchart__read"><b class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</b> <span>${range === "Max" ? "all time" : `over ${range}`}</span></div>`;
+
+  // crosshair: finger or mouse anywhere on the plot
+  const svg = plot.querySelector("svg"), hover = svg.querySelector(".pchart__hover");
+  const cross = hover.querySelector("line"), dot = hover.querySelector("circle");
+  const read = plot.querySelector(".pchart__read");
+  const resting = read.innerHTML;
+  const at = (clientX) => {
+    const r = svg.getBoundingClientRect();
+    const tx = t0 + ((clientX - r.left) / r.width) * (t1 - t0);
+    let best = pts[0];
+    for (const p of pts) if (Math.abs(p.t - tx) < Math.abs(best.t - tx)) best = p;
+    return best;
+  };
+  const show = (e) => {
+    const p = at(e.clientX);
+    const px = x(p.t), py = y(p.v);
+    hover.style.display = "";
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px);
+    dot.setAttribute("cx", px); dot.setAttribute("cy", py);
+    const d = p.v - vals[0], dp = vals[0] ? (d / vals[0]) * 100 : 0;
+    read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" ? "1W" : range)}</span>`;
+  };
+  const hide = () => { hover.style.display = "none"; read.innerHTML = resting; };
+  svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
+  svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) show(e); });
+  svg.addEventListener("pointerup", hide);
+  svg.addEventListener("pointercancel", hide);
+  svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
+}
+
+/* ---------- public ---------- */
+// Mounts a chart with range buttons into `host`.
+// opts: { id: ISIN / crypto code / US ticker, currency: "EUR" | "USD" }
+export function mountPriceChart(host, { id, currency = "EUR" }) {
+  const crypto = isCryptoCode(id);
+  const ranges = Object.keys(RANGES).filter((r) => !crypto || RANGES[r].cg);
+  let range = "1M";
+  try { const saved = localStorage.getItem(RANGE_KEY); if (ranges.includes(saved)) range = saved; } catch {}
+
+  host.innerHTML = `
+    <div class="pchart">
+      <div class="pchart__plot" aria-live="polite"><p class="pchart__msg">Loading chart…</p></div>
+      <div class="pchart__ranges" role="tablist" aria-label="Time range">
+        ${ranges.map((r) => `<button type="button" role="tab" data-range="${r}" aria-selected="${r === range}">${r}</button>`).join("")}
+      </div>
+      <p class="pchart__credit"></p>
+    </div>`;
+  const plot = host.querySelector(".pchart__plot");
+  let token = 0;
+
+  const load = async () => {
+    const mine = ++token;
+    host.querySelectorAll("[data-range]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.range === range)));
+    if (!plot.querySelector("svg")) plot.innerHTML = `<p class="pchart__msg">Loading chart…</p>`;
+    else plot.classList.add("is-loading");
+    try {
+      const src = await resolve(id, currency);
+      const pts = await history(src, range);
+      if (mine !== token) return;
+      plot.classList.remove("is-loading");
+      host.querySelector(".pchart__credit").textContent = `Price data: ${src.credit}`;
+      if (pts.length < 2) { plot.innerHTML = `<p class="pchart__msg">No price history for this range.</p>`; return; }
+      draw(plot, pts, range, src.currency || currency);
+    } catch (e) {
+      if (mine !== token) return;
+      console.warn("Chart failed", e);
+      plot.classList.remove("is-loading");
+      plot.innerHTML = `<p class="pchart__msg">Couldn't load the price history right now.</p>`;
+    }
+  };
+
+  host.querySelector(".pchart__ranges").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-range]");
+    if (!b || b.dataset.range === range) return;
+    range = b.dataset.range;
+    try { localStorage.setItem(RANGE_KEY, range); } catch {}
+    load();
+  });
+  load();
+}

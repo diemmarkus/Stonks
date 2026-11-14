@@ -1,5 +1,5 @@
 import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js";
-import { legalDoc, CHARTS_KEY } from "./legal.js";
+import { legalDoc } from "./legal.js";
 import { isCryptoCode } from "./crypto.js";
 
 const $ = (id) => document.getElementById(id);
@@ -38,6 +38,7 @@ const state = {
   isin: {},            // ISIN → { name, price (EUR), change, changePct, tv, venue, ... }, from prices.json
   fx: {},              // { USD: dollars per euro }
   pricesAt: null,
+  names: {},           // your own names for positions: key (ISIN) → name
   holdings: null,      // null = loading
   unsubHoldings: null,
   view: null,
@@ -223,7 +224,9 @@ function valuate(h0) {
     key,
     tv,
     sub,
-    label: h.name || q?.name || key,
+    label: state.names[key] || q?.name || h.name || key,
+    realName: q?.name || h.name || key,
+    nicknamed: Boolean(state.names[key]),
     live,
     price,
     buyEur: buy,
@@ -305,7 +308,7 @@ function renderOverview() {
 
   const top = pos.slice(0, 5);
   const topRows = top.map((p) => `
-    <li class="row${p.tv && p.live ? " row--link" : ""}"${p.tv && p.live ? ` data-chart="${esc(p.tv)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button"` : ""}>
+    <li class="row row--link" data-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button">
       <div class="row__id">
         <div class="row__title">${esc(p.label)}</div>
         <div class="row__name row__name--mono">${esc(p.sub)}</div>
@@ -319,7 +322,7 @@ function renderOverview() {
 
   const today = pos.filter((p) => p.live).sort((a, b) => b.dayPct - a.dayPct);
   const todayRows = today.slice(0, 5).map((p) => `
-    <li class="row${p.tv ? " row--link" : ""}"${p.tv && p.live ? ` data-chart="${esc(p.tv)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button"` : ""}>
+    <li class="row row--link" data-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button">
       <div class="row__id"><div class="row__title">${esc(p.label)}</div><div class="row__name row__name--mono">${esc(p.sub)}</div></div>
       <div class="row__nums">
         <div class="row__price">${fmtEurSigned(p.dayChange)}</div>
@@ -374,7 +377,7 @@ const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("
 function lotGroups(rows) {
   const map = new Map();
   for (const r of rows) {
-    const g = map.get(r.key) || { key: r.key, isin: r.isin, tv: r.tv, label: r.label, sub: r.sub, type: r.type, live: r.live, price: r.price, lots: [], qty: 0, value: 0, cost: 0 };
+    const g = map.get(r.key) || { key: r.key, isin: r.isin, tv: r.tv, label: r.label, realName: r.realName, nicknamed: r.nicknamed, sub: r.sub, type: r.type, live: r.live, price: r.price, lots: [], qty: 0, value: 0, cost: 0 };
     g.lots.push(r); g.qty += r.quantity; g.value += r.value; g.cost += r.cost;
     map.set(r.key, g);
   }
@@ -419,6 +422,13 @@ function renderPortfolio() {
             <svg class="pos__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <div class="pos__body" id="pos-${i}"${open ? "" : " hidden"}>
+            <div class="pos__namebox">
+              <label class="pos__name">
+                <span class="pos__name-label">Your name</span>
+                <input class="input" data-pos-name="${esc(g.key)}" value="${g.nicknamed ? esc(g.label) : ""}" placeholder="${esc(g.realName)}" maxlength="60" autocomplete="off" enterkeyhint="done" />
+              </label>
+              <p class="pos__real"><span>${esc(g.realName)}</span> · ${esc(g.sub)}</p>
+            </div>
             <div class="pos__chart" data-pos-chart="${esc(g.key)}"></div>
             <ol class="lots" aria-label="Buys of ${esc(g.label)}">
               ${g.lots.map((r) => `
@@ -440,9 +450,8 @@ function fillPosChart(key) {
   const host = document.querySelector(`[data-pos-chart="${CSS.escape(key)}"]`);
   if (!host) return;
   const g = lotGroups(state.holdings.map(valuate)).find((x) => x.key === key);
-  if (!g?.tv || !g.live) { host.innerHTML = `<p class="pos__nochart">No price chart yet — it appears once this ISIN has a live price.</p>`; return; }
-  const q = g.isin ? state.isin[g.isin] : state.prices.get(g.tv);
-  mountChart(host, g.tv, !q || q.changePct >= 0);
+  if (!g) return;
+  mountChart(host, g.isin || g.key, g.isin ? "EUR" : "USD");
 }
 
 document.addEventListener("click", (e) => {
@@ -464,6 +473,26 @@ document.addEventListener("click", (e) => {
   head.setAttribute("aria-expanded", "true");
   li.querySelector(".pos__body").hidden = false;
   fillPosChart(key);
+});
+
+// Rename a position: saved when you leave the field or press Enter; empty = back to the real name.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.matches?.("[data-pos-name]")) { e.preventDefault(); e.target.blur(); }
+});
+document.addEventListener("focusout", async (e) => {
+  const el = e.target;
+  if (!el.matches?.("[data-pos-name]") || !state.user) return;
+  const key = el.dataset.posName;
+  const name = el.value.trim();
+  if ((state.names[key] || "") === name) return;
+  try {
+    const { setName } = await import("./store.js");
+    await setName(state.user.uid, key, name);
+    toast(name ? `Renamed to ${name}` : "Back to the original name");
+  } catch (err) {
+    console.error(err);
+    toast("Couldn't save the name. Please try again.");
+  }
 });
 
 /* ======================================================================
@@ -734,7 +763,7 @@ $("f-delete").addEventListener("click", async () => {
 });
 
 /* ======================================================================
-   Chart sheet (TradingView embed — free, no API key)
+   Chart sheet
    ====================================================================== */
 const sheet = $("sheet");
 let lastFocus = null;
@@ -744,16 +773,16 @@ function openChart(symbol, isin) {
   const money = isin ? fmtEur : fmtUsd;
   const moneySigned = isin ? fmtEurSigned : fmtUsdSigned;
 
-  $("sheet-sym").textContent = isin ? (q?.name || isin) : symbol;
-  $("sheet-name").textContent = isin ? `${isin}${q?.venue ? ` · ${q.venue}` : ""}` : (q?.name || "");
+  const nick = isin && state.names[isin];
+  $("sheet-sym").textContent = isin ? (nick || q?.name || isin) : symbol;
+  $("sheet-name").textContent = isin ? `${nick && q?.name ? `${q.name} · ` : ""}${isin}${q?.venue ? ` · ${q.venue}` : ""}` : (q?.name || "");
   $("sheet-sym").classList.toggle("sheet__sym--name", Boolean(isin));
   $("sheet-price").textContent = q ? money(q.price) : "";
   const pill = $("sheet-pill");
   pill.hidden = !q;
   if (q) { pill.className = `pill ${dir(q.changePct)}`; pill.textContent = `${moneySigned(q.change)} · ${fmtPct(q.changePct)}`; }
 
-  mountChart($("sheet-chart"), symbol, !q || q.changePct >= 0);
-  $("sheet-link").href = `https://www.tradingview.com/symbols/${encodeURIComponent(symbol.replace(":", "-"))}/`;
+  mountChart($("sheet-chart"), isin || symbol, isin ? "EUR" : "USD");
 
   lastFocus = document.activeElement;
   sheet.hidden = false;
@@ -762,59 +791,10 @@ function openChart(symbol, isin) {
   $("sheet-close").focus();
 }
 
-// TradingView chart behind a one-time consent prompt.
-function mountChart(host, symbol, up = true) {
-  let always = false;
-  try { always = localStorage.getItem(CHARTS_KEY) === "on"; } catch {}
-  if (always) { loadTradingView(host, symbol, up); return; }
-  host.innerHTML = `<div class="consent">
-    <p>The chart is provided by TradingView (USA). Loading it sends your IP address to TradingView, which may set cookies. <a href="#/privacy">Privacy</a></p>
-    <button class="btn btn--primary" type="button" data-chart-load>Load chart</button>
-    <label><input type="checkbox" data-chart-always /> Always load charts</label>
-  </div>`;
-  host.querySelector("[data-chart-load]").addEventListener("click", () => {
-    if (host.querySelector("[data-chart-always]").checked) { try { localStorage.setItem(CHARTS_KEY, "on"); } catch {} }
-    loadTradingView(host, symbol, up);
-  });
-}
-
-// Chart styled to the Stonks palette (see brand.md). The widget runs in TradingView's iframe,
-// so it can't use our self-hosted fonts: a system stack keeps it close to Inter Tight.
-const CHART_STYLE = {
-  colorTheme: "dark", isTransparent: true,
-  lineWidth: 2, lineType: 0, chartType: "area",
-  gridLineColor: "rgba(255, 244, 248, 0.05)",
-  fontColor: "#CDB7C5", widgetFontColor: "#CDB7C5", scaleFontColor: "#A894A3",
-  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif", fontSize: "11",
-  upColor: "#5BD48A", downColor: "#FF9F4A", borderUpColor: "#5BD48A", borderDownColor: "#FF9F4A",
-  wickUpColor: "#5BD48A", wickDownColor: "#FF9F4A",
-};
-
-// Line and fill follow the day's move: our gain green or loss color.
-const CHART_TREND = {
-  up:   { lineColor: "#5BD48A", topColor: "rgba(91, 212, 138, 0.30)",  bottomColor: "rgba(91, 212, 138, 0)" },
-  down: { lineColor: "#FF9F4A", topColor: "rgba(255, 159, 74, 0.30)", bottomColor: "rgba(255, 159, 74, 0)" },
-};
-
-function loadTradingView(host, symbol, up = true) {
-  host.innerHTML = `<div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div></div>`;
-  const s = document.createElement("script");
-  s.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js";
-  s.async = true;
-  s.textContent = JSON.stringify({
-    symbols: [[symbol, `${symbol}|1D`]],
-    ...CHART_STYLE,
-    ...CHART_TREND[up ? "up" : "down"],
-    chartOnly: true,          // our own header already shows name, price and change
-    width: "100%", height: "100%", autosize: true, locale: "en",
-    showVolume: false, showMA: false,
-    hideDateRanges: false, hideMarketStatus: true, hideSymbolLogo: true,
-    scalePosition: "right", scaleMode: "Normal",
-    noTimeScale: false, valuesTracking: "1", changeMode: "price-and-percent",
-    dateFormat: "dd MMM 'yy", timeHoursFormat: "24-hours",
-    dateRanges: ["1d|1", "1m|30", "3m|60", "12m|1D", "60m|1W", "all|1M"],
-  });
-  host.firstElementChild.appendChild(s);
+// Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
+async function mountChart(host, id, currency) {
+  const { mountPriceChart } = await import("./chart.js");
+  mountPriceChart(host, { id, currency });
 }
 
 function closeChart() {
@@ -849,18 +829,7 @@ function renderLegal(kind) {
   const back = state.user ? "#/overview" : "#/";
   let html = `<a class="back" href="${back}">← Back</a><h2>${esc(d.title)}</h2>`;
   for (const sec of d.sections) html += `<h3>${esc(sec.h)}</h3>` + sec.p.map((t) => `<p>${esc(t)}</p>`).join("");
-  if (kind === "privacy") {
-    let on = false;
-    try { on = localStorage.getItem(CHARTS_KEY) === "on"; } catch {}
-    html += `<h3>TradingView charts</h3><p>${on ? "Charts currently load without asking." : "Charts are only loaded when you tap \"Load chart\"."}</p>`
-      + (on ? `<button class="btn btn--ghost" type="button" id="charts-off">Ask me again before loading charts</button>` : "");
-  }
   $("legal-body").innerHTML = html;
-  $("charts-off")?.addEventListener("click", () => {
-    try { localStorage.removeItem(CHARTS_KEY); } catch {}
-    toast("Charts will ask before loading");
-    renderLegal(kind);
-  });
 }
 
 function renderCurrent() {
@@ -907,6 +876,34 @@ function route() {
 let pendingRoute = null;
 window.addEventListener("hashchange", route);
 
+/* Swipe left/right to switch between Overview and Portfolio (like the tabs in Snapchat). */
+const SWIPE_TABS = ["overview", "portfolio"];
+let swipe = null;
+document.addEventListener("touchstart", (e) => {
+  swipe = null;
+  if (!state.user || e.touches.length !== 1 || !SWIPE_TABS.includes(state.view)) return;
+  if (!$("add-sheet").hidden || !$("sheet").hidden) return;
+  // charts use horizontal drags to read prices; inputs and buttons keep their own gestures
+  if (e.target.closest?.(".pchart, input, textarea, select, .tabbar")) return;
+  const t = e.touches[0];
+  swipe = { x: t.clientX, y: t.clientY, t: Date.now() };
+}, { passive: true });
+document.addEventListener("touchend", (e) => {
+  if (!swipe) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - swipe.x, dy = t.clientY - swipe.y, dt = Date.now() - swipe.t;
+  swipe = null;
+  if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 700) return;
+  const i = SWIPE_TABS.indexOf(state.view);
+  const next = SWIPE_TABS[i + (dx < 0 ? 1 : -1)];
+  if (!next) return;
+  const el = $(`view-${next}`);
+  el.classList.remove("slide-from-right", "slide-from-left");
+  void el.offsetWidth; // restart the animation
+  el.classList.add(dx < 0 ? "slide-from-right" : "slide-from-left");
+  location.hash = `#/${next}`;
+}, { passive: true });
+
 /* ======================================================================
    Auth
    ====================================================================== */
@@ -931,8 +928,14 @@ $("signout").addEventListener("click", async () => {
 
 async function startHoldings(uid) {
   state.holdings = null;
+  state.names = {};
   try {
-    const { watchHoldings } = await import("./store.js");
+    const { watchHoldings, watchNames } = await import("./store.js");
+    state.unsubNames = await watchNames(uid, (names) => {
+      state.names = names;
+      // don't re-render under the user's fingers while they're typing a name
+      if (!document.activeElement?.matches?.("[data-pos-name]")) renderCurrent();
+    });
     state.unsubHoldings = await watchHoldings(uid, (list) => {
       state.holdings = list;
       priceMissingHoldings();
@@ -964,6 +967,8 @@ onUser((user) => {
 
   state.unsubHoldings?.();
   state.unsubHoldings = null;
+  state.unsubNames?.();
+  state.unsubNames = null;
   if (user) {
     $("user-name").textContent = user.displayName || user.email || "";
     if (user.photoURL) $("user-avatar").src = user.photoURL;
