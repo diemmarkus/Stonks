@@ -1,0 +1,15 @@
+name: CORS check (temporary)
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/cors-check.yml"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          I=IE00B4ND3602
+          echo "== search"; curl -s "https://api.onvista.de/api/v1/instruments/search/facet?searchValue=$I" | head -c 1500; echo
+          for k in etcs etns funds stocks certificates derivatives commodities bonds; do
+            printf "== %s: " $k; curl -s -o /tmp/s -w "%{http_code} " "https://api.onvista.de/api/v1/$k/ISIN:$I/snapshot"; head -c 300 /tmp/s; echo
+          done
