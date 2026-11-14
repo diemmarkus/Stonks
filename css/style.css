@@ -1,3 +1,8 @@
+@font-face { font-family: "Inter Tight"; src: url("../fonts/inter-tight.woff") format("woff"); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("../fonts/jetbrains-mono.woff") format("woff"); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "Instrument Serif"; src: url("../fonts/instrument-serif.woff") format("woff"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Instrument Serif"; src: url("../fonts/instrument-serif-italic.woff") format("woff"); font-weight: 400; font-style: italic; font-display: swap; }
+
 :root {
   --bg: #0d0f0e;
   --bg-2: #141715;
@@ -132,6 +137,21 @@ h1 em.down { color: var(--down); }
   display: flex; flex-wrap: wrap; gap: 6px 24px; justify-content: space-between;
 }
 .foot p { margin: 0; }
+.foot a { color: var(--ink-2); }
+.foot a:hover { color: var(--ink); }
+
+/* ---------- imprint & privacy ---------- */
+.legal { max-width: 680px; padding: 20px 0 8px; }
+.legal h2 { margin: 0 0 8px; font: 400 clamp(38px, 7vw, 56px)/1 var(--serif); letter-spacing: -0.01em; }
+.legal h3 { margin: 28px 0 6px; font-size: 15px; font-weight: 600; }
+.legal p { margin: 0 0 8px; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+.legal .back { display: inline-block; margin-bottom: 18px; color: var(--ink-2); text-decoration: none; font-size: 14px; }
+
+/* ---------- chart consent ---------- */
+.consent { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px 26px; text-align: center; color: var(--ink-2); font-size: 14px; }
+.consent p { margin: 0; max-width: 380px; }
+.consent label { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-3); }
+.consent a { color: var(--ink-2); }
 
 .toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%);

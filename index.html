@@ -7,10 +7,8 @@
   <meta name="description" content="Today's biggest movers in stocks and ETFs, and a clean overview of your own portfolio." />
   <meta name="theme-color" content="#0d0f0e" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230d0f0e'/><path d='M6 22 L13 15 L17 19 L26 9' stroke='%2337e08f' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M20 9 H26 V15' stroke='%2337e08f' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=5" />
+  <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
+  <link rel="stylesheet" href="css/style.css?v=6" />
 </head>
 <body>
   <header class="top">
@@ -102,6 +100,10 @@
     </form>
    </div>
 
+   <div class="view" id="view-legal" hidden>
+    <article class="legal" id="legal-body"></article>
+   </div>
+
    <div class="view" id="view-portfolio" hidden>
     <div class="page-head"><h2 class="page-title">Portfolio</h2><span class="page-meta" id="pf-count"></span></div>
     <div id="pf-body"></div>
@@ -109,8 +111,8 @@
   </main>
 
   <footer class="foot">
-    <p>Daily change among a fixed watchlist of large US stocks and ETFs. Not investment advice — just numbers.</p>
-    <p>© <span id="year"></span> stonks</p>
+    <p class="foot__note">Daily change among a fixed watchlist of large US stocks and ETFs. Not investment advice — just numbers.</p>
+    <p>© <span id="year"></span> stonks · <a href="#/imprint">Imprint</a> · <a href="#/privacy">Privacy</a></p>
   </footer>
 
   <nav class="tabbar" id="tabbar" aria-label="Main" hidden>
@@ -148,6 +150,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=5"></script>
+  <script type="module" src="js/app.js?v=6"></script>
 </body>
 </html>

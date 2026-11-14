@@ -1,4 +1,5 @@
 import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js";
+import { legalDoc, CHARTS_KEY } from "./legal.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -470,6 +471,30 @@ function openChart(symbol) {
   if (q) { pill.className = `pill ${dir(q.changePct)}`; pill.textContent = `${fmtUsdSigned(q.change)} · ${fmtPct(q.changePct)}`; }
 
   const host = $("sheet-chart");
+  let always = false;
+  try { always = localStorage.getItem(CHARTS_KEY) === "on"; } catch {}
+  if (always) loadTradingView(host, symbol, line, fill);
+  else {
+    host.innerHTML = `<div class="consent">
+      <p>The chart is provided by TradingView (USA). Loading it sends your IP address to TradingView, which may set cookies. <a href="#/privacy">Privacy</a></p>
+      <button class="btn btn--primary" type="button" id="chart-load">Load chart</button>
+      <label><input type="checkbox" id="chart-always" /> Always load charts</label>
+    </div>`;
+    $("chart-load").addEventListener("click", () => {
+      if ($("chart-always").checked) { try { localStorage.setItem(CHARTS_KEY, "on"); } catch {} }
+      loadTradingView(host, symbol, line, fill);
+    });
+  }
+  $("sheet-link").href = `https://www.tradingview.com/symbols/${encodeURIComponent(symbol)}/`;
+
+  lastFocus = document.activeElement;
+  sheet.hidden = false;
+  document.body.classList.add("sheet-open");
+  requestAnimationFrame(() => sheet.classList.add("is-open"));
+  $("sheet-close").focus();
+}
+
+function loadTradingView(host, symbol, line, fill) {
   host.innerHTML = `<div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div></div>`;
   const s = document.createElement("script");
   s.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js";
@@ -487,13 +512,6 @@ function openChart(symbol) {
     dateRanges: ["1d|1", "1m|30", "3m|60", "12m|1D", "60m|1W", "all|1M"],
   });
   host.firstElementChild.appendChild(s);
-  $("sheet-link").href = `https://www.tradingview.com/symbols/${encodeURIComponent(symbol)}/`;
-
-  lastFocus = document.activeElement;
-  sheet.hidden = false;
-  document.body.classList.add("sheet-open");
-  requestAnimationFrame(() => sheet.classList.add("is-open"));
-  $("sheet-close").focus();
 }
 
 function closeChart() {
@@ -521,6 +539,26 @@ window.addEventListener("hashchange", closeChart);
    Router
    ====================================================================== */
 const PROTECTED = ["overview", "add", "edit", "portfolio"];
+const LEGAL = ["imprint", "privacy"];
+
+function renderLegal(kind) {
+  const d = legalDoc(kind);
+  const back = state.user ? "#/overview" : "#/";
+  let html = `<a class="back" href="${back}">← Back</a><h2>${esc(d.title)}</h2>`;
+  for (const sec of d.sections) html += `<h3>${esc(sec.h)}</h3>` + sec.p.map((t) => `<p>${esc(t)}</p>`).join("");
+  if (kind === "privacy") {
+    let on = false;
+    try { on = localStorage.getItem(CHARTS_KEY) === "on"; } catch {}
+    html += `<h3>TradingView charts</h3><p>${on ? "Charts currently load without asking." : "Charts are only loaded when you tap \"Load chart\"."}</p>`
+      + (on ? `<button class="btn btn--ghost" type="button" id="charts-off">Ask me again before loading charts</button>` : "");
+  }
+  $("legal-body").innerHTML = html;
+  $("charts-off")?.addEventListener("click", () => {
+    try { localStorage.removeItem(CHARTS_KEY); } catch {}
+    toast("Charts will ask before loading");
+    renderLegal(kind);
+  });
+}
 
 function renderCurrent() {
   if (state.view === "overview") renderOverview();
@@ -529,26 +567,27 @@ function renderCurrent() {
 
 function route() {
   const [name, arg] = location.hash.replace(/^#\/?/, "").split("/");
-  let view = PROTECTED.includes(name) ? name : "home";
+  let view = PROTECTED.includes(name) || LEGAL.includes(name) ? name : "home";
 
-  if (view !== "home" && !state.user) {
+  if (PROTECTED.includes(view) && !state.user) {
     if (!state.authReady) { document.querySelectorAll(".view").forEach((v) => (v.hidden = true)); return; }
     view = "home";
     if (location.hash && location.hash !== "#/") history.replaceState(null, "", "#/");
   }
 
-  const section = view === "edit" ? "add" : view;
+  const section = view === "edit" ? "add" : LEGAL.includes(view) ? "legal" : view;
   const changed = state.view !== view || view === "edit";
   state.view = view;
 
   document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== `view-${section}`));
-  document.querySelector(".foot").hidden = view !== "home";
+  document.querySelector(".foot__note").hidden = view !== "home";
   document.querySelectorAll(".tab").forEach((t) => {
     if (t.dataset.tab === section) t.setAttribute("aria-current", "page");
     else t.removeAttribute("aria-current");
   });
 
   if (changed) window.scrollTo(0, 0);
+  if (section === "legal") renderLegal(view);
   if (section === "add") enterAdd(view === "edit" ? decodeURIComponent(arg || "") : null);
   renderCurrent();
 }
