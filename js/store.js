@@ -1,6 +1,6 @@
 // Firestore access for holdings.
-//   users/{uid}/holdings/{id}  → { symbol, name, type, quantity, buyPrice, buyDate, createdAt, updatedAt }
-//   symbols/{SYMBOL}           → { symbol, type, name, addedAt }  (public list the price job reads)
+//   users/{uid}/holdings/{id}  → { isin, name, type, quantity, buyPrice (EUR), buyDate, currency, createdAt, updatedAt }
+//   symbols/{ISIN}             → { symbol: ISIN, type, name, addedAt }  (public list the price job reads)
 import { getDb } from "./firebase.js";
 
 export async function watchHoldings(uid, callback, onError) {
@@ -13,19 +13,20 @@ export async function watchHoldings(uid, callback, onError) {
 }
 
 export async function saveHolding(uid, id, h) {
-  const { db, collection, doc, addDoc, updateDoc, serverTimestamp } = await getDb();
+  const { db, collection, doc, addDoc, updateDoc, serverTimestamp, deleteField } = await getDb();
   const data = {
-    symbol: h.symbol,
+    isin: h.isin,
     name: h.name || "",
     type: h.type,
     quantity: h.quantity,
     buyPrice: h.buyPrice,
+    currency: "EUR",
     buyDate: h.buyDate || "",
     updatedAt: serverTimestamp(),
   };
-  if (id) await updateDoc(doc(db, "users", uid, "holdings", id), data);
+  if (id) await updateDoc(doc(db, "users", uid, "holdings", id), { ...data, symbol: deleteField() });
   else await addDoc(collection(db, "users", uid, "holdings"), { ...data, createdAt: serverTimestamp() });
-  registerSymbol(h).catch((e) => console.warn("Couldn't register symbol for price updates", e));
+  registerIsin(h).catch((e) => console.warn("Couldn't register ISIN for price updates", e));
 }
 
 export async function deleteHolding(uid, id) {
@@ -33,13 +34,13 @@ export async function deleteHolding(uid, id) {
   await deleteDoc(doc(db, "users", uid, "holdings", id));
 }
 
-// Adds the ticker to the public list so the GitHub Action starts fetching its price.
-async function registerSymbol(h) {
+// Adds the ISIN to the public list so the GitHub Action starts fetching its price.
+async function registerIsin(h) {
   const { db, doc, setDoc, serverTimestamp } = await getDb();
-  await setDoc(doc(db, "symbols", h.symbol), {
-    symbol: h.symbol,
+  await setDoc(doc(db, "symbols", h.isin), {
+    symbol: h.isin,
     type: h.type,
-    name: h.name || "",
+    name: (h.name || "").slice(0, 60),
     addedAt: serverTimestamp(),
   });
 }

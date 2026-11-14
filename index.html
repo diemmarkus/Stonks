@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
 </head>
 <body>
   <header class="top">
@@ -73,10 +73,10 @@
         </div>
       </div>
       <label class="field">
-        <span class="field__label">Ticker symbol</span>
-        <input class="input input--mono" id="f-symbol" name="symbol" list="symbol-list" placeholder="e.g. AAPL or VOO" autocapitalize="characters" spellcheck="false" required maxlength="12" />
-        <datalist id="symbol-list"></datalist>
-        <span class="field__hint" id="f-symbol-hint">US-listed tickers get live prices.</span>
+        <span class="field__label">ISIN</span>
+        <input class="input input--mono" id="f-isin" name="isin" list="isin-list" placeholder="e.g. IE00BK5BQT80" autocapitalize="characters" spellcheck="false" required maxlength="12" />
+        <datalist id="isin-list"></datalist>
+        <span class="field__hint" id="f-isin-hint">12 characters, e.g. IE00BK5BQT80. Prices in EUR, Xetra preferred.</span>
       </label>
       <label class="field">
         <span class="field__label">Name <em>(optional)</em></span>
@@ -85,11 +85,11 @@
       <div class="field-row">
         <label class="field">
           <span class="field__label">Quantity</span>
-          <input class="input input--mono" id="f-qty" name="quantity" type="number" inputmode="decimal" step="any" min="0" placeholder="10" required />
+          <input class="input input--mono" id="f-qty" name="quantity" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="10" required />
         </label>
         <label class="field">
-          <span class="field__label">Buy price (USD)</span>
-          <input class="input input--mono" id="f-price" name="buyPrice" type="number" inputmode="decimal" step="any" min="0" placeholder="150.00" required />
+          <span class="field__label">Buy price (EUR)</span>
+          <input class="input input--mono" id="f-price" name="buyPrice" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="100.00" required />
         </label>
       </div>
       <label class="field">
@@ -154,6 +154,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=7"></script>
+  <script type="module" src="js/app.js?v=8"></script>
 </body>
 </html>

@@ -2,8 +2,8 @@
 //
 // 1. Reads the ISINs from the public `symbols` collection in Firestore
 //    (doc id = ISIN, written by the app when a holding is saved).
-// 2. Resolves each ISIN to a listing via Yahoo Finance search, preferring EUR exchanges (Xetra first).
-// 3. Fetches the latest price + previous close, converts to EUR if needed.
+// 2. Looks up name, type and Xetra ticker via OpenFIGI (free, no key needed).
+// 3. Fetches the latest EUR price and today's change from Tradegate (Berlin exchange).
 // 4. Writes data/prices.json, which the portfolio and overview read.
 //
 //   node scripts/update-prices.mjs
@@ -17,24 +17,6 @@ const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHT
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const round = (n, d = 4) => Math.round(n * 10 ** d) / 10 ** d;
 
-// Preferred listings, best first. EUR venues before others.
-const VENUES = [
-  { suffix: ".DE", tv: "XETR", label: "Xetra" },
-  { suffix: ".VI", tv: "VIE", label: "Vienna" },
-  { suffix: ".AS", tv: "EURONEXT", label: "Amsterdam" },
-  { suffix: ".PA", tv: "EURONEXT", label: "Paris" },
-  { suffix: ".MI", tv: "MIL", label: "Milan" },
-  { suffix: ".MC", tv: "BME", label: "Madrid" },
-  { suffix: ".BR", tv: "EURONEXT", label: "Brussels" },
-  { suffix: ".F", tv: "FWB", label: "Frankfurt" },
-  { suffix: ".DU", tv: "DUS", label: "Düsseldorf" },
-  { suffix: ".MU", tv: "MUN", label: "Munich" },
-  { suffix: ".SG", tv: "SWB", label: "Stuttgart" },
-  { suffix: ".SW", tv: "SIX", label: "SIX Swiss" },
-  { suffix: ".L", tv: "LSE", label: "London" },
-  { suffix: "", tv: "", label: "US" },
-];
-
 export function isValidIsin(isin) {
   if (!/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin)) return false;
   const digits = isin.split("").map((c) => (/[A-Z]/.test(c) ? String(c.charCodeAt(0) - 55) : c)).join("");
@@ -47,15 +29,19 @@ export function isValidIsin(isin) {
   return sum % 10 === 0;
 }
 
-async function getJson(url, tries = 3) {
-  for (let i = 1; i <= tries; i++) {
-    const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" } });
-    if (res.status === 429 || res.status >= 500) { await sleep(2000 * i); continue; }
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    return res.json();
-  }
-  throw new Error(`Gave up on ${url}`);
+// "1.234,56" / "1234.56" / "+0,52%" / 12.3 → number
+function num(v) {
+  if (typeof v === "number") return v;
+  if (v == null) return null;
+  let s = String(v).replace(/[%\s€+]/g, "").replace(/&nbsp;/g, "");
+  if (!s || s === "-" || s === "./.") return null;
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
 }
+
+const titleCase = (s) => s.toLowerCase().replace(/(^|[\s\-/(])([a-z])/g, (m, p, c) => p + c.toUpperCase())
+  .replace(/\b(Etf|Ucits|Msci|Ftse|Usd|Eur|Acc|Dist|Ag|Se|Plc|Inc|Nv|Sa|Asa|Ab|Spa|Esg|S&p|Us|Uk|Em)\b/g, (w) => w.toUpperCase());
 
 async function trackedIsins() {
   const { projectId, apiKey } = firebaseConfig;
@@ -76,55 +62,68 @@ async function trackedIsins() {
   return out;
 }
 
-function venueOf(symbol) {
-  const dot = symbol.lastIndexOf(".");
-  const suffix = dot > 0 ? symbol.slice(dot) : "";
-  return VENUES.find((v) => v.suffix === suffix) || null;
-}
-
-async function resolve(isin) {
-  const data = await getJson(`https://query2.finance.yahoo.com/v1/finance/search?q=${isin}&quotesCount=15&newsCount=0&listsCount=0`);
-  const quotes = (data.quotes || []).filter((q) => q.symbol && ["EQUITY", "ETF", "MUTUALFUND"].includes(q.quoteType));
-  if (!quotes.length) return null;
-  let best = null, bestRank = Infinity;
-  for (const q of quotes) {
-    const v = venueOf(q.symbol);
-    const rank = v ? VENUES.indexOf(v) : VENUES.length;
-    if (rank < bestRank) { best = q; bestRank = rank; }
+// --- OpenFIGI: ISIN → name, type, Xetra ticker ------------------------------
+async function figi(isins) {
+  const out = {};
+  // 10 jobs per request without an API key; two jobs per ISIN (Xetra first, then any listing).
+  for (let i = 0; i < isins.length; i += 5) {
+    const chunk = isins.slice(i, i + 5);
+    const jobs = chunk.flatMap((isin) => [
+      { idType: "ID_ISIN", idValue: isin, exchCode: "GY" },
+      { idType: "ID_ISIN", idValue: isin },
+    ]);
+    const res = await fetch("https://api.openfigi.com/v3/mapping", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "User-Agent": UA },
+      body: JSON.stringify(jobs),
+    });
+    if (!res.ok) { console.warn(`OpenFIGI: HTTP ${res.status}`); await sleep(3000); continue; }
+    const body = await res.json();
+    chunk.forEach((isin, k) => {
+      const xetra = body[2 * k]?.data?.[0];
+      const any = body[2 * k + 1]?.data?.[0];
+      const d = xetra || any;
+      if (!d) return;
+      const t = `${d.securityType || ""} ${d.securityType2 || ""}`.toUpperCase();
+      out[isin] = {
+        name: d.name ? titleCase(d.name) : "",
+        type: /ETP|ETF|FUND|MUTUAL/.test(t) ? "etf" : "stock",
+        tv: xetra?.ticker ? `XETR:${xetra.ticker}` : "",
+      };
+    });
+    await sleep(2600); // 25 requests/minute without a key
   }
-  const v = venueOf(best.symbol);
-  const base = best.symbol.replace(/\.[A-Z]+$/, "");
-  return {
-    symbol: best.symbol,
-    name: best.longname || best.shortname || "",
-    type: best.quoteType === "ETF" || best.quoteType === "MUTUALFUND" ? "etf" : "stock",
-    venue: v?.label || best.exchDisp || best.exchange || "",
-    tv: v?.tv ? `${v.tv}:${base}` : base,
-  };
+  return out;
 }
 
-async function chart(symbol) {
-  const data = await getJson(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`);
-  const r = data.chart?.result?.[0];
-  if (!r) return null;
-  const closes = (r.indicators?.quote?.[0]?.close || []).map((c, i) => [r.timestamp?.[i], c]).filter(([, c]) => c != null);
-  const price = r.meta.regularMarketPrice ?? closes.at(-1)?.[1];
-  const prev = closes.length >= 2 ? closes.at(-2)[1] : r.meta.chartPreviousClose;
-  if (price == null) return null;
-  let currency = r.meta.currency || "EUR";
-  let k = 1;
-  if (currency === "GBp" || currency === "GBX") { currency = "GBP"; k = 0.01; }
-  return { price: price * k, prev: prev != null ? prev * k : null, currency, time: r.meta.regularMarketTime || closes.at(-1)?.[0] || null };
+// --- Tradegate: ISIN → EUR price + change today -----------------------------
+async function tradegate(isin) {
+  const res = await fetch(`https://www.tradegatebank.de/refresh.php?isin=${isin}`, {
+    headers: { "User-Agent": UA, Accept: "application/json, text/javascript, */*", Referer: `https://www.tradegatebank.de/Handelshistorie.php?isin=${isin}` },
+  });
+  if (!res.ok) throw new Error(`Tradegate HTTP ${res.status}`);
+  const text = await res.text();
+  let d;
+  try { d = JSON.parse(text); } catch { throw new Error(`Tradegate: not JSON (${text.slice(0, 80)})`); }
+  const bid = num(d.bid), ask = num(d.ask);
+  const last = num(d.last);
+  const price = last ?? (bid != null && ask != null ? (bid + ask) / 2 : bid ?? ask);
+  if (price == null || price === 0) return null;
+  const close = num(d.close);
+  let changePct = num(d.delta);
+  let change = null;
+  if (close) { change = price - close; changePct ??= (change / close) * 100; }
+  else if (changePct != null) change = price - price / (1 + changePct / 100);
+  return { price, change: change ?? 0, changePct: changePct ?? 0 };
 }
 
-const fxCache = new Map();
-async function eurPer(currency) {
-  if (currency === "EUR") return 1;
-  if (!fxCache.has(currency)) {
-    const c = await chart(`EUR${currency}=X`); // units of `currency` per 1 EUR
-    fxCache.set(currency, c?.price || null);
-  }
-  return fxCache.get(currency);
+async function eurUsd(previous) {
+  try {
+    const r = await fetch("https://api.frankfurter.app/latest?from=EUR&to=USD");
+    if (r.ok) return (await r.json()).rates.USD;
+    console.warn(`frankfurter: HTTP ${r.status}`);
+  } catch (e) { console.warn(`frankfurter: ${e.message}`); }
+  return previous ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -137,51 +136,45 @@ const wanted = await trackedIsins();
 for (const extra of process.argv.slice(2)) if (isValidIsin(extra)) wanted.set(extra, wanted.get(extra) || { type: "", name: "" });
 console.log(`ISINs to price: ${wanted.size}`);
 
+// Only look up static data for ISINs we haven't resolved before.
+const needInfo = [...wanted.keys()].filter((i) => !prevByIsin[i]?.infoFrom);
+const info = needInfo.length ? await figi(needInfo) : {};
+
 const byIsin = {};
 const failed = [];
 for (const [isin, meta] of wanted) {
+  const prev = prevByIsin[isin] || {};
+  const i = info[isin] || {};
+  const base = {
+    isin,
+    name: prev.name || i.name || meta.name || isin,
+    type: prev.type || i.type || meta.type || "stock",
+    tv: prev.tv ?? i.tv ?? "",
+    venue: "Tradegate",
+    currency: "EUR",
+    infoFrom: prev.infoFrom || (info[isin] ? "openfigi" : undefined),
+  };
   try {
-    const known = prevByIsin[isin];
-    const listing = known?.symbol ? known : await resolve(isin);
-    if (!listing) { failed.push(isin); console.warn(`${isin}: no listing found`); continue; }
-    const c = await chart(listing.symbol);
-    if (!c) { failed.push(isin); console.warn(`${isin} (${listing.symbol}): no price`); continue; }
-    const rate = await eurPer(c.currency);
-    if (!rate) { failed.push(isin); console.warn(`${isin}: no FX rate for ${c.currency}`); continue; }
-    const price = c.price / rate;
-    const prev = c.prev != null ? c.prev / rate : null;
-    byIsin[isin] = {
-      isin,
-      symbol: listing.symbol,
-      tv: listing.tv,
-      venue: listing.venue,
-      name: listing.name || meta.name || isin,
-      type: listing.type || meta.type || "stock",
-      currency: "EUR",
-      listingCurrency: c.currency,
-      price: round(price),
-      change: prev != null ? round(price - prev) : 0,
-      changePct: prev ? round(((price - prev) / prev) * 100, 2) : 0,
-      time: c.time,
-    };
-    console.log(`${isin} → ${listing.symbol} (${listing.venue}) €${price.toFixed(2)} ${byIsin[isin].changePct}%`);
+    const q = await tradegate(isin);
+    if (!q) { failed.push(isin); console.warn(`${isin}: no price on Tradegate`); continue; }
+    byIsin[isin] = { ...base, price: round(q.price), change: round(q.change), changePct: round(q.changePct, 2) };
+    console.log(`${isin} ${base.name} €${q.price.toFixed(2)} ${q.changePct.toFixed(2)}% ${base.tv}`);
   } catch (e) {
-    failed.push(isin);
     console.warn(`${isin}: ${e.message}`);
-    if (prevByIsin[isin]) byIsin[isin] = prevByIsin[isin]; // keep last known price
+    if (prev.price != null) byIsin[isin] = { ...prev, ...base, price: prev.price, change: prev.change, changePct: prev.changePct };
+    else failed.push(isin);
   }
-  await sleep(400);
+  await sleep(300);
 }
 
-// Rates for older holdings that were entered in USD by ticker.
-const fx = { USD: await eurPer("USD").catch(() => previous.fx?.USD ?? null) };
+const fx = { USD: await eurUsd(previous.fx?.USD) };
 
-const payload = { byIsin, failed: failed.filter((i) => !byIsin[i]), fx };
+const payload = { byIsin, failed, fx };
 const same = JSON.stringify(payload) === JSON.stringify({ byIsin: previous.byIsin, failed: previous.failed, fx: previous.fx });
 if (same) {
   console.log("No price changes, leaving prices.json as is.");
 } else {
   await mkdir(new URL("../data/", import.meta.url), { recursive: true });
-  await writeFile(OUT, JSON.stringify({ updatedAt: new Date().toISOString(), source: "Yahoo Finance", ...payload }, null, 2) + "\n");
-  console.log(`Wrote ${Object.keys(byIsin).length} prices, ${payload.failed.length} unresolved.`);
+  await writeFile(OUT, JSON.stringify({ updatedAt: new Date().toISOString(), source: "Tradegate", ...payload }, null, 2) + "\n");
+  console.log(`Wrote ${Object.keys(byIsin).length} prices, ${failed.length} unresolved.`);
 }

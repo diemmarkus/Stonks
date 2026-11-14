@@ -243,7 +243,7 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
   padding: 12px 14px; font: 400 16px/1.2 var(--sans); outline: none; transition: border-color .15s; color-scheme: dark;
 }
 .input--mono { font-family: var(--mono); }
-#f-symbol { text-transform: uppercase; }
+#f-isin { text-transform: uppercase; letter-spacing: .04em; }
 .input:focus { border-color: var(--gold); }
 .input[aria-invalid="true"] { border-color: var(--down); }
 .switch--form { margin: 0; justify-self: start; }
@@ -351,3 +351,8 @@ body.sheet-open { overflow: hidden; }
   .sheet__grip { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .sheet__panel, .sheet__backdrop { transition: none; } }
+
+.row__title { font: 600 15px/1.25 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row__name--mono { font: 400 11.5px/1.5 var(--mono); color: var(--ink-3); }
+.holding .row__id { min-width: 0; }
+.sheet__sym--name { font: 600 19px/1.25 var(--sans); }

@@ -8,6 +8,20 @@ const sign = (n) => (n > 0 ? "+" : n < 0 ? "−" : "");
 const fmtPct = (n) => `${sign(n)}${Math.abs(n).toFixed(2)}%`;
 const fmtUsd = (n) => `$${fmt2.format(n)}`;
 const fmtUsdSigned = (n) => `${sign(n)}$${fmt2.format(Math.abs(n))}`;
+const fmtEur = (n) => `€${fmt2.format(n)}`;
+const fmtEurSigned = (n) => `${sign(n)}€${fmt2.format(Math.abs(n))}`;
+const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
+function isValidIsin(isin) {
+  if (!ISIN_RE.test(isin)) return false;
+  const digits = isin.split("").map((c) => (/[A-Z]/.test(c) ? String(c.charCodeAt(0) - 55) : c)).join("");
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) {
+    let d = Number(digits[digits.length - 1 - i]);
+    if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9; }
+    sum += d;
+  }
+  return sum % 10 === 0;
+}
 const dir = (n) => (n > 0 ? "up" : n < 0 ? "down" : "");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const stampOf = (iso) => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -18,7 +32,10 @@ const state = {
   user: null,
   authReady: false,
   market: null,        // movers.json
-  prices: new Map(),   // symbol → quote
+  prices: new Map(),   // US ticker → quote (USD), from movers.json
+  isin: {},            // ISIN → { name, price (EUR), change, changePct, tv, venue, ... }, from prices.json
+  fx: {},              // { USD: dollars per euro }
+  pricesAt: null,
   holdings: null,      // null = loading
   unsubHoldings: null,
   view: null,
@@ -45,12 +62,27 @@ async function loadMarket() {
     state.market = data;
     state.prices = new Map([...(data.quotes || []), ...(data.tracked || [])].map((q) => [q.symbol, q]));
     renderHome();
-    fillSymbolList();
     renderCurrent();
   } catch (e) {
     console.error("Loading movers failed", e);
     $("boards").innerHTML = "";
     $("note").textContent = "Couldn't load today's movers. Try again in a bit.";
+  }
+}
+
+async function loadPrices() {
+  try {
+    const res = await fetch(`data/prices.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    state.isin = data.byIsin || {};
+    state.fx = data.fx || {};
+    state.pricesAt = data.updatedAt;
+    fillIsinList();
+    if (state.view === "add" || state.view === "edit") updateIsinHint();
+    renderCurrent();
+  } catch (e) {
+    console.warn("No portfolio prices yet", e);
   }
 }
 
@@ -130,16 +162,37 @@ document.querySelectorAll("#kind-switch button").forEach((btn) => {
    Valuation
    ====================================================================== */
 function valuate(h) {
-  const q = state.prices.get(h.symbol);
-  const live = Boolean(q);
-  const price = live ? q.price : h.buyPrice;
+  let q = null, price, buy = h.buyPrice, live = false, key, tv = null, sub;
+  if (h.isin) {
+    q = state.isin[h.isin];
+    key = h.isin;
+    live = Boolean(q);
+    price = live ? q.price : h.buyPrice;
+    tv = q?.tv || null;
+    sub = q?.venue ? `${h.isin} · ${q.venue}` : h.isin;
+  } else {
+    // older holding entered by US ticker in USD → convert to EUR
+    const usd = state.fx.USD || 1;
+    const t = state.prices.get(h.symbol);
+    q = t ? { ...t, price: t.price / usd, change: t.change / usd } : null;
+    key = h.symbol;
+    live = Boolean(q);
+    buy = h.buyPrice / usd;
+    price = live ? q.price : buy;
+    tv = h.symbol;
+    sub = `${h.symbol} · needs ISIN`;
+  }
   const value = h.quantity * price;
-  const cost = h.quantity * h.buyPrice;
+  const cost = h.quantity * buy;
   return {
     ...h,
-    name: h.name || q?.name || "",
+    key,
+    tv,
+    sub,
+    label: h.name || q?.name || key,
     live,
     price,
+    buyEur: buy,
     value,
     cost,
     gain: value - cost,
@@ -165,9 +218,9 @@ function totals(rows) {
 function positions(rows) {
   const map = new Map();
   for (const r of rows) {
-    const p = map.get(r.symbol) || { symbol: r.symbol, name: r.name, type: r.type, live: r.live, dayPct: r.dayPct, value: 0, cost: 0, dayChange: 0, prevValue: 0 };
+    const p = map.get(r.key) || { key: r.key, isin: r.isin, tv: r.tv, label: r.label, sub: r.sub, type: r.type, live: r.live, dayPct: r.dayPct, value: 0, cost: 0, dayChange: 0, prevValue: 0 };
     p.value += r.value; p.cost += r.cost; p.dayChange += r.dayChange; p.prevValue += r.prevValue;
-    map.set(r.symbol, p);
+    map.set(r.key, p);
   }
   return [...map.values()];
 }
@@ -190,8 +243,7 @@ function loadingState() {
 
 function renderOverview() {
   const body = $("ov-body");
-  const m = state.market;
-  $("ov-asof").textContent = m ? `Prices · ${stampOf(m.marketTime || m.updatedAt)}` : "";
+  $("ov-asof").textContent = state.pricesAt ? `Prices · ${stampOf(state.pricesAt)}` : "";
   if (state.holdings === null) { body.innerHTML = loadingState(); return; }
   if (!state.holdings.length) { body.innerHTML = emptyState(); return; }
 
@@ -209,31 +261,31 @@ function renderOverview() {
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
 
   const allocBar = byType.map((x) =>
-    `<div class="alloc__seg alloc__seg--${x.key}" style="flex:${x.value}" title="${x.label}: ${fmtUsd(x.value)} (${share(x.value).toFixed(1)}%)"></div>`).join("");
+    `<div class="alloc__seg alloc__seg--${x.key}" style="flex:${x.value}" title="${x.label}: ${fmtEur(x.value)} (${share(x.value).toFixed(1)}%)"></div>`).join("");
   const allocLegend = byType.map((x) => `
     <li><span class="legend__sw" style="background:var(--${x.key === "stock" ? "stocks" : "etfs"})"></span>
-      <span>${x.label}</span><span class="legend__val">${fmtUsd(x.value)}</span><span class="legend__pct">${share(x.value).toFixed(1)}%</span></li>`).join("");
+      <span>${x.label}</span><span class="legend__val">${fmtEur(x.value)}</span><span class="legend__pct">${share(x.value).toFixed(1)}%</span></li>`).join("");
 
   const top = pos.slice(0, 5);
   const topRows = top.map((p) => `
-    <li class="row${p.live ? " row--link" : ""}"${p.live ? ` data-chart="${esc(p.symbol)}" tabindex="0" role="button"` : ""}>
+    <li class="row${p.tv && p.live ? " row--link" : ""}"${p.tv && p.live ? ` data-chart="${esc(p.tv)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button"` : ""}>
       <div class="row__id">
-        <div class="row__sym">${esc(p.symbol)}</div>
-        <div class="row__name">${esc(p.name)}</div>
+        <div class="row__title">${esc(p.label)}</div>
+        <div class="row__name row__name--mono">${esc(p.sub)}</div>
         <div class="row__bar" title="${share(p.value).toFixed(1)}% of portfolio"><span style="width:${share(p.value)}%"></span></div>
       </div>
       <div class="row__nums">
-        <div class="row__price">${fmtUsd(p.value)}</div>
+        <div class="row__price">${fmtEur(p.value)}</div>
         <div class="holding__sub">${share(p.value).toFixed(1)}%</div>
       </div>
     </li>`).join("");
 
   const today = pos.filter((p) => p.live).sort((a, b) => b.dayPct - a.dayPct);
   const todayRows = today.slice(0, 5).map((p) => `
-    <li class="row row--link" data-chart="${esc(p.symbol)}" tabindex="0" role="button">
-      <div class="row__id"><div class="row__sym">${esc(p.symbol)}</div><div class="row__name">${esc(p.name)}</div></div>
+    <li class="row${p.tv ? " row--link" : ""}"${p.tv && p.live ? ` data-chart="${esc(p.tv)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button"` : ""}>
+      <div class="row__id"><div class="row__title">${esc(p.label)}</div><div class="row__name row__name--mono">${esc(p.sub)}</div></div>
       <div class="row__nums">
-        <div class="row__price">${fmtUsdSigned(p.dayChange)}</div>
+        <div class="row__price">${fmtEurSigned(p.dayChange)}</div>
         <span class="pill ${dir(p.dayPct)}">${fmtPct(p.dayPct)}</span>
       </div>
     </li>`).join("");
@@ -241,15 +293,15 @@ function renderOverview() {
   body.innerHTML = `
     <section class="hero-num">
       <div class="hero-num__label">Total value</div>
-      <div class="hero-num__value"><small>$</small>${whole}<small>.${cents}</small></div>
+      <div class="hero-num__value"><small>€</small>${whole}<small>.${cents}</small></div>
       <div class="hero-num__sub">
-        <span class="pill ${dir(t.day)}">${fmtUsdSigned(t.day)} · ${fmtPct(t.dayPct)}</span><span>last trading day</span>
+        <span class="pill ${dir(t.day)}">${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}</span><span>last trading day</span>
       </div>
     </section>
 
     <div class="tiles">
-      <div class="tile"><div class="tile__label">Invested</div><div class="tile__value">${fmtUsd(t.cost)}</div></div>
-      <div class="tile"><div class="tile__label">Total return</div><div class="tile__value ${dir(t.gain)}">${fmtUsdSigned(t.gain)}</div><div class="tile__sub ${dir(t.gain)}">${fmtPct(t.gainPct)}</div></div>
+      <div class="tile"><div class="tile__label">Invested</div><div class="tile__value">${fmtEur(t.cost)}</div></div>
+      <div class="tile"><div class="tile__label">Total return</div><div class="tile__value ${dir(t.gain)}">${fmtEurSigned(t.gain)}</div><div class="tile__sub ${dir(t.gain)}">${fmtPct(t.gainPct)}</div></div>
     </div>
 
     <div class="panels">
@@ -271,7 +323,7 @@ function renderOverview() {
       </article>` : ""}
     </div>
 
-    ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. New tickers are picked up by the next price update.</p>` : ""}`;
+    ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. New ISINs are picked up by the next price update.</p>` : ""}`;
 }
 
 /* ======================================================================
@@ -291,20 +343,20 @@ function renderPortfolio() {
       <ul class="holdings">
         ${rows.map((r) => `
         <li>
-          <a class="holding" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${esc(r.symbol)}">
+          <a class="holding" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${esc(r.label)}">
             <div class="row__id">
-              <div class="row__sym">${esc(r.symbol)}<span class="holding__tag holding__tag--${r.type}">${r.type === "etf" ? "ETF" : "Stock"}</span></div>
-              <div class="row__name">${esc(r.name) || "&nbsp;"}</div>
-              <div class="holding__sub">${fmtQty.format(r.quantity)} × ${fmtUsd(r.buyPrice)} → ${r.live ? fmtUsd(r.price) : `<span class="stale">no live price</span>`}</div>
+              <div class="row__title">${esc(r.label)}<span class="holding__tag holding__tag--${r.type}">${r.type === "etf" ? "ETF" : "Stock"}</span></div>
+              <div class="row__name row__name--mono">${esc(r.sub)}</div>
+              <div class="holding__sub">${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)} → ${r.live ? fmtEur(r.price) : `<span class="stale">no live price</span>`}</div>
             </div>
             <div class="row__nums">
-              <div class="row__price">${fmtUsd(r.value)}</div>
+              <div class="row__price">${fmtEur(r.value)}</div>
               ${r.live ? `<span class="pill ${dir(r.gain)}">${fmtPct(r.gainPct)}</span>` : `<span class="holding__sub">—</span>`}
             </div>
           </a>
         </li>`).join("")}
       </ul>
-      <div class="pf-total"><span>Total</span><span>${fmtUsd(t.value)}</span></div>
+      <div class="pf-total"><span>Total</span><span>${fmtEur(t.value)}</span></div>
     </div>`;
 }
 
@@ -312,7 +364,7 @@ function renderPortfolio() {
    Add / edit
    ====================================================================== */
 const form = $("add-form");
-const f = { symbol: $("f-symbol"), name: $("f-name"), qty: $("f-qty"), price: $("f-price"), date: $("f-date") };
+const f = { isin: $("f-isin"), name: $("f-name"), qty: $("f-qty"), price: $("f-price"), date: $("f-date") };
 let editingId = null;
 let pendingEditId = null;
 let nameWasAuto = false;
@@ -324,31 +376,33 @@ function setType(type) {
 const getType = () => form.querySelector('[data-type][aria-checked="true"]').dataset.type;
 form.querySelectorAll("[data-type]").forEach((b) => b.addEventListener("click", () => setType(b.dataset.type)));
 
-function fillSymbolList() {
-  $("symbol-list").innerHTML = [...state.prices.values()]
-    .sort((a, b) => a.symbol.localeCompare(b.symbol))
-    .map((q) => `<option value="${esc(q.symbol)}">${esc(q.name)}</option>`).join("");
+function fillIsinList() {
+  $("isin-list").innerHTML = Object.values(state.isin)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((q) => `<option value="${esc(q.isin)}">${esc(q.name)}</option>`).join("");
 }
 
-function updateSymbolHint() {
-  const sym = f.symbol.value.trim().toUpperCase();
-  const hint = $("f-symbol-hint");
-  const q = state.prices.get(sym);
+function updateIsinHint() {
+  const isin = f.isin.value.trim().toUpperCase();
+  const hint = $("f-isin-hint");
+  const q = state.isin[isin];
   hint.classList.toggle("is-ok", Boolean(q));
-  if (!sym) hint.textContent = "US-listed tickers get live prices.";
+  if (!isin) hint.textContent = "12 characters, e.g. IE00BK5BQT80. Prices in EUR, Xetra preferred.";
+  else if (isin.length < 12) hint.textContent = `${12 - isin.length} more character${isin.length === 11 ? "" : "s"}`;
+  else if (!isValidIsin(isin)) hint.textContent = "That doesn't look like a valid ISIN. Check for typos.";
   else if (q) {
-    hint.textContent = `${q.name} · ${fmtUsd(q.price)} now`;
+    hint.textContent = `${q.name} · ${fmtEur(q.price)} on ${q.venue}`;
     if (!f.name.value || nameWasAuto) { f.name.value = q.name; nameWasAuto = true; }
-    if (q.kind) setType(q.kind);
-    if (!f.price.value && !editingId) f.price.placeholder = fmt2.format(q.price).replace(/,/g, "");
-  } else hint.textContent = "No live price yet. It's fetched in the next update (US tickers only).";
+    if (q.type) setType(q.type);
+    if (!f.price.value && !editingId) f.price.placeholder = q.price.toFixed(2);
+  } else hint.textContent = "Valid ISIN. Name and price arrive with the next price update.";
 }
-f.symbol.addEventListener("input", () => {
-  const pos = f.symbol.selectionStart;
-  f.symbol.value = f.symbol.value.toUpperCase().replace(/\s/g, "");
-  try { f.symbol.setSelectionRange(pos, pos); } catch {}
-  f.symbol.removeAttribute("aria-invalid");
-  updateSymbolHint();
+f.isin.addEventListener("input", () => {
+  const pos = f.isin.selectionStart;
+  f.isin.value = f.isin.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  try { f.isin.setSelectionRange(pos, pos); } catch {}
+  f.isin.removeAttribute("aria-invalid");
+  updateIsinHint();
 });
 f.name.addEventListener("input", () => (nameWasAuto = false));
 [f.qty, f.price].forEach((el) => el.addEventListener("input", () => el.removeAttribute("aria-invalid")));
@@ -367,7 +421,7 @@ function enterAdd(id) {
   nameWasAuto = false;
   editingId = null;
   pendingEditId = null;
-  f.price.placeholder = "150.00";
+  f.price.placeholder = "100.00";
 
   if (id) {
     if (state.holdings === null) { pendingEditId = id; return; }
@@ -377,8 +431,9 @@ function enterAdd(id) {
     $("add-title").textContent = "Edit holding";
     $("f-submit").textContent = "Save changes";
     $("f-delete").hidden = false;
-    f.symbol.value = h.symbol; f.name.value = h.name || ""; f.qty.value = h.quantity; f.price.value = h.buyPrice; f.date.value = h.buyDate || "";
+    f.isin.value = h.isin || ""; f.name.value = h.name || ""; f.qty.value = String(h.quantity); f.price.value = h.isin ? String(h.buyPrice) : ""; f.date.value = h.buyDate || "";
     setType(h.type);
+    if (!h.isin) showError(`This holding was added by ticker (${h.symbol}, USD). Enter its ISIN and the buy price in EUR to switch it over.`);
   } else {
     $("add-title").textContent = "Add holding";
     $("f-submit").textContent = "Add to portfolio";
@@ -386,8 +441,8 @@ function enterAdd(id) {
     setType("stock");
     f.date.value = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
   }
-  updateSymbolHint();
-  if (!id && matchMedia("(pointer: fine)").matches) f.symbol.focus();
+  updateIsinHint();
+  if (!id && matchMedia("(pointer: fine)").matches) f.isin.focus();
 }
 
 function showError(msg) {
@@ -405,11 +460,11 @@ function firestoreMessage(e) {
 form.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   $("f-error").hidden = true;
-  const symbol = f.symbol.value.trim().toUpperCase();
-  const quantity = parseFloat(f.qty.value);
-  const buyPrice = parseFloat(f.price.value);
+  const isin = f.isin.value.trim().toUpperCase();
+  const quantity = parseFloat(String(f.qty.value).replace(",", "."));
+  const buyPrice = parseFloat(String(f.price.value).replace(",", "."));
   let bad = null;
-  if (!/^[A-Z0-9.-]{1,12}$/.test(symbol)) bad = [f.symbol, "Enter a ticker symbol, e.g. AAPL."];
+  if (!isValidIsin(isin)) bad = [f.isin, "Enter a valid ISIN, e.g. IE00BK5BQT80."];
   else if (!(quantity > 0)) bad = [f.qty, "Quantity must be more than 0."];
   else if (!(buyPrice > 0)) bad = [f.price, "Enter the price you paid per share."];
   if (bad) { bad[0].setAttribute("aria-invalid", "true"); bad[0].focus(); showError(bad[1]); return; }
@@ -419,9 +474,10 @@ form.addEventListener("submit", async (ev) => {
   try {
     const { saveHolding } = await import("./store.js");
     await saveHolding(state.user.uid, editingId, {
-      symbol, quantity, buyPrice, type: getType(), name: f.name.value.trim(), buyDate: f.date.value,
+      isin, quantity, buyPrice, type: getType(), name: f.name.value.trim(), buyDate: f.date.value,
     });
-    toast(editingId ? `Saved ${symbol}` : `Added ${symbol} to your portfolio`);
+    const label = f.name.value.trim() || isin;
+    toast(editingId ? `Saved ${label}` : `Added ${label} to your portfolio`);
     location.hash = "#/portfolio";
   } catch (e) {
     console.error(e);
@@ -439,7 +495,7 @@ $("f-delete").addEventListener("click", async () => {
     return;
   }
   resetDelete();
-  const sym = f.symbol.value;
+  const sym = f.name.value.trim() || f.isin.value;
   try {
     const { deleteHolding } = await import("./store.js");
     await deleteHolding(state.user.uid, editingId);
@@ -457,18 +513,21 @@ $("f-delete").addEventListener("click", async () => {
 const sheet = $("sheet");
 let lastFocus = null;
 
-function openChart(symbol) {
-  const q = state.prices.get(symbol);
+function openChart(symbol, isin) {
+  const q = isin ? state.isin[isin] : state.prices.get(symbol);
+  const money = isin ? fmtEur : fmtUsd;
+  const moneySigned = isin ? fmtEurSigned : fmtUsdSigned;
   const up = !q || q.changePct >= 0;
   const line = up ? "#5BD48A" : "#FF8A75";
   const fill = up ? "rgba(91, 212, 138, 0.22)" : "rgba(255, 138, 117, 0.22)";
 
-  $("sheet-sym").textContent = symbol;
-  $("sheet-name").textContent = q?.name || "";
-  $("sheet-price").textContent = q ? fmtUsd(q.price) : "";
+  $("sheet-sym").textContent = isin ? (q?.name || isin) : symbol;
+  $("sheet-name").textContent = isin ? `${isin}${q?.venue ? ` · ${q.venue}` : ""}` : (q?.name || "");
+  $("sheet-sym").classList.toggle("sheet__sym--name", Boolean(isin));
+  $("sheet-price").textContent = q ? money(q.price) : "";
   const pill = $("sheet-pill");
   pill.hidden = !q;
-  if (q) { pill.className = `pill ${dir(q.changePct)}`; pill.textContent = `${fmtUsdSigned(q.change)} · ${fmtPct(q.changePct)}`; }
+  if (q) { pill.className = `pill ${dir(q.changePct)}`; pill.textContent = `${moneySigned(q.change)} · ${fmtPct(q.changePct)}`; }
 
   const host = $("sheet-chart");
   let always = false;
@@ -485,7 +544,7 @@ function openChart(symbol) {
       loadTradingView(host, symbol, line, fill);
     });
   }
-  $("sheet-link").href = `https://www.tradingview.com/symbols/${encodeURIComponent(symbol)}/`;
+  $("sheet-link").href = `https://www.tradingview.com/symbols/${encodeURIComponent(symbol.replace(":", "-"))}/`;
 
   lastFocus = document.activeElement;
   sheet.hidden = false;
@@ -524,12 +583,12 @@ function closeChart() {
 
 document.addEventListener("click", (e) => {
   const row = e.target.closest("[data-chart]");
-  if (row) openChart(row.dataset.chart);
+  if (row) openChart(row.dataset.chart, row.dataset.isin);
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeChart();
   const row = e.target.closest?.("[data-chart]");
-  if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openChart(row.dataset.chart); }
+  if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openChart(row.dataset.chart, row.dataset.isin); }
 });
 $("sheet-close").addEventListener("click", closeChart);
 $("sheet-backdrop").addEventListener("click", closeChart);
@@ -667,3 +726,4 @@ onUser((user) => {
 renderHome();
 route();
 loadMarket();
+loadPrices();
