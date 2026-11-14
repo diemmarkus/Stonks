@@ -14,10 +14,11 @@ function pickQuote(obj) {
     if (typeof o.last === "number" && (o.isoCurrency === "EUR" || o.unitType === "EUR" || o.currency === "EUR" || !o.isoCurrency)) found.push(o);
     for (const v of Object.values(o)) if (v && typeof v === "object") stack.push(v);
   }
-  // Prefer Xetra, then Tradegate, then anything with a previous close.
+  // Prefer gettex (trades 8–22h; flatex values your depot with its prices), then Xetra,
+  // then Tradegate, then anything with a previous close.
   const rank = (q) => {
     const m = `${q.market?.name || ""} ${q.market?.codeMarket || ""}`.toLowerCase();
-    return m.includes("xetra") ? 0 : m.includes("tradegate") ? 1 : q.previousLast != null ? 2 : 3;
+    return m.includes("gettex") ? 0 : m.includes("xetra") ? 1 : m.includes("tradegate") ? 2 : q.previousLast != null ? 3 : 4;
   };
   return found.sort((a, b) => rank(a) - rank(b))[0] || null;
 }
@@ -50,7 +51,7 @@ export async function lookupIsin(isin, fetchOpts = {}) {
   const changePct = q.performancePct ?? (prevClose ? (change / prevClose) * 100 : 0);
   const venue = q.market?.name || "onvista";
   const symbol = hit.symbol || instrument?.symbol;
-  const tv = symbol && /xetra|tradegate/i.test(venue) ? `XETR:${symbol}` : "";
+  const tv = symbol && /xetra|tradegate|gettex/i.test(venue) ? `XETR:${symbol}` : "";
   const entityType = hit.entityType || instrument?.entityType || "";
   return {
     isin,

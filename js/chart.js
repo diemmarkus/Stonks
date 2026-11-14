@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=25";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=26";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -49,8 +49,10 @@ async function resolveUncached(id, currency) {
     const inst = snap.instrument;
     if (!inst?.entityValue) continue;
     const quotes = (snap.quoteList?.list || []).filter((q) => q.market?.idNotation);
-    const want = (q) => (currency === "USD" ? q.isoCurrency === "USD" : /xetra/i.test(q.market.name || ""));
-    const pick = quotes.find(want) || quotes.find((q) => q.isoCurrency === currency) || null;
+    // same exchange as the price list: gettex first (flatex values with it), then Xetra
+    const want = (q) => (currency === "USD" ? q.isoCurrency === "USD" : /gettex/i.test(q.market.name || ""));
+    const want2 = (q) => currency !== "USD" && /xetra/i.test(q.market.name || "");
+    const pick = quotes.find(want) || quotes.find(want2) || quotes.find((q) => q.isoCurrency === currency) || null;
     const notation = pick?.market.idNotation || snap.chart?.idNotation || snap.quote?.market?.idNotation;
     return { kind: "onvista", type: inst.entityType, id: inst.entityValue, notation, currency: pick?.isoCurrency || currency, credit: "onvista" };
   }
