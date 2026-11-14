@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=24";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=25";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -9,9 +9,9 @@ const RANGES = {
   "1D": { ov: "D1", back: { days: 6 }, cg: 1, res: "1m" },
   "1W": { ov: "W1", back: { days: 7 }, cg: 7, res: "15m" },
   "1M": { ov: "M1", back: { months: 1 }, cg: 30, res: "60m" },
-  "1Y": { ov: "Y1", back: { years: 1 }, cg: 365 },
-  "5Y": { ov: "Y5", back: { years: 5 }, cg: null },
-  "Max": { ov: "MAX", back: { years: 40 }, cg: null },
+  "1Y": { ov: "Y1", back: { years: 1 }, cg: 365, res: "1D" },
+  "5Y": { ov: "Y5", back: { years: 5 }, cg: null, res: "1D" },   // default would be weekly
+  "Max": { ov: "MAX", back: { years: 40 }, cg: null, res: "1D" }, // default would be monthly
 };
 const RANGE_KEY = "stonks-chart-range";
 
@@ -87,8 +87,26 @@ async function history(src, range) {
     }
   }
   pts.sort((a, b) => a.t - b.t);
+  pts = thin(pts, 1500);
   histCache.set(key, pts);
   return pts;
+}
+
+// Keep long series light without losing their shape: per bucket keep the low and the high point.
+function thin(pts, max) {
+  if (pts.length <= max) return pts;
+  const size = Math.ceil(pts.length / (max / 2));
+  const out = [];
+  for (let i = 0; i < pts.length; i += size) {
+    const b = pts.slice(i, i + size);
+    let lo = b[0], hi = b[0];
+    for (const p of b) { if (p.v < lo.v) lo = p; if (p.v > hi.v) hi = p; }
+    if (lo === hi) out.push(lo);
+    else out.push(...(lo.t < hi.t ? [lo, hi] : [hi, lo]));
+  }
+  const last = pts[pts.length - 1];
+  if (out[out.length - 1] !== last) out.push(last);
+  return out;
 }
 
 /* ---------- drawing ---------- */
