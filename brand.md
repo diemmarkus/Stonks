@@ -2,8 +2,8 @@
 
 ## Logo
 
-A cartoon cloth money bag ("Sack"): burlap body, warm-ink outline, rope-gold neck band, and the
-double-bar dollar sign on the front.
+A cartoon cloth money bag ("Sack"): hot-pink body, plum-black outline, electric-cyan neck band,
+and the double-bar dollar sign on the front.
 
 - `img/logo.svg`: full logo, transparent background
 - `img/dollar.svg`: the double-bar dollar on its own (single color, use as a CSS mask)
@@ -17,7 +17,7 @@ recurring Stonks glyph: section markers (the hero eyebrow), list icons, buttons.
 
 ## Pink palette
 
-Hot pink is the single highlight. Gains stay green; losses are orange so they never read as the brand pink.
+Hot pink is the main highlight, electric cyan the second. Gains stay green; losses are orange so they never read as the brand pink.
 
 | Token | Hex | CSS var | Use |
 |---|---|---|---|
@@ -32,10 +32,10 @@ Hot pink is the single highlight. Gains stay green; losses are orange so they ne
 | Gain | `#5BD48A` | `--up` | Up moves, always with a + sign or ▲ |
 | Loss | `#FF9F4A` | `--down` | Down moves, always with a − sign or ▼ |
 | Warning | `#FFC861` | – | Stale prices, notes |
-| Burlap | `#E7C98F` | `--burlap`, `--etfs` | Logo tint, ETF tag |
-| Stocks | `#5590EA` | `--stocks` | Stock tag, allocation bar |
+| Electric cyan | `#3CCBF4` | `--accent-2`, `--stocks` | Second highlight: logo neck band, stock tag and allocation, buy list rule |
+| (ETFs) | `#FF2E88` | `--etfs` | ETF tag and allocation use the pink |
 
-The logo keeps its own colors (burlap bag, warm-ink outline `#1F1A14`, gold neck band `#F5B700`).
+Logo colors: pink `#FF2E88`, pink shade `#B3175A`, pink highlight `#FF9CC8`, outline and $ `#151117`, neck band `#3CCBF4`.
 
 Type on the site: Instrument Serif (display, wordmark), Inter Tight (UI), JetBrains Mono (numbers).
 

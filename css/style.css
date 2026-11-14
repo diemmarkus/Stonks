@@ -14,7 +14,7 @@
   --accent: #FF2E88;    /* hot pink: actions & highlights */
   --accent-hi: #FF5CA3;
   --on-accent: #151117;
-  --burlap: #E7C98F;
+  --accent-2: #3CCBF4;  /* electric cyan: second highlight */
   --up: #5BD48A;
   --up-dim: rgba(91, 212, 138, 0.13);
   --down: #FF9F4A;
@@ -182,8 +182,8 @@ h1 em.down { color: var(--down); }
 
 /* ---------- signed-in app shell ---------- */
 :root {
-  --stocks: #5590ea;
-  --etfs: #E7C98F;   /* burlap */
+  --stocks: var(--accent-2);
+  --etfs: var(--accent);
   --tabbar-h: 64px;
 }
 body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom)); }
@@ -304,8 +304,8 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .holding:hover .row__sym { color: var(--accent); }
 .holding__sub { font: 400 12px/1.4 var(--mono); color: var(--ink-3); margin-top: 3px; }
 .holding__tag { display: inline-block; font: 600 10px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
-.holding__tag--stock { color: var(--stocks); background: rgba(85, 144, 234, .14); }
-.holding__tag--etf { color: var(--etfs); background: rgba(231, 201, 143, .14); }
+.holding__tag--stock { color: var(--stocks); background: rgba(60, 203, 244, .14); }
+.holding__tag--etf { color: var(--etfs); background: rgba(255, 46, 136, .14); }
 .stale { color: #FFC861; }
 .pf-total { display: flex; justify-content: space-between; padding: 14px 18px; border-top: 1px solid var(--line); font: 600 14px/1 var(--mono); }
 
@@ -365,7 +365,7 @@ body.sheet-open { overflow: hidden; }
 .pos__body { padding: 0 0 16px; animation: viewin .2s ease-out; }
 .pos__chart { height: 300px; margin: 0 -8px 10px; border-radius: 12px; background: var(--bg); overflow: hidden; }
 .pos__nochart { margin: 0; height: 100%; display: grid; place-items: center; padding: 18px; text-align: center; color: var(--ink-3); font-size: 14px; }
-.lots { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--accent); }
+.lots { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--accent-2); }
 .lot {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 0 10px 14px;
   color: inherit; text-decoration: none; font: 400 13px/1.35 var(--mono); border-radius: 0 8px 8px 0;
