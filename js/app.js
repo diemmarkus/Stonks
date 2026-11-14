@@ -311,7 +311,6 @@ function renderOverview() {
     <li class="row row--link" data-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button">
       <div class="row__id">
         <div class="row__title">${esc(p.label)}</div>
-        <div class="row__name row__name--mono">${esc(p.sub)}</div>
         <div class="row__bar" title="${share(p.value).toFixed(1)}% of portfolio"><span style="width:${share(p.value)}%"></span></div>
       </div>
       <div class="row__nums">
@@ -323,7 +322,7 @@ function renderOverview() {
   const today = pos.filter((p) => p.live).sort((a, b) => b.dayPct - a.dayPct);
   const todayRows = today.slice(0, 5).map((p) => `
     <li class="row row--link" data-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button">
-      <div class="row__id"><div class="row__title">${esc(p.label)}</div><div class="row__name row__name--mono">${esc(p.sub)}</div></div>
+      <div class="row__id"><div class="row__title">${esc(p.label)}</div></div>
       <div class="row__nums">
         <div class="row__price">${fmtEurSigned(p.dayChange)}</div>
         <span class="pill ${dir(p.dayPct)}">${fmtPct(p.dayPct)}</span>
@@ -396,7 +395,8 @@ function renderPortfolio() {
   if (!state.holdings.length) { $("pf-count").textContent = ""; body.innerHTML = emptyState(); return; }
 
   const rows = state.holdings.map(valuate);
-  const groups = lotGroups(rows).sort((a, b) => b.value - a.value);
+  // biggest gain first, biggest loss last; positions without a live price at the end
+  const groups = lotGroups(rows).sort((a, b) => (b.live - a.live) || (b.gain - a.gain));
   const t = totals(rows);
   if (openPos && !groups.some((g) => g.key === openPos)) openPos = null;
   $("pf-count").textContent = `${groups.length} ${groups.length === 1 ? "position" : "positions"} · ${rows.length} ${rows.length === 1 ? "buy" : "buys"}`;
@@ -412,12 +412,11 @@ function renderPortfolio() {
           <button class="holding pos__head" type="button" data-pos="${esc(g.key)}" aria-expanded="${open}" aria-controls="pos-${i}">
             <div class="row__id">
               <div class="row__title">${esc(g.label)}<span class="holding__tag holding__tag--${g.type}">${{ etf: "ETF", certificate: "Certificate", crypto: "Crypto" }[g.type] || "Stock"}</span></div>
-              <div class="row__name row__name--mono">${esc(g.sub)}</div>
-              <div class="holding__sub">${buys} ${buys === 1 ? "buy" : "buys"} · ${fmtQty.format(g.qty)} × ${fmtEur(g.avgBuy)}${buys > 1 ? " avg" : ""} → ${g.live ? fmtEur(g.price) : `<span class="stale">no live price</span>`}</div>
+              <div class="row__name">${fmtEur(g.value)}${g.live ? "" : ` · <span class="stale">no live price</span>`}</div>
             </div>
             <div class="row__nums">
-              <div class="row__price">${fmtEur(g.value)}</div>
-              ${g.live ? `<span class="pill ${dir(g.gain)}">${fmtPct(g.gainPct)}</span>` : `<span class="holding__sub">—</span>`}
+              ${g.live ? `<div class="row__price ${dir(g.gain)}">${fmtEurSigned(g.gain)}</div>
+              <span class="pill ${dir(g.gain)}">${fmtPct(g.gainPct)}</span>` : `<span class="holding__sub">—</span>`}
             </div>
             <svg class="pos__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
           </button>
@@ -428,6 +427,7 @@ function renderPortfolio() {
                 <input class="input" data-pos-name="${esc(g.key)}" value="${g.nicknamed ? esc(g.label) : ""}" placeholder="${esc(g.realName)}" maxlength="60" autocomplete="off" enterkeyhint="done" />
               </label>
               <p class="pos__real"><span>${esc(g.realName)}</span> · ${esc(g.sub)}</p>
+              <p class="pos__real">${buys} ${buys === 1 ? "buy" : "buys"} · ${fmtQty.format(g.qty)} × ${fmtEur(g.avgBuy)}${buys > 1 ? " avg" : ""} → ${g.live ? fmtEur(g.price) : "no live price"}</p>
             </div>
             <div class="pos__chart" data-pos-chart="${esc(g.key)}"></div>
             <ol class="lots" aria-label="Buys of ${esc(g.label)}">
