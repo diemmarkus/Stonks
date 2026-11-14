@@ -300,7 +300,7 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .holdings { list-style: none; margin: 0; padding: 0 18px; }
 .holding { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 15px 0; border-top: 1px solid var(--line); text-decoration: none; color: inherit; }
 .holdings li:first-child .holding { border-top: 0; }
-.holding:hover .row__sym { color: var(--accent); }
+@media (hover: hover) { .holding:hover .row__sym { color: var(--accent); } }
 .holding__sub { font: 400 12px/1.4 var(--mono); color: var(--ink-3); margin-top: 3px; }
 .holding__tag { display: inline-block; font: 600 10px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
 .holding__tag--stock { color: var(--stocks); background: rgba(60, 203, 244, .14); }
@@ -358,7 +358,8 @@ body.sheet-open { overflow: hidden; }
   text-align: left; cursor: pointer; font: inherit; -webkit-tap-highlight-color: transparent;
 }
 .pos__head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
-.pos__head:hover .row__title { color: var(--accent); }
+.pos.is-open .pos__head .row__title { color: var(--accent); }
+@media (hover: hover) { .pos__head:hover .row__title { color: var(--accent); } }
 .pos__chev { width: 18px; height: 18px; fill: none; stroke: var(--ink-3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
 .pos.is-open .pos__chev { transform: rotate(180deg); stroke: var(--accent); }
 .pos__body { padding: 0 0 16px; animation: viewin .2s ease-out; }
