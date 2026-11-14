@@ -1,0 +1,13 @@
+name: CORS check (temporary)
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/cors-check.yml"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          u="https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,polygon-ecosystem-token,hyperliquid,sui,compound-governance-token,avalanche-2,hedera-hashgraph&vs_currencies=eur&include_24hr_change=true"
+          curl -s -D - -o /tmp/b -H "Origin: https://diemmarkus.github.io" "$u" | grep -i -E "^HTTP|access-control-allow-origin" || true
+          cat /tmp/b; echo
