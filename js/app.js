@@ -74,16 +74,6 @@ function renderBoards(data) {
   }).join("");
 }
 
-function renderTape(quotes) {
-  if (!quotes?.length) return;
-  const item = (q) => {
-    const dir = q.changePct >= 0 ? "up" : "down";
-    return `<span class="tape__item"><b>${esc(q.symbol)}</b>${fmtPrice.format(q.price)} <span class="${dir}">${fmtPct(q.changePct)}</span></span>`;
-  };
-  const html = quotes.map(item).join("");
-  $("tape").innerHTML = html + html; // doubled for a seamless loop
-}
-
 function renderMeta(data) {
   const when = new Date(data.updatedAt);
   const stamp = when.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -101,7 +91,6 @@ async function loadMovers() {
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
     renderBoards(data);
-    renderTape(data.quotes);
     renderMeta(data);
   } catch (e) {
     $("boards").innerHTML = "";
