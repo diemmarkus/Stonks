@@ -878,6 +878,26 @@ onUser((user) => {
   route();
 });
 
+/* ======================================================================
+   Stay fresh: GitHub Pages lets browsers cache the page for ~10 minutes.
+   If a newer version is deployed, reload once to pick it up.
+   ====================================================================== */
+async function checkForUpdate() {
+  try {
+    const mine = new URL(import.meta.url).searchParams.get("v");
+    if (!mine) return;
+    const html = await (await fetch(`./?fresh=${Date.now()}`, { cache: "no-store" })).text();
+    const live = html.match(/js\/app\.js\?v=(\d+)/)?.[1];
+    if (!live || live === mine) return;
+    const key = `stonks-reloaded-${live}`;
+    if (sessionStorage.getItem(key)) return; // never loop
+    sessionStorage.setItem(key, "1");
+    location.reload();
+  } catch {}
+}
+checkForUpdate();
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkForUpdate(); });
+
 renderHome();
 route();
 loadMarket();
