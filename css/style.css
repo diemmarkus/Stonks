@@ -401,3 +401,7 @@ body.sheet-open { overflow: hidden; }
 .linkcard span span { display: block; font-size: 13px; color: var(--ink-3); margin-top: 2px; }
 .linkcard > span:last-child { font-size: 20px; color: var(--gold); }
 .linkcard:hover { border-color: var(--ink-3); }
+
+/* Keep the add sheet above the on-screen keyboard: the sheet's box is the visible part of the screen. */
+#add-sheet { top: var(--vvtop, 0px); bottom: auto; height: var(--vvh, 100%); }
+#add-sheet .addsheet { max-height: calc(var(--vvh, 100dvh) - 16px - env(safe-area-inset-top, 0px)); scroll-padding-block: 72px 16px; }

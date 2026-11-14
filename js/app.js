@@ -500,6 +500,24 @@ function closeAdd() {
   setTimeout(() => { addSheet.hidden = true; }, 220);
   addLastFocus?.focus?.({ preventScroll: true });
 }
+// Keep the sheet above the on-screen keyboard: size it to the visible part of the screen.
+const vv = window.visualViewport;
+function syncViewport() {
+  if (!vv) return;
+  const r = document.documentElement.style;
+  r.setProperty("--vvh", `${vv.height}px`);
+  r.setProperty("--vvtop", `${vv.offsetTop}px`);
+}
+vv?.addEventListener("resize", syncViewport);
+vv?.addEventListener("scroll", syncViewport);
+syncViewport();
+// When a field in the sheet gets focus, bring it into view once the keyboard has settled.
+form.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (!el.matches("input")) return;
+  setTimeout(() => { if (document.activeElement === el) (el.closest(".pill") || el).scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 320);
+});
+
 addSheet.querySelectorAll("[data-close-add]").forEach((el) => el.addEventListener("click", closeAdd));
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAdd(); });
 
