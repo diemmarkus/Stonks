@@ -1,0 +1,24 @@
+name: CORS check (temporary)
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/cors-check.yml"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B="https://api.onvista.de/api/v1/instruments/FUND"
+          S=$(curl -s "https://api.onvista.de/api/v1/funds/ISIN:IE00BK5BQT80/snapshot")
+          EV=$(echo "$S" | jq -r '.instrument.entityValue'); N=$(echo "$S" | jq -r '[.quoteList.list[] | select(.market.name|test("Xetra";"i"))][0].market.idNotation')
+          echo "EV=$EV N=$N"
+          stat() { jq -c '{n: (.datetimeTick|length), step_min: (if (.datetimeTick|length)>1 then ((.datetimeTick[-1]-.datetimeTick[-2])/60000) else null end), first: (.datetimeTick[0]/1000|todate), last: (.datetimeTick[-1]/1000|todate)}' 2>/dev/null || head -c 200; }
+          T=$(date -u -d '+1 day' +%Y-%m-%d)
+          for spec in "D1 -6day" "D5 -8day" "W1 -8day" "M1 -1month" "M3 -3month" "Y1 -1year"; do set -- $spec
+            S0=$(date -u -d "$2" +%Y-%m-%d)
+            printf "simple %s: " $1; curl -s "$B/$EV/simple_chart_history?chartType=PRICE&idNotation=$N&interval=$1&startDate=$S0&endDate=$T&withEarnings=false" | stat; echo
+          done
+          for res in 1m 5m 15m 1h 1D; do
+            printf "chart_history res=%s (1 month): " $res; curl -s "$B/$EV/chart_history?idNotation=$N&resolution=$res&startDate=$(date -u -d '-1 month' +%Y-%m-%d)&endDate=$T" | stat; echo
+          done
+          printf "eod_history: "; curl -s "$B/$EV/eod_history?idNotation=$N&range=M1&startDate=$(date -u -d '-1 month' +%Y-%m-%d)" | head -c 200; echo
