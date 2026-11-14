@@ -75,15 +75,43 @@ async function loadPrices() {
     const res = await fetch(`data/prices.json?t=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) return;
     const data = await res.json();
-    state.isin = data.byIsin || {};
+    // keep anything already looked up live in this browser that the job hasn't priced yet
+    const live = Object.fromEntries(Object.entries(state.isin).filter(([k, v]) => v.liveLookup && !data.byIsin?.[k]));
+    state.isin = { ...live, ...(data.byIsin || {}) };
+    state.pricesLoaded = true;
     state.fx = data.fx || {};
     state.pricesAt = data.updatedAt;
     fillIsinList();
     if (!$("add-sheet").hidden) updateIsinHint();
     renderCurrent();
+    priceMissingHoldings();
   } catch (e) {
     console.warn("No portfolio prices yet", e);
   }
+}
+
+/* Instant prices for ISINs the hourly job hasn't priced yet: ask onvista straight from the browser. */
+const liveTried = new Map(); // isin → promise
+function lookupLive(isin) {
+  if (state.isin[isin] || !isValidIsin(isin)) return Promise.resolve(state.isin[isin] || null);
+  if (!liveTried.has(isin)) {
+    liveTried.set(isin, import("./onvista.js")
+      .then(({ lookupIsin }) => lookupIsin(isin))
+      .then((q) => {
+        if (q) {
+          state.isin[isin] = { ...q, liveLookup: true };
+          fillIsinList();
+          renderCurrent();
+        }
+        return q;
+      })
+      .catch((e) => { console.warn(`Live lookup for ${isin} failed`, e); liveTried.delete(isin); return null; }));
+  }
+  return liveTried.get(isin);
+}
+function priceMissingHoldings() {
+  if (!state.pricesLoaded || !state.holdings) return;
+  for (const h of state.holdings) if (h.isin && !state.isin[h.isin]) lookupLive(h.isin);
 }
 
 /* ======================================================================
@@ -488,7 +516,14 @@ function updateIsinHint() {
   else if (q) {
     hint.innerHTML = `<b>${esc(q.name)}</b> · <span class="ok">${fmtEur(q.price)}</span> on ${esc(q.venue)}`;
     if (!f.price.value && !editingId) { f.price.placeholder = q.price.toFixed(2); sizePill(f.price); }
-  } else hint.textContent = "Valid ISIN. Name and price arrive with the next price update.";
+  } else {
+    hint.textContent = "Looking it up…";
+    lookupLive(isin).then((found) => {
+      if (f.isin.value.trim().toUpperCase() !== isin) return; // user typed on
+      if (found) updateIsinHint();
+      else hint.textContent = "Couldn't find a price for this ISIN right now. You can still add it.";
+    });
+  }
 }
 
 f.isin.addEventListener("input", () => {
@@ -834,6 +869,7 @@ async function startHoldings(uid) {
     const { watchHoldings } = await import("./store.js");
     state.unsubHoldings = await watchHoldings(uid, (list) => {
       state.holdings = list;
+      priceMissingHoldings();
       if (pendingEditId) openAdd(pendingEditId);
       renderCurrent();
     }, (e) => {

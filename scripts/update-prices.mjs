@@ -11,11 +11,11 @@
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { firebaseConfig } from "../js/firebase-config.js";
+import { lookupIsin } from "../js/onvista.js";
 
 const OUT = new URL("../data/prices.json", import.meta.url);
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const round = (n, d = 4) => Math.round(n * 10 ** d) / 10 ** d;
 
 export function isValidIsin(isin) {
   if (!/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin)) return false;
@@ -48,49 +48,6 @@ async function trackedIsins() {
   return out;
 }
 
-// --- onvista (fallback): ISIN → EUR price + change today ---------------------
-function pickQuote(obj) {
-  // Walk the snapshot and find the first object that looks like a EUR quote.
-  const seen = new Set();
-  const stack = [obj];
-  const found = [];
-  while (stack.length) {
-    const o = stack.pop();
-    if (!o || typeof o !== "object" || seen.has(o)) continue;
-    seen.add(o);
-    if (typeof o.last === "number" && (o.isoCurrency === "EUR" || o.unitType === "EUR" || o.currency === "EUR" || !o.isoCurrency)) found.push(o);
-    for (const v of Object.values(o)) if (v && typeof v === "object") stack.push(v);
-  }
-  // Prefer Xetra, then Tradegate, then anything with a previous close.
-  const rank = (q) => {
-    const m = `${q.market?.name || ""} ${q.market?.codeMarket || ""}`.toLowerCase();
-    return m.includes("xetra") ? 0 : m.includes("tradegate") ? 1 : q.previousLast != null ? 2 : 3;
-  };
-  return found.sort((a, b) => rank(a) - rank(b))[0] || null;
-}
-
-async function onvista(isin) {
-  const s = await fetch(`https://api.onvista.de/api/v1/instruments/search/facet?searchValue=${isin}`, { headers: { "User-Agent": UA } });
-  if (!s.ok) throw new Error(`onvista search HTTP ${s.status}`);
-  const body = await s.json();
-  const hits = (body.facets || []).flatMap((f) => f.results || []);
-  const hit = hits.find((h) => h.isin === isin) || hits[0];
-  if (!hit) return null;
-  const kind = { STOCK: "stocks", FUND: "funds", ETF: "funds", BOND: "bonds" }[hit.entityType] || "stocks";
-  const r = await fetch(`https://api.onvista.de/api/v1/${kind}/ISIN:${isin}/snapshot`, { headers: { "User-Agent": UA } });
-  if (!r.ok) throw new Error(`onvista snapshot HTTP ${r.status}`);
-  const snap = await r.json();
-  const q = pickQuote(snap);
-  if (!q) { console.warn(`${isin}: onvista snapshot keys ${Object.keys(snap).join(",")}`); return null; }
-  const price = q.last;
-  const prevClose = q.previousLast ?? (q.performance != null ? price - q.performance : null);
-  const change = q.performance ?? (prevClose != null ? price - prevClose : 0);
-  const changePct = q.performancePct ?? (prevClose ? (change / prevClose) * 100 : 0);
-  const venue = q.market?.name || "onvista";
-  const tv = hit.symbol && /xetra/i.test(venue) ? `XETR:${hit.symbol}` : hit.symbol && /tradegate/i.test(venue) ? `XETR:${hit.symbol}` : "";
-  return { price, change, changePct, name: hit.name, type: /FUND|ETF/.test(hit.entityType) ? "etf" : "stock", venue, tv };
-}
-
 async function eurUsd(previous) {
   try {
     const r = await fetch("https://api.frankfurter.app/latest?from=EUR&to=USD");
@@ -115,19 +72,10 @@ const failed = [];
 for (const [isin, meta] of wanted) {
   const prev = prevByIsin[isin] || {};
   try {
-    const q = await onvista(isin);
+    const q = await lookupIsin(isin, { headers: { "User-Agent": UA } });
     if (!q) { failed.push(isin); console.warn(`${isin}: no price found`); continue; }
-    byIsin[isin] = {
-      isin,
-      name: q.name || meta.name || isin,
-      type: q.type || meta.type || "stock",
-      tv: q.tv,
-      venue: q.venue,
-      currency: "EUR",
-      price: round(q.price),
-      change: round(q.change),
-      changePct: round(q.changePct, 2),
-    };
+    if (q.name === isin && meta.name) q.name = meta.name;
+    byIsin[isin] = q;
     console.log(`${isin} ${q.name} €${q.price.toFixed(2)} ${q.changePct.toFixed(2)}% ${q.venue} ${q.tv}`);
   } catch (e) {
     console.warn(`${isin}: ${e.message}${e.cause ? ` (${e.cause.code || e.cause.message})` : ""}`);

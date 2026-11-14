@@ -401,12 +401,12 @@ body.sheet-open { overflow: hidden; }
 .addsheet__found .ok { color: var(--up); }
 .addsheet__total { margin: -4px 2px 0; min-height: 1.3em; font: 400 13px/1.3 var(--mono); color: var(--ink-3); }
 .addsheet .form__error { margin: 0; }
-.sentence { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 6px; font-size: 19px; line-height: 1.3; color: var(--ink); }
+.sentence { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 5px; font-size: 16px; line-height: 1.3; color: var(--ink); }
 .sentence .sw { white-space: nowrap; color: var(--ink-2); }
 .sentence .pill {
-  display: inline-flex; align-items: center; gap: 2px; min-height: 40px; margin: 0; padding: 0 14px;
+  display: inline-flex; align-items: center; gap: 2px; min-height: 34px; margin: 0; padding: 0 12px;
   border-radius: 999px; background: rgba(255, 46, 136, 0.14); color: var(--accent);
-  font: 600 19px/1.2 var(--sans); cursor: text; position: relative;
+  font: 600 16px/1.2 var(--sans); cursor: text; position: relative;
 }
 .sentence .pill input {
   border: 0; outline: 0; background: transparent; color: inherit; font: inherit; padding: 0; margin: 0;
