@@ -333,36 +333,104 @@ function renderOverview() {
 /* ======================================================================
    Portfolio
    ====================================================================== */
+let openPos = null;          // key (ISIN) of the unfolded position, kept across re-renders
+const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");
+
+// All buys of one ISIN → one foldable position.
+function lotGroups(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    const g = map.get(r.key) || { key: r.key, isin: r.isin, tv: r.tv, label: r.label, sub: r.sub, type: r.type, live: r.live, price: r.price, lots: [], qty: 0, value: 0, cost: 0 };
+    g.lots.push(r); g.qty += r.quantity; g.value += r.value; g.cost += r.cost;
+    map.set(r.key, g);
+  }
+  return [...map.values()].map((g) => {
+    g.lots.sort((a, b) => (b.buyDate || "").localeCompare(a.buyDate || ""));
+    g.avgBuy = g.qty ? g.cost / g.qty : 0;
+    g.gain = g.value - g.cost;
+    g.gainPct = g.cost ? (g.gain / g.cost) * 100 : 0;
+    return g;
+  });
+}
+
 function renderPortfolio() {
   const body = $("pf-body");
   if (state.holdings === null) { $("pf-count").textContent = ""; body.innerHTML = loadingState(); return; }
   if (!state.holdings.length) { $("pf-count").textContent = ""; body.innerHTML = emptyState(); return; }
 
-  const rows = state.holdings.map(valuate).sort((a, b) => b.value - a.value);
+  const rows = state.holdings.map(valuate);
+  const groups = lotGroups(rows).sort((a, b) => b.value - a.value);
   const t = totals(rows);
-  $("pf-count").textContent = `${rows.length} ${rows.length === 1 ? "holding" : "holdings"}`;
+  if (openPos && !groups.some((g) => g.key === openPos)) openPos = null;
+  $("pf-count").textContent = `${groups.length} ${groups.length === 1 ? "position" : "positions"} · ${rows.length} ${rows.length === 1 ? "buy" : "buys"}`;
 
   body.innerHTML = `
     <div class="card" style="padding:0">
       <ul class="holdings">
-        ${rows.map((r) => `
-        <li>
-          <a class="holding" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${esc(r.label)}">
+        ${groups.map((g, i) => {
+          const open = g.key === openPos;
+          const buys = g.lots.length;
+          return `
+        <li class="pos${open ? " is-open" : ""}">
+          <button class="holding pos__head" type="button" data-pos="${esc(g.key)}" aria-expanded="${open}" aria-controls="pos-${i}">
             <div class="row__id">
-              <div class="row__title">${esc(r.label)}<span class="holding__tag holding__tag--${r.type}">${r.type === "etf" ? "ETF" : "Stock"}</span></div>
-              <div class="row__name row__name--mono">${esc(r.sub)}</div>
-              <div class="holding__sub">${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)} → ${r.live ? fmtEur(r.price) : `<span class="stale">no live price</span>`}</div>
+              <div class="row__title">${esc(g.label)}<span class="holding__tag holding__tag--${g.type}">${g.type === "etf" ? "ETF" : "Stock"}</span></div>
+              <div class="row__name row__name--mono">${esc(g.sub)}</div>
+              <div class="holding__sub">${buys} ${buys === 1 ? "buy" : "buys"} · ${fmtQty.format(g.qty)} × ${fmtEur(g.avgBuy)}${buys > 1 ? " avg" : ""} → ${g.live ? fmtEur(g.price) : `<span class="stale">no live price</span>`}</div>
             </div>
             <div class="row__nums">
-              <div class="row__price">${fmtEur(r.value)}</div>
-              ${r.live ? `<span class="pill ${dir(r.gain)}">${fmtPct(r.gainPct)}</span>` : `<span class="holding__sub">—</span>`}
+              <div class="row__price">${fmtEur(g.value)}</div>
+              ${g.live ? `<span class="pill ${dir(g.gain)}">${fmtPct(g.gainPct)}</span>` : `<span class="holding__sub">—</span>`}
             </div>
-          </a>
-        </li>`).join("")}
+            <svg class="pos__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="pos__body" id="pos-${i}"${open ? "" : " hidden"}>
+            <div class="pos__chart" data-pos-chart="${esc(g.key)}"></div>
+            <ol class="lots" aria-label="Buys of ${esc(g.label)}">
+              ${g.lots.map((r) => `
+              <li><a class="lot" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit buy of ${esc(r.label)}${r.buyDate ? ` on ${fmtDate(r.buyDate)}` : ""}">
+                <span class="lot__date">${r.buyDate ? fmtDate(r.buyDate) : "No date"}</span>
+                <span class="lot__qty">${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)}</span>
+                <span class="lot__val">${fmtEur(r.value)}${r.live ? ` <span class="${dir(r.gain)}">${fmtPct(r.gainPct)}</span>` : ""}</span>
+              </a></li>`).join("")}
+            </ol>
+          </div>
+        </li>`; }).join("")}
       </ul>
       <div class="pf-total"><span>Total</span><span>${fmtEur(t.value)}</span></div>
     </div>`;
+  if (openPos) fillPosChart(openPos);
 }
+
+function fillPosChart(key) {
+  const host = document.querySelector(`[data-pos-chart="${CSS.escape(key)}"]`);
+  if (!host) return;
+  const g = lotGroups(state.holdings.map(valuate)).find((x) => x.key === key);
+  if (!g?.tv || !g.live) { host.innerHTML = `<p class="pos__nochart">No price chart yet — it appears once this ISIN has a live price.</p>`; return; }
+  const q = g.isin ? state.isin[g.isin] : state.prices.get(g.tv);
+  mountChart(host, g.tv, !q || q.changePct >= 0);
+}
+
+document.addEventListener("click", (e) => {
+  const head = e.target.closest("[data-pos]");
+  if (!head) return;
+  const key = head.dataset.pos;
+  const li = head.closest(".pos");
+  const wasOpen = openPos === key;
+  // fold whichever one is open (one chart at a time)
+  document.querySelectorAll(".pos.is-open").forEach((el) => {
+    el.classList.remove("is-open");
+    el.querySelector("[data-pos]").setAttribute("aria-expanded", "false");
+    el.querySelector(".pos__body").hidden = true;
+    el.querySelector(".pos__chart").innerHTML = "";
+  });
+  openPos = wasOpen ? null : key;
+  if (!openPos) return;
+  li.classList.add("is-open");
+  head.setAttribute("aria-expanded", "true");
+  li.querySelector(".pos__body").hidden = false;
+  fillPosChart(key);
+});
 
 /* ======================================================================
    Add / edit sheet — "Bought [10] for [€100.00] each [today]"
@@ -591,8 +659,6 @@ function openChart(symbol, isin) {
   const money = isin ? fmtEur : fmtUsd;
   const moneySigned = isin ? fmtEurSigned : fmtUsdSigned;
   const up = !q || q.changePct >= 0;
-  const line = up ? "#5BD48A" : "#FF9F4A";
-  const fill = up ? "rgba(91, 212, 138, 0.22)" : "rgba(255, 159, 74, 0.22)";
 
   $("sheet-sym").textContent = isin ? (q?.name || isin) : symbol;
   $("sheet-name").textContent = isin ? `${isin}${q?.venue ? ` · ${q.venue}` : ""}` : (q?.name || "");
@@ -602,21 +668,7 @@ function openChart(symbol, isin) {
   pill.hidden = !q;
   if (q) { pill.className = `pill ${dir(q.changePct)}`; pill.textContent = `${moneySigned(q.change)} · ${fmtPct(q.changePct)}`; }
 
-  const host = $("sheet-chart");
-  let always = false;
-  try { always = localStorage.getItem(CHARTS_KEY) === "on"; } catch {}
-  if (always) loadTradingView(host, symbol, line, fill);
-  else {
-    host.innerHTML = `<div class="consent">
-      <p>The chart is provided by TradingView (USA). Loading it sends your IP address to TradingView, which may set cookies. <a href="#/privacy">Privacy</a></p>
-      <button class="btn btn--primary" type="button" id="chart-load">Load chart</button>
-      <label><input type="checkbox" id="chart-always" /> Always load charts</label>
-    </div>`;
-    $("chart-load").addEventListener("click", () => {
-      if ($("chart-always").checked) { try { localStorage.setItem(CHARTS_KEY, "on"); } catch {} }
-      loadTradingView(host, symbol, line, fill);
-    });
-  }
+  mountChart($("sheet-chart"), symbol, up);
   $("sheet-link").href = `https://www.tradingview.com/symbols/${encodeURIComponent(symbol.replace(":", "-"))}/`;
 
   lastFocus = document.activeElement;
@@ -624,6 +676,24 @@ function openChart(symbol, isin) {
   document.body.classList.add("sheet-open");
   requestAnimationFrame(() => sheet.classList.add("is-open"));
   $("sheet-close").focus();
+}
+
+// TradingView chart behind a one-time consent prompt.
+function mountChart(host, symbol, up) {
+  const line = up ? "#5BD48A" : "#FF9F4A";
+  const fill = up ? "rgba(91, 212, 138, 0.22)" : "rgba(255, 159, 74, 0.22)";
+  let always = false;
+  try { always = localStorage.getItem(CHARTS_KEY) === "on"; } catch {}
+  if (always) { loadTradingView(host, symbol, line, fill); return; }
+  host.innerHTML = `<div class="consent">
+    <p>The chart is provided by TradingView (USA). Loading it sends your IP address to TradingView, which may set cookies. <a href="#/privacy">Privacy</a></p>
+    <button class="btn btn--primary" type="button" data-chart-load>Load chart</button>
+    <label><input type="checkbox" data-chart-always /> Always load charts</label>
+  </div>`;
+  host.querySelector("[data-chart-load]").addEventListener("click", () => {
+    if (host.querySelector("[data-chart-always]").checked) { try { localStorage.setItem(CHARTS_KEY, "on"); } catch {} }
+    loadTradingView(host, symbol, line, fill);
+  });
 }
 
 function loadTradingView(host, symbol, line, fill) {
