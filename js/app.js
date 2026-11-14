@@ -441,7 +441,7 @@ function fillPosChart(key) {
   const g = lotGroups(state.holdings.map(valuate)).find((x) => x.key === key);
   if (!g?.tv || !g.live) { host.innerHTML = `<p class="pos__nochart">No price chart yet — it appears once this ISIN has a live price.</p>`; return; }
   const q = g.isin ? state.isin[g.isin] : state.prices.get(g.tv);
-  mountChart(host, g.tv, !q || q.changePct >= 0);
+  mountChart(host, g.tv);
 }
 
 document.addEventListener("click", (e) => {
@@ -742,7 +742,6 @@ function openChart(symbol, isin) {
   const q = isin ? state.isin[isin] : state.prices.get(symbol);
   const money = isin ? fmtEur : fmtUsd;
   const moneySigned = isin ? fmtEurSigned : fmtUsdSigned;
-  const up = !q || q.changePct >= 0;
 
   $("sheet-sym").textContent = isin ? (q?.name || isin) : symbol;
   $("sheet-name").textContent = isin ? `${isin}${q?.venue ? ` · ${q.venue}` : ""}` : (q?.name || "");
@@ -752,7 +751,7 @@ function openChart(symbol, isin) {
   pill.hidden = !q;
   if (q) { pill.className = `pill ${dir(q.changePct)}`; pill.textContent = `${moneySigned(q.change)} · ${fmtPct(q.changePct)}`; }
 
-  mountChart($("sheet-chart"), symbol, up);
+  mountChart($("sheet-chart"), symbol);
   $("sheet-link").href = `https://www.tradingview.com/symbols/${encodeURIComponent(symbol.replace(":", "-"))}/`;
 
   lastFocus = document.activeElement;
@@ -763,12 +762,10 @@ function openChart(symbol, isin) {
 }
 
 // TradingView chart behind a one-time consent prompt.
-function mountChart(host, symbol, up) {
-  const line = up ? "#5BD48A" : "#FF9F4A";
-  const fill = up ? "rgba(91, 212, 138, 0.22)" : "rgba(255, 159, 74, 0.22)";
+function mountChart(host, symbol) {
   let always = false;
   try { always = localStorage.getItem(CHARTS_KEY) === "on"; } catch {}
-  if (always) { loadTradingView(host, symbol, line, fill); return; }
+  if (always) { loadTradingView(host, symbol); return; }
   host.innerHTML = `<div class="consent">
     <p>The chart is provided by TradingView (USA). Loading it sends your IP address to TradingView, which may set cookies. <a href="#/privacy">Privacy</a></p>
     <button class="btn btn--primary" type="button" data-chart-load>Load chart</button>
@@ -776,25 +773,38 @@ function mountChart(host, symbol, up) {
   </div>`;
   host.querySelector("[data-chart-load]").addEventListener("click", () => {
     if (host.querySelector("[data-chart-always]").checked) { try { localStorage.setItem(CHARTS_KEY, "on"); } catch {} }
-    loadTradingView(host, symbol, line, fill);
+    loadTradingView(host, symbol);
   });
 }
 
-function loadTradingView(host, symbol, line, fill) {
+// Chart styled to the Stonks palette (see brand.md). The widget runs in TradingView's iframe,
+// so it can't use our self-hosted fonts: a system stack keeps it close to Inter Tight.
+const CHART_STYLE = {
+  colorTheme: "dark", isTransparent: true,
+  lineColor: "#FF2E88", topColor: "rgba(255, 46, 136, 0.32)", bottomColor: "rgba(255, 46, 136, 0)",
+  lineWidth: 2, lineType: 0, chartType: "area",
+  gridLineColor: "rgba(255, 244, 248, 0.05)",
+  fontColor: "#CDB7C5", widgetFontColor: "#CDB7C5", scaleFontColor: "#A894A3",
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif", fontSize: "11",
+  upColor: "#5BD48A", downColor: "#FF9F4A", borderUpColor: "#5BD48A", borderDownColor: "#FF9F4A",
+  wickUpColor: "#5BD48A", wickDownColor: "#FF9F4A",
+};
+
+function loadTradingView(host, symbol) {
   host.innerHTML = `<div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div></div>`;
   const s = document.createElement("script");
   s.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js";
   s.async = true;
   s.textContent = JSON.stringify({
     symbols: [[symbol, `${symbol}|1D`]],
-    chartOnly: false, width: "100%", height: "100%", autosize: true, locale: "en",
-    colorTheme: "dark", isTransparent: true, showVolume: false, showMA: false,
+    ...CHART_STYLE,
+    chartOnly: true,          // our own header already shows name, price and change
+    width: "100%", height: "100%", autosize: true, locale: "en",
+    showVolume: false, showMA: false,
     hideDateRanges: false, hideMarketStatus: true, hideSymbolLogo: true,
-    scalePosition: "right", scaleMode: "Normal", chartType: "area",
-    fontFamily: "Inter Tight, system-ui, sans-serif", fontSize: "11",
+    scalePosition: "right", scaleMode: "Normal",
     noTimeScale: false, valuesTracking: "1", changeMode: "price-and-percent",
-    lineWidth: 2, lineType: 0, lineColor: line, topColor: fill, bottomColor: "rgba(0,0,0,0)",
-    gridLineColor: "rgba(255,255,255,0.04)",
+    dateFormat: "dd MMM 'yy", timeHoursFormat: "24-hours",
     dateRanges: ["1d|1", "1m|30", "3m|60", "12m|1D", "60m|1W", "all|1M"],
   });
   host.firstElementChild.appendChild(s);
