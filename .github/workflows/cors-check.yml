@@ -9,14 +9,13 @@ jobs:
     steps:
       - run: |
           S=$(curl -s "https://api.onvista.de/api/v1/stocks/ISIN:US0378331005/snapshot")
-          EV=$(echo "$S" | jq -r '.instrument.entityValue'); echo "entityValue=$EV"
-          echo "$S" | jq -c '[.. | objects | select(has("idNotation") and has("last")) | {idNotation, m: .market.name, last}] | .[:6]'
-          N=$(echo "$S" | jq -r '[.. | objects | select(has("idNotation") and has("last")) | select(.market.name|test("Xetra";"i"))][0].idNotation')
-          echo "xetra idNotation=$N"
+          echo "keys: $(echo "$S" | jq -c 'keys')"
+          echo "quote: $(echo "$S" | jq -c '.quote' | head -c 700)"
+          echo "paths: $(echo "$S" | jq -c '[paths(type == "number") | map(tostring) | join(".")] | map(select(test("[Nn]otation"))) | .[:15]')"
+          N=$(echo "$S" | jq -r '.quote.market.idNotation // .quote.idNotation // empty')
+          EV=$(echo "$S" | jq -r '.instrument.entityValue')
+          echo "N=$N EV=$EV"
           for iv in D1 W1 M1 Y1 Y5 MAX; do
             u="https://api.onvista.de/api/v1/instruments/STOCK/$EV/simple_chart_history?chartType=PRICE&idNotation=$N&interval=$iv&withEarnings=false"
-            printf "== %s: " $iv; curl -s -D /tmp/h -o /tmp/b -H "Origin: https://diemmarkus.github.io" -w "%{http_code} " "$u"; grep -i "access-control-allow-origin" /tmp/h | tr -d '\r'; head -c 400 /tmp/b; echo
+            printf "== %s: " $iv; curl -s -o /tmp/b -w "%{http_code} " "$u"; head -c 350 /tmp/b; echo
           done
-          G=$(curl -s "https://api.onvista.de/api/v1/derivatives/ISIN:IE00B4ND3602/snapshot")
-          echo "gold entity: $(echo "$G" | jq -c '{t:.instrument.entityType, v:.instrument.entityValue}')"
-          echo "coingecko:"; curl -s -D /tmp/h -o /tmp/b -H "Origin: https://diemmarkus.github.io" "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=eur&days=7"; grep -i "access-control-allow-origin" /tmp/h; head -c 200 /tmp/b; echo
