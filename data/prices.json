@@ -1,7 +1,18 @@
 {
-  "updatedAt": "2026-11-14T21:15:59.796Z",
+  "updatedAt": "2026-11-14T21:25:04.360Z",
   "source": "onvista",
   "byIsin": {
+    "AT0000652011": {
+      "isin": "AT0000652011",
+      "name": "Erste Group Bank",
+      "type": "stock",
+      "tv": "XETR:EBO",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "price": 115.9,
+      "change": -1,
+      "changePct": -0.86
+    },
     "IE00BK5BQT80": {
       "isin": "IE00BK5BQT80",
       "name": "Vanguard FTSE All-World UCITS ETF USD Acc.",
@@ -24,6 +35,17 @@
       "change": 1.3,
       "changePct": 0.4
     },
+    "US02079K3059": {
+      "isin": "US02079K3059",
+      "name": "Alphabet A (Google)",
+      "type": "stock",
+      "tv": "XETR:ABEA",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "price": 267.6,
+      "change": -2.4,
+      "changePct": -0.89
+    },
     "US0378331005": {
       "isin": "US0378331005",
       "name": "Apple",
@@ -45,6 +67,17 @@
       "price": 537.5,
       "change": 2.8,
       "changePct": 0.52
+    },
+    "US3168411052": {
+      "isin": "US3168411052",
+      "name": "Figma",
+      "type": "stock",
+      "tv": "XETR:1S2",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "price": 17.58,
+      "change": 0.34,
+      "changePct": 1.97
     },
     "US5949181045": {
       "isin": "US5949181045",
@@ -100,9 +133,264 @@
       "price": 73.25,
       "change": 0.65,
       "changePct": 0.9
+    },
+    "XFC000A2YY6Q": {
+      "isin": "XFC000A2YY6Q",
+      "name": "Bitcoin (BTC)",
+      "type": "crypto",
+      "tv": "COINBASE:BTCEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 58439,
+      "change": -3549.222249,
+      "changePct": -5.73
+    },
+    "XFC000A2YY6X": {
+      "isin": "XFC000A2YY6X",
+      "name": "Ethereum (ETH)",
+      "type": "crypto",
+      "tv": "COINBASE:ETHEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 1609.29,
+      "change": -141.684958,
+      "changePct": -8.09
+    },
+    "XFC000A402EM": {
+      "isin": "XFC000A402EM",
+      "name": "Cardano (ADA)",
+      "type": "crypto",
+      "tv": "COINBASE:ADAEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 0.133488,
+      "change": -0.019581,
+      "changePct": -12.79
+    },
+    "XFC000A402FC": {
+      "isin": "XFC000A402FC",
+      "name": "Solana (SOL)",
+      "type": "crypto",
+      "tv": "COINBASE:SOLEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 63.43,
+      "change": -8.266943,
+      "changePct": -11.53
+    },
+    "XFC000A402FE": {
+      "isin": "XFC000A402FE",
+      "name": "XRP (XRP)",
+      "type": "crypto",
+      "tv": "COINBASE:XRPEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 0.830093,
+      "change": -0.084512,
+      "changePct": -9.24
+    },
+    "XFC000A402DH": {
+      "isin": "XFC000A402DH",
+      "name": "Litecoin (LTC)",
+      "type": "crypto",
+      "tv": "COINBASE:LTCEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 40.01,
+      "change": -4.817341,
+      "changePct": -10.75
+    },
+    "XFC000A3C3BH": {
+      "isin": "XFC000A3C3BH",
+      "name": "Polkadot (DOT)",
+      "type": "crypto",
+      "tv": "COINBASE:DOTEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 0.636733,
+      "change": -0.106794,
+      "changePct": -14.36
+    },
+    "XFC000A402DB": {
+      "isin": "XFC000A402DB",
+      "name": "Bitcoin Cash (BCH)",
+      "type": "crypto",
+      "tv": "COINBASE:BCHEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 181.56,
+      "change": -20.772693,
+      "changePct": -10.27
+    },
+    "XFC000A402EN": {
+      "isin": "XFC000A402EN",
+      "name": "Cosmos (ATOM)",
+      "type": "crypto",
+      "tv": "COINBASE:ATOMEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 1.13,
+      "change": -0.117764,
+      "changePct": -9.44
+    },
+    "XFC000A402DD": {
+      "isin": "XFC000A402DD",
+      "name": "Dogecoin (DOGE)",
+      "type": "crypto",
+      "tv": "COINBASE:DOGEEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 0.051556,
+      "change": -0.007165,
+      "changePct": -12.2
+    },
+    "XFC000A3DH2J": {
+      "isin": "XFC000A3DH2J",
+      "name": "Avalanche (AVAX)",
+      "type": "crypto",
+      "tv": "COINBASE:AVAXEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 6.46,
+      "change": -1.098981,
+      "changePct": -14.54
+    },
+    "XFC000A2YY62": {
+      "isin": "XFC000A2YY62",
+      "name": "Tron (TRX)",
+      "type": "crypto",
+      "tv": "",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 0.278876,
+      "change": -0.004609,
+      "changePct": -1.63
+    },
+    "XFC000A402F9": {
+      "isin": "XFC000A402F9",
+      "name": "Polygon (POL)",
+      "type": "crypto",
+      "tv": "COINBASE:POLEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 0.07007,
+      "change": -0.007159,
+      "changePct": -9.27
+    },
+    "XFC000A402EX": {
+      "isin": "XFC000A402EX",
+      "name": "Chainlink (LINK)",
+      "type": "crypto",
+      "tv": "COINBASE:LINKEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 7.95,
+      "change": -1.015642,
+      "changePct": -11.33
+    },
+    "XFC000A402EG": {
+      "isin": "XFC000A402EG",
+      "name": "Uniswap (UNI)",
+      "type": "crypto",
+      "tv": "COINBASE:UNIEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 4.28,
+      "change": -0.946333,
+      "changePct": -18.11
+    },
+    "XFC000A402ET": {
+      "isin": "XFC000A402ET",
+      "name": "Ethereum Classic (ETC)",
+      "type": "crypto",
+      "tv": "COINBASE:ETCEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 5.21,
+      "change": -0.64137,
+      "changePct": -10.96
+    },
+    "XFC000A2YY60": {
+      "isin": "XFC000A2YY60",
+      "name": "Stellar (XLM)",
+      "type": "crypto",
+      "tv": "COINBASE:XLMEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 0.120232,
+      "change": -0.012769,
+      "changePct": -9.6
+    },
+    "XFC000A402EL": {
+      "isin": "XFC000A402EL",
+      "name": "Aave (AAVE)",
+      "type": "crypto",
+      "tv": "COINBASE:AAVEEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 89.45,
+      "change": -12.033413,
+      "changePct": -11.86
+    },
+    "XFC000A4AJNY": {
+      "isin": "XFC000A4AJNY",
+      "name": "Compound (COMP)",
+      "type": "crypto",
+      "tv": "COINBASE:COMPEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 16.25,
+      "change": -1.382254,
+      "changePct": -7.84
+    },
+    "XFC000A402FG": {
+      "isin": "XFC000A402FG",
+      "name": "Hedera (HBAR)",
+      "type": "crypto",
+      "tv": "COINBASE:HBAREUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 0.050824,
+      "change": -0.005425,
+      "changePct": -9.64
+    },
+    "XFC000A4AJPK": {
+      "isin": "XFC000A4AJPK",
+      "name": "Sui (SUI)",
+      "type": "crypto",
+      "tv": "COINBASE:SUIEUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 0.626334,
+      "change": -0.098294,
+      "changePct": -13.56
+    },
+    "XFC000A4AQ5D": {
+      "isin": "XFC000A4AQ5D",
+      "name": "Hyperliquid (HYPE)",
+      "type": "crypto",
+      "tv": "",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 56.26,
+      "change": -9.552874,
+      "changePct": -14.52
+    },
+    "XFC000A402FA": {
+      "isin": "XFC000A402FA",
+      "name": "NEAR Protocol (NEAR)",
+      "type": "crypto",
+      "tv": "COINBASE:NEAREUR",
+      "venue": "CoinGecko",
+      "currency": "EUR",
+      "price": 2.66,
+      "change": -0.517102,
+      "changePct": -16.28
     }
   },
-  "failed": [],
+  "failed": [
+    "IE00B4ND3602"
+  ],
   "fx": {
     "USD": 1.1052
   }
