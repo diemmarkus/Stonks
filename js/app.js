@@ -460,8 +460,8 @@ let lastFocus = null;
 function openChart(symbol) {
   const q = state.prices.get(symbol);
   const up = !q || q.changePct >= 0;
-  const line = up ? "#37e08f" : "#ff5d5d";
-  const fill = up ? "rgba(55, 224, 143, 0.22)" : "rgba(255, 93, 93, 0.22)";
+  const line = up ? "#5BD48A" : "#FF8A75";
+  const fill = up ? "rgba(91, 212, 138, 0.22)" : "rgba(255, 138, 117, 0.22)";
 
   $("sheet-sym").textContent = symbol;
   $("sheet-name").textContent = q?.name || "";
