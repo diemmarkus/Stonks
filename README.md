@@ -36,3 +36,10 @@ The Finnhub key lives in GitHub Secrets and never reaches the browser.
 python3 -m http.server 8000   # then open http://localhost:8000
 node scripts/update-movers.mjs --sample   # regenerate demo data
 ```
+
+## Releasing changes
+
+GitHub Pages lets browsers cache files for ~10 minutes. Before committing changes to `css/` or `js/`,
+run `sh scripts/bump-version.sh`: it bumps the `?v=` on the page **and on every module import**, so
+browsers never mix a new page with old cached scripts. The app also reloads itself once when it notices
+a newer version.
