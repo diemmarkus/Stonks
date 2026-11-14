@@ -29,18 +29,18 @@ export async function lookupIsin(isin, fetchOpts = {}) {
   if (!s.ok) throw new Error(`onvista search HTTP ${s.status}`);
   const body = await s.json();
   const hits = (body.facets || []).flatMap((f) => f.results || []);
-  const hit = hits.find((h) => h.isin === isin) || hits[0];
-  if (!hit) return null;
-  // onvista files instruments under different endpoints (stocks, funds/ETFs, ETCs, certificates …).
-  // Start with the one matching the search hit's type, then try the others until one has a quote.
-  const byType = { STOCK: "stocks", FUND: "funds", ETF: "funds", ETC: "etcs", ETN: "etns", BOND: "bonds", CERTIFICATE: "certificates", DERIVATIVE: "derivatives" };
+  // ETCs and some other products aren't in the search index, so without a hit we just try the endpoints.
+  const hit = hits.find((h) => h.isin === isin) || hits[0] || {};
+  const byType = { STOCK: "stocks", FUND: "funds", ETF: "funds", BOND: "bonds", DERIVATIVE: "derivatives" };
   const first = byType[hit.entityType] || "stocks";
-  const kinds = [first, ...["funds", "etcs", "stocks", "etns", "certificates", "bonds"].filter((k) => k !== first)];
-  let q = null;
+  const kinds = [first, ...["funds", "stocks", "derivatives", "bonds"].filter((k) => k !== first)];
+  let q = null, instrument = null;
   for (const kind of kinds) {
     const r = await fetch(`https://api.onvista.de/api/v1/${kind}/ISIN:${isin}/snapshot`, fetchOpts);
     if (!r.ok) continue;
-    q = pickQuote(await r.json());
+    const snap = await r.json();
+    q = pickQuote(snap);
+    instrument = snap.instrument || null;
     if (q) break;
   }
   if (!q) return null;
@@ -49,11 +49,13 @@ export async function lookupIsin(isin, fetchOpts = {}) {
   const change = q.performance ?? (prevClose != null ? price - prevClose : 0);
   const changePct = q.performancePct ?? (prevClose ? (change / prevClose) * 100 : 0);
   const venue = q.market?.name || "onvista";
-  const tv = hit.symbol && /xetra|tradegate/i.test(venue) ? `XETR:${hit.symbol}` : "";
+  const symbol = hit.symbol || instrument?.symbol;
+  const tv = symbol && /xetra|tradegate/i.test(venue) ? `XETR:${symbol}` : "";
+  const entityType = hit.entityType || instrument?.entityType || "";
   return {
     isin,
-    name: hit.name || isin,
-    type: /FUND|ETF|ETC|ETN/.test(hit.entityType) ? "etf" : "stock",
+    name: hit.name || instrument?.name || isin,
+    type: /FUND|ETF|DERIVATIVE/.test(entityType) ? "etf" : "stock",
     tv,
     venue,
     currency: "EUR",

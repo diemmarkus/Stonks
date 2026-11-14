@@ -497,13 +497,16 @@ function sizePill(input) {
 // The date pill shows "today" / "yesterday" / "on 3 Mar 2024"; tap it and it becomes dd.mm.yyyy to type over.
 const toDmy = (iso) => { const [y, m, d] = iso.split("-"); return `${d}.${m}.${y}`; };
 function parseDmy(text) {
-  const m = text.trim().match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2}|\d{4})$/);
+  // dd.mm.yyyy, dd.mm.yy or just dd.mm (then this year — or last year if that would be in the future)
+  const m = text.trim().match(/^(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2}|\d{4})?)?$/);
   if (!m) return null;
-  let [, d, mo, y] = m.map(Number);
-  if (y < 100) y += 2000;
-  const dt = new Date(y, mo - 1, d, 12);
-  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
-  return dt.toLocaleDateString("en-CA");
+  const d = Number(m[1]), mo = Number(m[2]);
+  let y = m[3] ? Number(m[3]) : new Date().getFullYear();
+  if (m[3] && y < 100) y += 2000;
+  const make = (yy) => { const dt = new Date(yy, mo - 1, d, 12); return dt.getFullYear() === yy && dt.getMonth() === mo - 1 && dt.getDate() === d ? dt.toLocaleDateString("en-CA") : null; };
+  let iso = make(y);
+  if (iso && !m[3] && iso > isoToday()) iso = make(y - 1);
+  return iso;
 }
 function updateDateShow() {
   if (document.activeElement === f.datetext) return;
@@ -544,7 +547,7 @@ f.datetext.addEventListener("blur", () => {
     $("f-error").hidden = true;
   } else if (f.datetext.value.trim()) {
     f.datetext.parentElement.setAttribute("aria-invalid", "true");
-    showError(iso ? "The buy date can't be in the future." : "Enter the date as dd.mm.yyyy, e.g. 14.11.2026.");
+    showError(iso ? "The buy date can't be in the future." : "Enter the date as dd.mm.yyyy or dd.mm, e.g. 14.11.2026.");
   }
   updateDateShow();
 });
