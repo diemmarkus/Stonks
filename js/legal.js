@@ -48,7 +48,6 @@ function privacy() {
       { h: "What data we process", p: [
         "Account: when you sign in with Google, we receive your name, email address, profile picture and a technical user ID from Google.",
         "Holdings: for each holding you add, the ISIN, name, type (stock/ETF), quantity, buy price, buy date and when you added or changed it. Only you can read your holdings.",
-        "Public ISIN list: when you add a holding, its ISIN, type and the name you entered are added to a public list, so that prices for it get fetched. This list contains nothing that links an ISIN to you.",
         "Visiting the site: the hosting provider processes technically necessary data such as your IP address and browser details.",
       ] },
       { h: "Purpose and legal basis", p: [
@@ -61,7 +60,7 @@ function privacy() {
         "Firebase Authentication and Cloud Firestore (Google Ireland Ltd., Gordon House, Barrow Street, Dublin 4, Ireland): sign-in and storing your holdings. The Firebase program code is loaded from Google's servers (www.gstatic.com), and your Google profile picture is loaded from Google's servers; both send your IP address to Google.",
         "GitHub Pages (GitHub B.V., Netherlands, a subsidiary of GitHub Inc., USA): hosting the website.",
         "Finnhub (Finnhub Stock API), onvista and frankfurter.app (ECB rates): our server job fetches prices and security names from them; no personal data is sent to them.",
-        "onvista (onvista media GmbH, Germany): when you enter an ISIN, or hold one, that our price list doesn't cover yet, your browser asks onvista's servers for its name and price straight away; and when you open a price chart, your browser loads its price history from onvista. onvista then receives your IP address and that ISIN or ticker, nothing else. See onvista.de/datenschutz.",
+        "onvista (onvista media GmbH, Germany): when you open stonks, your browser asks onvista's servers for the current prices of your holdings, and when you enter an ISIN, for its name and price; and when you open a price chart, your browser loads its price history from onvista. onvista then receives your IP address and that ISIN or ticker, nothing else. See onvista.de/datenschutz.",
         "CoinGecko (Gecko Labs Pte. Ltd., Singapore): only for crypto. When you enter or open a coin, your browser loads its price and price history from CoinGecko, which receives your IP address and which coin. Singapore has no EU adequacy decision; the request only happens when you look at crypto yourself (Art. 49 (1)(b) GDPR). See coingecko.com/en/privacy.",
         "Fonts are served by stonks itself, not by Google.",
         "Google and GitHub are certified under the EU-US Data Privacy Framework; transfers to the USA rely on it (Art. 45 GDPR) and on standard contractual clauses.",

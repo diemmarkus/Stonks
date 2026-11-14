@@ -1,17 +1,9 @@
-// Prices for the ISINs people hold, in EUR.
-//
-// 1. Reads the ISINs from the public `symbols` collection in Firestore
-//    (doc id = ISIN, written by the app when a holding is saved).
-// 2. Looks each ISIN up on onvista (name, type, ticker) and takes the EUR quote,
-//    preferring Xetra, then Tradegate.
-// 3. Writes data/prices.json, which the portfolio and overview read.
+// Crypto prices (CoinGecko) and the EUR/USD rate (ECB via frankfurter.app) → data/prices.json.
+// Stock, ETF and certificate prices are fetched in the browser from onvista.
 //
 //   node scripts/update-prices.mjs
-//   node scripts/update-prices.mjs IE00BK5BQT80 US0378331005   (extra ISINs, handy for testing)
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { firebaseConfig } from "../js/firebase-config.js";
-import { lookupIsin } from "../js/onvista.js";
 import { CRYPTO, lookupCrypto } from "../js/crypto.js";
 
 const OUT = new URL("../data/prices.json", import.meta.url);
@@ -30,24 +22,6 @@ export function isValidIsin(isin) {
   return sum % 10 === 0;
 }
 
-async function trackedIsins() {
-  const { projectId, apiKey } = firebaseConfig;
-  const out = new Map();
-  let pageToken = "";
-  do {
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/symbols?pageSize=300&key=${apiKey}${pageToken ? `&pageToken=${pageToken}` : ""}`;
-    const res = await fetch(url);
-    if (!res.ok) { console.warn(`Couldn't read symbols: HTTP ${res.status}`); break; }
-    const body = await res.json();
-    for (const d of body.documents || []) {
-      const f = d.fields || {};
-      const id = f.symbol?.stringValue;
-      if (id && isValidIsin(id)) out.set(id, { type: f.type?.stringValue === "etf" ? "etf" : "stock", name: f.name?.stringValue || "" });
-    }
-    pageToken = body.nextPageToken || "";
-  } while (pageToken);
-  return out;
-}
 
 async function eurUsd(previous) {
   try {
@@ -64,27 +38,10 @@ let previous = {};
 try { previous = JSON.parse(await readFile(OUT, "utf8")); } catch {}
 const prevByIsin = previous.byIsin || {};
 
-const wanted = await trackedIsins();
-for (const extra of process.argv.slice(2)) if (isValidIsin(extra)) wanted.set(extra, wanted.get(extra) || { type: "", name: "" });
-console.log(`ISINs to price: ${wanted.size}`);
-
+// Your holdings are priced in the browser (straight from onvista), so nothing here reveals
+// which securities anyone holds. This job only keeps crypto prices and the EUR/USD rate.
 const byIsin = {};
 const failed = [];
-for (const [isin, meta] of wanted) {
-  const prev = prevByIsin[isin] || {};
-  try {
-    const q = await lookupIsin(isin, { headers: { "User-Agent": UA } });
-    if (!q) { failed.push(isin); console.warn(`${isin}: no price found`); continue; }
-    if (q.name === isin && meta.name) q.name = meta.name;
-    byIsin[isin] = q;
-    console.log(`${isin} ${q.name} €${q.price.toFixed(2)} ${q.changePct.toFixed(2)}% ${q.venue} ${q.tv}`);
-  } catch (e) {
-    console.warn(`${isin}: ${e.message}${e.cause ? ` (${e.cause.code || e.cause.message})` : ""}`);
-    if (prev.price != null) byIsin[isin] = prev; // keep the last known price
-    else failed.push(isin);
-  }
-  await sleep(400);
-}
 
 // Crypto: all coins flatex lists, one CoinGecko request.
 try {

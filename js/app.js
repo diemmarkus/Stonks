@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=26";
-import { legalDoc } from "./legal.js?v=26";
-import { isCryptoCode } from "./crypto.js?v=26";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=27";
+import { legalDoc } from "./legal.js?v=27";
+import { isCryptoCode } from "./crypto.js?v=27";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -76,21 +76,22 @@ async function loadMarket() {
 async function loadPrices() {
   try {
     const res = await fetch(`data/prices.json?t=${Date.now()}`, { cache: "no-store" });
-    if (!res.ok) return;
-    const data = await res.json();
-    // keep anything already looked up live in this browser that the job hasn't priced yet
-    const live = Object.fromEntries(Object.entries(state.isin).filter(([k, v]) => v.liveLookup && !data.byIsin?.[k]));
-    state.isin = { ...live, ...(data.byIsin || {}) };
-    state.pricesLoaded = true;
-    state.fx = data.fx || {};
-    state.pricesAt = data.updatedAt;
-    fillIsinList();
-    if (!$("add-sheet").hidden) updateIsinHint();
-    renderCurrent();
-    priceMissingHoldings();
+    if (res.ok) {
+      const data = await res.json(); // crypto prices + EUR/USD
+      const live = Object.fromEntries(Object.entries(state.isin).filter(([k, v]) => v.liveLookup && !data.byIsin?.[k]));
+      state.isin = { ...live, ...(data.byIsin || {}) };
+      state.fx = data.fx || {};
+      state.pricesAt = data.updatedAt;
+    }
   } catch (e) {
-    console.warn("No portfolio prices yet", e);
+    console.warn("No price file", e);
   }
+  // your stocks, ETFs and certificates are priced right here in the browser (onvista)
+  state.pricesLoaded = true;
+  fillIsinList();
+  if (!$("add-sheet").hidden) updateIsinHint();
+  renderCurrent();
+  priceMissingHoldings();
 }
 
 /* Instant prices for ISINs the hourly job hasn't priced yet: ask onvista straight from the browser. */
@@ -99,12 +100,13 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=26").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=26").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=27").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=27").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
           state.isin[isin] = { ...q, liveLookup: true };
+          state.pricesAt = new Date().toISOString();
           fillIsinList();
           renderCurrent();
         }
@@ -363,7 +365,7 @@ function renderOverview() {
     </div>
 
     <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>
-    ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. New ISINs are picked up by the next price update.</p>` : ""}`;
+    ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. Prices are fetched from onvista when the app opens; try again in a moment.</p>` : ""}`;
 }
 
 /* ======================================================================
@@ -486,7 +488,7 @@ document.addEventListener("focusout", async (e) => {
   const name = el.value.trim();
   if ((state.names[key] || "") === name) return;
   try {
-    const { setName } = await import("./store.js?v=26");
+    const { setName } = await import("./store.js?v=27");
     await setName(state.user.uid, key, name);
     toast(name ? `Renamed to ${name}` : "Back to the original name");
   } catch (err) {
@@ -726,7 +728,7 @@ form.addEventListener("submit", async (ev) => {
   const btn = $("f-submit");
   btn.disabled = true;
   try {
-    const { saveHolding } = await import("./store.js?v=26");
+    const { saveHolding } = await import("./store.js?v=27");
     await saveHolding(state.user.uid, editingId, {
       isin, quantity, buyPrice, buyDate: f.date.value,
       type: q?.type || guessType(isin), name: q?.name || "",
@@ -752,7 +754,7 @@ $("f-delete").addEventListener("click", async () => {
   resetDelete();
   const label = state.isin[f.isin.value]?.name || f.isin.value || "holding";
   try {
-    const { deleteHolding } = await import("./store.js?v=26");
+    const { deleteHolding } = await import("./store.js?v=27");
     await deleteHolding(state.user.uid, editingId);
     toast(`Removed ${label}`);
     closeAdd();
@@ -793,7 +795,7 @@ function openChart(symbol, isin) {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency) {
-  const { mountPriceChart } = await import("./chart.js?v=26");
+  const { mountPriceChart } = await import("./chart.js?v=27");
   mountPriceChart(host, { id, currency });
 }
 
@@ -931,7 +933,7 @@ async function startHoldings(uid) {
   state.names = {};
   let store;
   try {
-    store = await import("./store.js?v=26");
+    store = await import("./store.js?v=27");
   } catch (e) {
     console.error("Couldn't load store.js", e);
     state.holdings = [];

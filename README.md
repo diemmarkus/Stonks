@@ -27,7 +27,9 @@ The Finnhub key lives in GitHub Secrets and never reaches the browser.
 ## Data
 
 - `users/{uid}/holdings/{id}`: your holdings (private to you).
-- `symbols/{TICKER}`: public list of tickers people hold. The price job reads it, so newly added tickers get prices on the next run.
+- `users/{uid}/names/{ISIN}`: your own names for positions (private to you).
+- Prices for stocks, ETFs and certificates are fetched in the browser from onvista, so no list of
+  held securities is ever published. `data/prices.json` only has crypto prices and EUR/USD.
 - Charts are TradingView's free embed widget (no key needed).
 
 ## Local preview

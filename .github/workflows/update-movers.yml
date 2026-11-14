@@ -38,8 +38,8 @@ jobs:
         run: node scripts/update-movers.mjs
         continue-on-error: true
 
-      - name: Portfolio prices (ISINs in EUR)
-        run: node scripts/update-prices.mjs IE00BK5BQT80 US0378331005 IE00B4L5Y983 AT0000743059
+      - name: Crypto prices and EUR/USD
+        run: node scripts/update-prices.mjs
         continue-on-error: true
 
       - name: Commit if changed

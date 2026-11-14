@@ -2,23 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Each user can only read and write their own holdings.
+    // Each user can only read and write their own data (holdings, custom names).
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // Public list of tickers that the GitHub Action fetches prices for.
-    // Anyone can read it; signed-in users can add a ticker, nothing else.
-    match /symbols/{symbol} {
-      allow read: if true;
-      allow create, update: if request.auth != null
-        && symbol.matches('^[A-Z0-9.-]{1,12}$')
-        && request.resource.data.keys().hasOnly(['symbol', 'type', 'name', 'addedAt'])
-        && request.resource.data.symbol == symbol
-        && request.resource.data.type in ['stock', 'etf']
-        && request.resource.data.name is string
-        && request.resource.data.name.size() <= 60;
-      allow delete: if false;
-    }
+    // Everything else (including the old public `symbols` list) is closed.
   }
 }
