@@ -22,6 +22,13 @@ The Finnhub key lives in GitHub Secrets and never reaches the browser.
 2. **First run:** *Actions → Update movers → Run workflow*.
 3. **Firebase:** paste your web app config into `js/firebase-config.js`, enable Google sign-in, and add
    `diemmarkus.github.io` under *Authentication → Settings → Authorized domains*.
+4. **Firestore:** create the database, then paste `firestore.rules` into *Firestore → Rules* and publish.
+
+## Data
+
+- `users/{uid}/holdings/{id}`: your holdings (private to you).
+- `symbols/{TICKER}`: public list of tickers people hold. The price job reads it, so newly added tickers get prices on the next run.
+- Charts are TradingView's free embed widget (no key needed).
 
 ## Local preview
 

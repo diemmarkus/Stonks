@@ -7,6 +7,7 @@
 
 import { writeFile, mkdir } from "node:fs/promises";
 import { STOCKS, ETFS } from "./watchlist.mjs";
+import { firebaseConfig } from "../js/firebase-config.js";
 
 const OUT = new URL("../data/movers.json", import.meta.url);
 const TOP_N = 3;
@@ -64,8 +65,35 @@ function rank(items) {
   };
 }
 
+// Tickers users added to their portfolios (public `symbols` collection in Firestore).
+async function trackedSymbols() {
+  const { projectId, apiKey } = firebaseConfig;
+  if (!projectId) return [];
+  const out = [];
+  let pageToken = "";
+  do {
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/symbols?pageSize=300&key=${apiKey}${pageToken ? `&pageToken=${pageToken}` : ""}`;
+    const res = await fetch(url);
+    if (!res.ok) { console.warn(`Couldn't read tracked symbols: HTTP ${res.status}`); return out; }
+    const body = await res.json();
+    for (const d of body.documents || []) {
+      const fld = d.fields || {};
+      const symbol = fld.symbol?.stringValue;
+      if (symbol && /^[A-Z0-9.-]{1,12}$/.test(symbol)) out.push([symbol, fld.name?.stringValue || symbol, fld.type?.stringValue === "etf" ? "etf" : "stock"]);
+    }
+    pageToken = body.nextPageToken || "";
+  } while (pageToken);
+  return out;
+}
+
 const stocks = await collect(STOCKS, "stock");
 const etfs = await collect(ETFS, "etf");
+
+const known = new Set([...STOCKS, ...ETFS].map(([s]) => s));
+const extra = sample ? [] : (await trackedSymbols()).filter(([s]) => !known.has(s)).slice(0, 150);
+const tracked = [];
+for (const [symbol, name, kind] of extra) tracked.push(...(await collect([[symbol, name]], kind)));
+if (extra.length) console.log(`Tracked symbols: ${extra.length} requested, ${tracked.length} priced`);
 
 if (stocks.length + etfs.length < 10) {
   console.error("Too few quotes received — keeping the previous file.");
@@ -81,6 +109,7 @@ const data = {
   stocks: rank(stocks),
   etfs: rank(etfs),
   quotes: [...stocks, ...etfs].map(({ symbol, name, kind, price, change, changePct }) => ({ symbol, name, kind, price, change, changePct })),
+  tracked: tracked.map(({ symbol, name, kind, price, change, changePct }) => ({ symbol, name, kind, price, change, changePct })),
 };
 
 await mkdir(new URL("../data/", import.meta.url), { recursive: true });
