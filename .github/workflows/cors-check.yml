@@ -9,13 +9,10 @@ jobs:
     steps:
       - run: |
           B="https://api.onvista.de/api/v1/instruments/FUND/156424987"; N=262733170
-          T=$(date -u -d '+1 day' +%Y-%m-%d); S1=$(date -u -d '-6 day' +%Y-%m-%d); SM=$(date -u -d '-1 month' +%Y-%m-%d)
-          for path in "chart_history?idNotation=$N&resolution=1m&startDate=$S1&endDate=$T" \
-                      "chart_history?idNotation=$N&resolution=1m&startDate=${S1}T00:00:00.000Z&endDate=${T}T00:00:00.000Z" \
-                      "chart_history?idNotation=$N&resolution=15m&startDate=$SM&endDate=$T" \
-                      "chart_history?idNotation=$N&resolution=1H&startDate=$SM&endDate=$T" \
-                      "simple_chart_history?chartType=PRICE&idNotation=$N&interval=M1&startDate=$SM&endDate=$T&resolution=1h" \
-                      "simple_chart_history?chartType=PRICE&idNotation=$N&interval=D1&startDate=$S1&endDate=$T&resolution=1m" ; do
-            printf "== %s\n   " "$path"; curl -s -o /tmp/b -w "%{http_code} " "$B/$path"
-            jq -c '{keys: keys, n: ((.datetimeLast // .datetimeTick // [])|length), step_min: (((.datetimeLast // .datetimeTick // [0,0]) as $t | if ($t|length)>1 then ($t[-1]-$t[-2]) else 0 end) / (if ((.datetimeLast // [1e12])[0] > 1e11) then 60000 else 60 end))}' /tmp/b 2>/dev/null || head -c 250 /tmp/b; echo
+          T=$(date -u -d '+1 day' +%Y-%m-%d); SW=$(date -u -d '-8 day' +%Y-%m-%d); SM=$(date -u -d '-1 month' +%Y-%m-%d); SD=$(date -u -d '-6 day' +%Y-%m-%d)
+          for iv in "D1 $SD" "W1 $SW" "M1 $SM"; do set -- $iv
+            for r in 1m 5m 10m 15m 30m 1h 60m 1H 2h 4h; do
+              printf "%s %s: " $1 $r; curl -s -o /tmp/b -w "%{http_code} " "$B/simple_chart_history?chartType=PRICE&idNotation=$N&interval=$1&startDate=$2&endDate=$T&withEarnings=false&resolution=$r"
+              jq -c '{n: (.datetimeTick|length), step: (if (.datetimeTick|length)>2 then ((.datetimeTick[2]-.datetimeTick[1])/60000) else null end)}' /tmp/b 2>/dev/null || true
+            done
           done
