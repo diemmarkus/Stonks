@@ -37,7 +37,7 @@ Hot pink is the main highlight, electric cyan the second. Gains stay green; loss
 
 Logo colors: pink `#FF2E88`, pink shade `#B3175A`, pink highlight `#FF9CC8`, outline and $ `#151117`, neck band `#3CCBF4`.
 
-Type on the site: Instrument Serif (display, wordmark), Inter Tight (UI), JetBrains Mono (numbers).
+Type on the site: **Manrope** for titles and the wordmark (`--display`; Light 300 for big titles, Regular 400 for small ones, no italics), Inter Tight (UI, body), JetBrains Mono (numbers). All self-hosted under `fonts/`.
 
 Earlier palette (Sack: warm ink + rope gold) was tried and replaced on 2026-11-14.
 
