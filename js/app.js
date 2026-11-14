@@ -387,7 +387,7 @@ function updateIsinHint() {
   const hint = $("f-isin-hint");
   const q = state.isin[isin];
   hint.classList.toggle("is-ok", Boolean(q));
-  if (!isin) hint.textContent = "12 characters, e.g. IE00BK5BQT80. Prices in EUR, Xetra preferred.";
+  if (!isin) hint.textContent = "12 characters, e.g. IE00BK5BQT80. Prices in EUR.";
   else if (isin.length < 12) hint.textContent = `${12 - isin.length} more character${isin.length === 11 ? "" : "s"}`;
   else if (!isValidIsin(isin)) hint.textContent = "That doesn't look like a valid ISIN. Check for typos.";
   else if (q) {

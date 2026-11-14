@@ -356,3 +356,4 @@ body.sheet-open { overflow: hidden; }
 .row__name--mono { font: 400 11.5px/1.5 var(--mono); color: var(--ink-3); }
 .holding .row__id { min-width: 0; }
 .sheet__sym--name { font: 600 19px/1.25 var(--sans); }
+#f-isin::placeholder { text-transform: none; letter-spacing: 0; }
