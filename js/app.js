@@ -93,6 +93,7 @@ async function loadMovers() {
     renderBoards(data);
     renderMeta(data);
   } catch (e) {
+    console.error("Loading movers failed", e);
     $("boards").innerHTML = "";
     $("note").textContent = "Couldn't load today's movers. Try again in a bit.";
   }
