@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-14T21:07:42.675Z",
+  "updatedAt": "2026-11-14T21:15:59.796Z",
   "source": "onvista",
   "byIsin": {
     "IE00BK5BQT80": {
@@ -34,6 +34,50 @@
       "price": 324.95,
       "change": 3.7,
       "changePct": 1.15
+    },
+    "US0846707026": {
+      "isin": "US0846707026",
+      "name": "Berkshire Hathaway B",
+      "type": "stock",
+      "tv": "XETR:BRYN",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "price": 537.5,
+      "change": 2.8,
+      "changePct": 0.52
+    },
+    "US5949181045": {
+      "isin": "US5949181045",
+      "name": "Microsoft",
+      "type": "stock",
+      "tv": "XETR:MSF",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "price": 475.5,
+      "change": 3.2,
+      "changePct": 0.68
+    },
+    "US67066G1040": {
+      "isin": "US67066G1040",
+      "name": "Nvidia",
+      "type": "stock",
+      "tv": "XETR:NVD",
+      "venue": "Xetra",
+      "currency": "EUR",
+      "price": 148.08,
+      "change": -2.1,
+      "changePct": -1.4
+    },
+    "US8740391003": {
+      "isin": "US8740391003",
+      "name": "TSMC Taiwan Semiconductor (ADR)",
+      "type": "stock",
+      "tv": "XETR:TSFA",
+      "venue": "Tradegate BSX",
+      "currency": "EUR",
+      "price": 362,
+      "change": -5,
+      "changePct": -1.36
     },
     "IE00B4L5Y983": {
       "isin": "IE00B4L5Y983",
