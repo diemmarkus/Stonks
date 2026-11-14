@@ -9,13 +9,14 @@ jobs:
     steps:
       - run: |
           S=$(curl -s "https://api.onvista.de/api/v1/stocks/ISIN:US0378331005/snapshot")
-          echo "keys: $(echo "$S" | jq -c 'keys')"
-          echo "quote: $(echo "$S" | jq -c '.quote' | head -c 700)"
-          echo "paths: $(echo "$S" | jq -c '[paths(type == "number") | map(tostring) | join(".")] | map(select(test("[Nn]otation"))) | .[:15]')"
-          N=$(echo "$S" | jq -r '.quote.market.idNotation // .quote.idNotation // empty')
-          EV=$(echo "$S" | jq -r '.instrument.entityValue')
-          echo "N=$N EV=$EV"
-          for iv in D1 W1 M1 Y1 Y5 MAX; do
-            u="https://api.onvista.de/api/v1/instruments/STOCK/$EV/simple_chart_history?chartType=PRICE&idNotation=$N&interval=$iv&withEarnings=false"
-            printf "== %s: " $iv; curl -s -o /tmp/b -w "%{http_code} " "$u"; head -c 350 /tmp/b; echo
+          echo "chart: $(echo "$S" | jq -c '.chart' | head -c 500)"
+          X=$(echo "$S" | jq -r '[.quoteList.list[] | select(.market.name|test("Xetra";"i"))][0].market.idNotation')
+          echo "X=$X"
+          T=$(date -u +%Y-%m-%d)
+          for spec in "D1 $(date -u -d '-3 day' +%Y-%m-%d)" "W1 $(date -u -d '-8 day' +%Y-%m-%d)" "M1 $(date -u -d '-1 month' +%Y-%m-%d)" "Y1 $(date -u -d '-1 year' +%Y-%m-%d)" "Y5 $(date -u -d '-5 year' +%Y-%m-%d)"; do
+            set -- $spec
+            u="https://api.onvista.de/api/v1/instruments/STOCK/86627/simple_chart_history?chartType=PRICE&idNotation=$X&interval=$1&startDate=$2&endDate=$T&withEarnings=false"
+            printf "== %s %s: " $1 $2; curl -s -o /tmp/b -w "%{http_code} " "$u"; jq -c '{keys: keys, n: (.datetimeLast|length), first: [.datetimeLast[0], .last[0]], lastp: [.datetimeLast[-1], .last[-1]], cur: .isoCurrency}' /tmp/b 2>/dev/null || head -c 300 /tmp/b; echo
           done
+          u="https://api.onvista.de/api/v1/instruments/DERIVATIVE/40694725/simple_chart_history?chartType=PRICE&interval=M1&startDate=$(date -u -d '-1 month' +%Y-%m-%d)&endDate=$T&withEarnings=false"
+          printf "== gold no notation: "; curl -s -o /tmp/b -w "%{http_code} " "$u"; head -c 250 /tmp/b; echo
