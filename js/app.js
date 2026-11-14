@@ -591,8 +591,8 @@ function openChart(symbol, isin) {
   const money = isin ? fmtEur : fmtUsd;
   const moneySigned = isin ? fmtEurSigned : fmtUsdSigned;
   const up = !q || q.changePct >= 0;
-  const line = up ? "#5BD48A" : "#FF8A75";
-  const fill = up ? "rgba(91, 212, 138, 0.22)" : "rgba(255, 138, 117, 0.22)";
+  const line = up ? "#5BD48A" : "#FF9F4A";
+  const fill = up ? "rgba(91, 212, 138, 0.22)" : "rgba(255, 159, 74, 0.22)";
 
   $("sheet-sym").textContent = isin ? (q?.name || isin) : symbol;
   $("sheet-name").textContent = isin ? `${isin}${q?.venue ? ` · ${q.venue}` : ""}` : (q?.name || "");
