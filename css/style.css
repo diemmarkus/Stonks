@@ -27,6 +27,10 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+::selection { background: var(--accent-2); color: var(--on-accent); }
+input, textarea { caret-color: var(--accent); }
+input::selection, textarea::selection { background: rgba(60, 203, 244, .4); color: var(--ink); }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 body {
   margin: 0;
   background:

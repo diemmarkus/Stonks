@@ -32,7 +32,7 @@ Hot pink is the main highlight, electric cyan the second. Gains stay green; loss
 | Gain | `#5BD48A` | `--up` | Up moves, always with a + sign or ▲ |
 | Loss | `#FF9F4A` | `--down` | Down moves, always with a − sign or ▼ |
 | Warning | `#FFC861` | – | Stale prices, notes |
-| Electric cyan | `#3CCBF4` | `--accent-2`, `--stocks` | Second highlight: logo neck band, stock tag and allocation, buy list rule |
+| Electric cyan | `#3CCBF4` | `--accent-2`, `--stocks` | Second highlight: text selection, logo neck band, stock tag and allocation, buy list rule |
 | (ETFs) | `#FF2E88` | `--etfs` | ETF tag and allocation use the pink |
 
 Logo colors: pink `#FF2E88`, pink shade `#B3175A`, pink highlight `#FF9CC8`, outline and $ `#151117`, neck band `#3CCBF4`.
