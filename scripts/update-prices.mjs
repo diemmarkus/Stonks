@@ -12,6 +12,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { firebaseConfig } from "../js/firebase-config.js";
 import { lookupIsin } from "../js/onvista.js";
+import { CRYPTO, lookupCrypto } from "../js/crypto.js";
 
 const OUT = new URL("../data/prices.json", import.meta.url);
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
@@ -83,6 +84,16 @@ for (const [isin, meta] of wanted) {
     else failed.push(isin);
   }
   await sleep(400);
+}
+
+// Crypto: all coins flatex lists, one CoinGecko request.
+try {
+  const coins = await lookupCrypto(Object.keys(CRYPTO), { headers: { "User-Agent": UA } });
+  Object.assign(byIsin, coins);
+  console.log(`Crypto: ${Object.keys(coins).length} coins priced`);
+} catch (e) {
+  console.warn(`Crypto: ${e.message}`);
+  for (const code of Object.keys(CRYPTO)) if (prevByIsin[code]) byIsin[code] = prevByIsin[code];
 }
 
 const fx = { USD: await eurUsd(previous.fx?.USD) };

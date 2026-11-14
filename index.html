@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=15" />
+  <link rel="stylesheet" href="css/style.css?v=16" />
 </head>
 <body>
   <header class="top">
@@ -108,10 +108,8 @@
         <span class="sw">for</span>
         <span class="pill"><span aria-hidden="true">€</span><input id="f-price" name="buyPrice" inputmode="decimal" placeholder="100.00" aria-label="Buy price per share in EUR" autocomplete="off" /></span>
         <span class="sw">each</span>
-        <span class="pill date-field">
-          <span class="date-show" id="f-dateshow" aria-hidden="true">today</span>
-          <input id="f-date" name="buyDate" type="date" aria-label="Buy date" />
-        </span>
+        <span class="pill date-field"><input id="f-datetext" inputmode="decimal" aria-label="Buy date (dd.mm.yyyy)" autocomplete="off" placeholder="dd.mm.yyyy" /></span>
+        <input id="f-date" name="buyDate" type="hidden" />
       </p>
       <p class="addsheet__total" id="f-total"></p>
       <button class="btn btn--danger btn--block" type="button" id="f-delete" hidden>Delete holding</button>
@@ -139,6 +137,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=15"></script>
+  <script type="module" src="js/app.js?v=16"></script>
 </body>
 </html>

@@ -36,6 +36,7 @@ export async function deleteHolding(uid, id) {
 
 // Adds the ISIN to the public list so the GitHub Action starts fetching its price.
 async function registerIsin(h) {
+  if (h.type === "crypto") return; // all known coins are priced on every run anyway
   const { db, doc, setDoc, serverTimestamp } = await getDb();
   await setDoc(doc(db, "symbols", h.isin), {
     symbol: h.isin,

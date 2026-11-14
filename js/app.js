@@ -1,5 +1,6 @@
 import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js";
 import { legalDoc, CHARTS_KEY } from "./legal.js";
+import { isCryptoCode } from "./crypto.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -11,6 +12,7 @@ const fmtUsdSigned = (n) => `${sign(n)}$${fmt2.format(Math.abs(n))}`;
 const fmtEur = (n) => `€${fmt2.format(n)}`;
 const fmtEurSigned = (n) => `${sign(n)}€${fmt2.format(Math.abs(n))}`;
 const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
+const isValidId = (code) => isValidIsin(code) || isCryptoCode(code); // real ISIN or flatex crypto code
 function isValidIsin(isin) {
   if (!ISIN_RE.test(isin)) return false;
   const digits = isin.split("").map((c) => (/[A-Z]/.test(c) ? String(c.charCodeAt(0) - 55) : c)).join("");
@@ -93,10 +95,12 @@ async function loadPrices() {
 /* Instant prices for ISINs the hourly job hasn't priced yet: ask onvista straight from the browser. */
 const liveTried = new Map(); // isin → promise
 function lookupLive(isin) {
-  if (state.isin[isin] || !isValidIsin(isin)) return Promise.resolve(state.isin[isin] || null);
+  if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
-    liveTried.set(isin, import("./onvista.js")
-      .then(({ lookupIsin }) => lookupIsin(isin))
+    const lookup = isCryptoCode(isin)
+      ? import("./crypto.js").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js").then(({ lookupIsin }) => lookupIsin(isin));
+    liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
           state.isin[isin] = { ...q, liveLookup: true };
@@ -288,13 +292,14 @@ function renderOverview() {
   const byType = [
     { key: "stock", label: "Stocks", value: rows.filter((r) => r.type === "stock").reduce((s, r) => s + r.value, 0) },
     { key: "etf", label: "ETFs", value: rows.filter((r) => r.type === "etf").reduce((s, r) => s + r.value, 0) },
+    { key: "crypto", label: "Crypto", value: rows.filter((r) => r.type === "crypto").reduce((s, r) => s + r.value, 0) },
   ].filter((x) => x.value > 0);
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
 
   const allocBar = byType.map((x) =>
     `<div class="alloc__seg alloc__seg--${x.key}" style="flex:${x.value}" title="${x.label}: ${fmtEur(x.value)} (${share(x.value).toFixed(1)}%)"></div>`).join("");
   const allocLegend = byType.map((x) => `
-    <li><span class="legend__sw" style="background:var(--${x.key === "stock" ? "stocks" : "etfs"})"></span>
+    <li><span class="legend__sw" style="background:var(--${{ stock: "stocks", etf: "etfs", crypto: "crypto" }[x.key]})"></span>
       <span>${x.label}</span><span class="legend__val">${fmtEur(x.value)}</span><span class="legend__pct">${share(x.value).toFixed(1)}%</span></li>`).join("");
 
   const top = pos.slice(0, 5);
@@ -402,7 +407,7 @@ function renderPortfolio() {
         <li class="pos${open ? " is-open" : ""}">
           <button class="holding pos__head" type="button" data-pos="${esc(g.key)}" aria-expanded="${open}" aria-controls="pos-${i}">
             <div class="row__id">
-              <div class="row__title">${esc(g.label)}<span class="holding__tag holding__tag--${g.type}">${g.type === "etf" ? "ETF" : "Stock"}</span></div>
+              <div class="row__title">${esc(g.label)}<span class="holding__tag holding__tag--${g.type}">${{ etf: "ETF", crypto: "Crypto" }[g.type] || "Stock"}</span></div>
               <div class="row__name row__name--mono">${esc(g.sub)}</div>
               <div class="holding__sub">${buys} ${buys === 1 ? "buy" : "buys"} · ${fmtQty.format(g.qty)} × ${fmtEur(g.avgBuy)}${buys > 1 ? " avg" : ""} → ${g.live ? fmtEur(g.price) : `<span class="stale">no live price</span>`}</div>
             </div>
@@ -465,14 +470,14 @@ document.addEventListener("click", (e) => {
    ====================================================================== */
 const form = $("add-form");
 const addSheet = $("add-sheet");
-const f = { isin: $("f-isin"), qty: $("f-qty"), price: $("f-price"), date: $("f-date") };
+const f = { isin: $("f-isin"), qty: $("f-qty"), price: $("f-price"), date: $("f-date"), datetext: $("f-datetext") };
 let editingId = null;
 let pendingEditId = null;
 let deleteArmed = null;
 let addLastFocus = null;
 
 const parseNum = (v) => parseFloat(String(v).trim().replace(/\s/g, "").replace(",", "."));
-const guessType = (isin) => (/^(IE|LU)/.test(isin) ? "etf" : "stock");
+const guessType = (isin) => (isCryptoCode(isin) ? "crypto" : /^(IE|LU)/.test(isin) ? "etf" : "stock");
 const isoToday = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
 
 function fillIsinList() {
@@ -489,17 +494,60 @@ function sizePill(input) {
   input.style.width = `${len * 0.62 + 0.2}em`;
 }
 
+// The date pill shows "today" / "yesterday" / "on 3 Mar 2024"; tap it and it becomes dd.mm.yyyy to type over.
+const toDmy = (iso) => { const [y, m, d] = iso.split("-"); return `${d}.${m}.${y}`; };
+function parseDmy(text) {
+  const m = text.trim().match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2}|\d{4})$/);
+  if (!m) return null;
+  let [, d, mo, y] = m.map(Number);
+  if (y < 100) y += 2000;
+  const dt = new Date(y, mo - 1, d, 12);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return dt.toLocaleDateString("en-CA");
+}
 function updateDateShow() {
-  const v = f.date.value;
+  if (document.activeElement === f.datetext) return;
+  const v = f.date.value || isoToday();
   let text = "today";
-  if (v && v !== isoToday()) {
+  if (v !== isoToday()) {
     const d = new Date(`${v}T12:00:00`);
     const y = new Date(); y.setDate(y.getDate() - 1);
     text = v === y.toLocaleDateString("en-CA") ? "yesterday"
       : `on ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) })}`;
   }
-  $("f-dateshow").textContent = text;
+  f.datetext.value = text;
+  sizePill(f.datetext);
 }
+f.datetext.addEventListener("focus", () => {
+  f.datetext.value = toDmy(f.date.value || isoToday());
+  sizePill(f.datetext);
+  requestAnimationFrame(() => f.datetext.select());
+});
+f.datetext.addEventListener("input", (e) => {
+  f.datetext.parentElement.removeAttribute("aria-invalid");
+  // Typing digits only fills in the dots: 14112026 → 14.11.2026. Typed dots are kept as they are.
+  // Auto-format while the text is only digits and dots after full 2-digit day/month.
+  if (!e.inputType?.startsWith("delete") && /^(\d{2}\.){0,2}\d*$/.test(f.datetext.value)) {
+    const digits = f.datetext.value.replace(/\D/g, "").slice(0, 8);
+    let out = digits.slice(0, 2);
+    if (digits.length > 2) out += "." + digits.slice(2, 4);
+    if (digits.length > 4) out += "." + digits.slice(4, 8);
+    f.datetext.value = out;
+  }
+  sizePill(f.datetext);
+});
+f.datetext.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); f.datetext.blur(); } });
+f.datetext.addEventListener("blur", () => {
+  const iso = parseDmy(f.datetext.value);
+  if (iso && iso <= isoToday()) {
+    f.date.value = iso;
+    $("f-error").hidden = true;
+  } else if (f.datetext.value.trim()) {
+    f.datetext.parentElement.setAttribute("aria-invalid", "true");
+    showError(iso ? "The buy date can't be in the future." : "Enter the date as dd.mm.yyyy, e.g. 14.11.2026.");
+  }
+  updateDateShow();
+});
 
 function updateTotal() {
   const q = parseNum(f.qty.value), p = parseNum(f.price.value);
@@ -512,7 +560,7 @@ function updateIsinHint() {
   const q = state.isin[isin];
   if (!isin) hint.textContent = "";
   else if (isin.length < 12) hint.textContent = `${12 - isin.length} more character${isin.length === 11 ? "" : "s"}`;
-  else if (!isValidIsin(isin)) hint.textContent = "That doesn't look like a valid ISIN. Check for typos.";
+  else if (!isValidId(isin)) hint.textContent = "That doesn't look like a valid ISIN or crypto code. Check for typos.";
   else if (q) {
     hint.innerHTML = `<b>${esc(q.name)}</b> · <span class="ok">${fmtEur(q.price)}</span> on ${esc(q.venue)}`;
     if (!f.price.value && !editingId) { f.price.placeholder = q.price.toFixed(2); sizePill(f.price); }
@@ -532,14 +580,12 @@ f.isin.addEventListener("input", () => {
   try { f.isin.setSelectionRange(pos, pos); } catch {}
   f.isin.removeAttribute("aria-invalid");
   updateIsinHint();
-  if (isValidIsin(f.isin.value) && !f.qty.value) f.qty.focus();
+  if (isValidId(f.isin.value) && !f.qty.value) f.qty.focus();
 });
 [f.qty, f.price].forEach((el) => {
   el.addEventListener("input", () => { el.parentElement.removeAttribute("aria-invalid"); sizePill(el); updateTotal(); });
   el.parentElement.addEventListener("click", () => el.focus());
 });
-f.date.addEventListener("click", () => { try { f.date.showPicker?.(); } catch {} });
-f.date.addEventListener("change", () => { if (!f.date.value) f.date.value = isoToday(); updateDateShow(); });
 
 function resetDelete() {
   clearTimeout(deleteArmed);
@@ -561,7 +607,6 @@ function openAdd(id) {
   pendingEditId = null;
   f.price.placeholder = "100.00";
   f.date.value = isoToday();
-  f.date.max = isoToday();
 
   if (id) {
     if (state.holdings === null) { pendingEditId = id; return; }
@@ -638,7 +683,8 @@ form.addEventListener("submit", async (ev) => {
   const quantity = parseNum(f.qty.value);
   const buyPrice = parseNum(f.price.value);
   let bad = null;
-  if (!isValidIsin(isin)) bad = [f.isin, f.isin, "Enter a valid ISIN, e.g. IE00BK5BQT80."];
+  if (!isValidId(isin)) bad = [f.isin, f.isin, "Enter a valid ISIN, e.g. IE00BK5BQT80."];
+  else if (!f.date.value) bad = [f.datetext, f.datetext.parentElement, "Enter the buy date as dd.mm.yyyy."];
   else if (!(quantity > 0)) bad = [f.qty, f.qty.parentElement, "How many did you buy?"];
   else if (!(buyPrice > 0)) bad = [f.price, f.price.parentElement, "What did you pay per share (EUR)?"];
   if (bad) { bad[1].setAttribute("aria-invalid", "true"); bad[0].focus(); showError(bad[2]); return; }
