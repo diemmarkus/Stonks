@@ -243,7 +243,6 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
   padding: 12px 14px; font: 400 16px/1.2 var(--sans); outline: none; transition: border-color .15s; color-scheme: dark;
 }
 .input--mono { font-family: var(--mono); }
-#f-symbol { text-transform: uppercase; }
 .input:focus { border-color: var(--accent); }
 .input[aria-invalid="true"] { border-color: var(--down); }
 .switch--form { margin: 0; justify-self: start; }
@@ -377,3 +376,55 @@ body.sheet-open { overflow: hidden; }
 .lot__val { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; }
 .lot__val .up { color: var(--up); } .lot__val .down { color: var(--down); }
 @media (prefers-reduced-motion: reduce) { .pos__chev { transition: none; } .pos__body { animation: none; } }
+
+
+/* ---------- Add sheet, sentence pills, link card (restored after palette switch) ---------- */
+#f-isin { text-transform: uppercase; letter-spacing: .04em; }
+.row__title { font: 600 15px/1.25 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row__name--mono { font: 400 11.5px/1.5 var(--mono); color: var(--ink-3); }
+.holding .row__id { min-width: 0; }
+.sheet__sym--name { font: 600 19px/1.25 var(--sans); }
+#f-isin::placeholder { text-transform: none; letter-spacing: 0; }
+.addsheet { height: auto; max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; gap: 14px; padding-top: 6px; }
+.addsheet__head {
+  position: sticky; top: -6px; z-index: 1; margin: 0 -18px; padding: 4px 18px 12px;
+  display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 12px;
+  background: var(--bg-2); border-bottom: 1px solid var(--line);
+}
+.addsheet__head h2 { margin: 0; font: 600 18px/1.2 var(--sans); text-align: center; }
+.addsheet__save { padding: 8px 18px; font-size: 15px; }
+.input--big { font: 500 22px/1.2 var(--mono); padding: 14px 16px; letter-spacing: .03em; text-transform: uppercase; border-radius: 12px; }
+.input--big::placeholder { font: 400 17px/1.2 var(--sans); text-transform: none; letter-spacing: 0; color: var(--ink-3); }
+.addsheet__found { margin: -6px 2px 0; min-height: 1.4em; font-size: 14px; color: var(--ink-3); }
+.addsheet__found b { color: var(--ink); font-weight: 600; }
+.addsheet__found .ok { color: var(--up); }
+.addsheet__total { margin: -4px 2px 0; min-height: 1.3em; font: 400 13px/1.3 var(--mono); color: var(--ink-3); }
+.addsheet .form__error { margin: 0; }
+.sentence { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 6px; font-size: 19px; line-height: 1.3; color: var(--ink); }
+.sentence .sw { white-space: nowrap; color: var(--ink-2); }
+.sentence .pill {
+  display: inline-flex; align-items: center; gap: 2px; min-height: 40px; margin: 0; padding: 0 14px;
+  border-radius: 999px; background: rgba(255, 46, 136, 0.14); color: var(--accent);
+  font: 600 19px/1.2 var(--sans); cursor: text; position: relative;
+}
+.sentence .pill input {
+  border: 0; outline: 0; background: transparent; color: inherit; font: inherit; padding: 0; margin: 0;
+  min-width: 1ch; field-sizing: content; text-align: left;
+}
+.sentence .pill input::placeholder { color: var(--accent); opacity: .45; }
+.sentence .pill:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+.sentence .pill[aria-invalid="true"] { box-shadow: 0 0 0 2px var(--down); background: var(--down-dim); color: var(--down); }
+.sentence .date-field { cursor: pointer; }
+.sentence .date-field input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.sentence .date-show { white-space: nowrap; }
+@media (min-width: 720px) {
+  .addsheet { height: auto; max-height: 90vh; }
+}
+.linkcard { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 16px 18px; color: var(--ink); text-decoration: none; }
+.linkcard b { display: block; font-weight: 600; }
+.linkcard span span { display: block; font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+.linkcard > span:last-child { font-size: 20px; color: var(--accent); }
+.linkcard:hover { border-color: var(--ink-3); }
+#add-sheet { top: var(--vvtop, 0px); bottom: auto; height: var(--vvh, 100%); }
+#add-sheet .addsheet { max-height: calc(var(--vvh, 100dvh) - 16px - env(safe-area-inset-top, 0px)); scroll-padding-block: 72px 16px; }
+#f-isin::-webkit-calendar-picker-indicator, #f-isin::-webkit-list-button { display: none !important; opacity: 0; }
