@@ -31,10 +31,18 @@ export async function lookupIsin(isin, fetchOpts = {}) {
   const hits = (body.facets || []).flatMap((f) => f.results || []);
   const hit = hits.find((h) => h.isin === isin) || hits[0];
   if (!hit) return null;
-  const kind = { STOCK: "stocks", FUND: "funds", ETF: "funds", BOND: "bonds" }[hit.entityType] || "stocks";
-  const r = await fetch(`https://api.onvista.de/api/v1/${kind}/ISIN:${isin}/snapshot`, fetchOpts);
-  if (!r.ok) throw new Error(`onvista snapshot HTTP ${r.status}`);
-  const q = pickQuote(await r.json());
+  // onvista files instruments under different endpoints (stocks, funds/ETFs, ETCs, certificates …).
+  // Start with the one matching the search hit's type, then try the others until one has a quote.
+  const byType = { STOCK: "stocks", FUND: "funds", ETF: "funds", ETC: "etcs", ETN: "etns", BOND: "bonds", CERTIFICATE: "certificates", DERIVATIVE: "derivatives" };
+  const first = byType[hit.entityType] || "stocks";
+  const kinds = [first, ...["funds", "etcs", "stocks", "etns", "certificates", "bonds"].filter((k) => k !== first)];
+  let q = null;
+  for (const kind of kinds) {
+    const r = await fetch(`https://api.onvista.de/api/v1/${kind}/ISIN:${isin}/snapshot`, fetchOpts);
+    if (!r.ok) continue;
+    q = pickQuote(await r.json());
+    if (q) break;
+  }
   if (!q) return null;
   const price = q.last;
   const prevClose = q.previousLast ?? (q.performance != null ? price - q.performance : null);
@@ -45,7 +53,7 @@ export async function lookupIsin(isin, fetchOpts = {}) {
   return {
     isin,
     name: hit.name || isin,
-    type: /FUND|ETF/.test(hit.entityType) ? "etf" : "stock",
+    type: /FUND|ETF|ETC|ETN/.test(hit.entityType) ? "etf" : "stock",
     tv,
     venue,
     currency: "EUR",
