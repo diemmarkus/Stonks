@@ -5,8 +5,9 @@ on:
     # Weekdays every 30 min from European open to US close (≈ 08:00–22:00 Vienna). Times are UTC.
     - cron: "*/30 7-20 * * 1-5"
     - cron: "15 21 * * 1-5"
-    # Weekends: a few runs so newly added ISINs get resolved (prices are Friday's close).
-    - cron: "0 8,14,20 * * 0,6"
+    # Every hour otherwise (evenings, nights, weekends), so newly added ISINs get a price soon.
+    # Nothing is committed when prices haven't changed.
+    - cron: "5 * * * *"
   workflow_dispatch: # run by hand from the Actions tab
   push:
     branches: [main]
