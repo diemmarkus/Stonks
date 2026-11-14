@@ -8,17 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          B="https://api.onvista.de/api/v1/instruments/FUND"
-          S=$(curl -s "https://api.onvista.de/api/v1/funds/ISIN:IE00BK5BQT80/snapshot")
-          EV=$(echo "$S" | jq -r '.instrument.entityValue'); N=$(echo "$S" | jq -r '[.quoteList.list[] | select(.market.name|test("Xetra";"i"))][0].market.idNotation')
-          echo "EV=$EV N=$N"
-          stat() { jq -c '{n: (.datetimeTick|length), step_min: (if (.datetimeTick|length)>1 then ((.datetimeTick[-1]-.datetimeTick[-2])/60000) else null end), first: (.datetimeTick[0]/1000|todate), last: (.datetimeTick[-1]/1000|todate)}' 2>/dev/null || head -c 200; }
-          T=$(date -u -d '+1 day' +%Y-%m-%d)
-          for spec in "D1 -6day" "D5 -8day" "W1 -8day" "M1 -1month" "M3 -3month" "Y1 -1year"; do set -- $spec
-            S0=$(date -u -d "$2" +%Y-%m-%d)
-            printf "simple %s: " $1; curl -s "$B/$EV/simple_chart_history?chartType=PRICE&idNotation=$N&interval=$1&startDate=$S0&endDate=$T&withEarnings=false" | stat; echo
+          B="https://api.onvista.de/api/v1/instruments/FUND/156424987"; N=262733170
+          T=$(date -u -d '+1 day' +%Y-%m-%d); S1=$(date -u -d '-6 day' +%Y-%m-%d); SM=$(date -u -d '-1 month' +%Y-%m-%d)
+          for path in "chart_history?idNotation=$N&resolution=1m&startDate=$S1&endDate=$T" \
+                      "chart_history?idNotation=$N&resolution=1m&startDate=${S1}T00:00:00.000Z&endDate=${T}T00:00:00.000Z" \
+                      "chart_history?idNotation=$N&resolution=15m&startDate=$SM&endDate=$T" \
+                      "chart_history?idNotation=$N&resolution=1H&startDate=$SM&endDate=$T" \
+                      "simple_chart_history?chartType=PRICE&idNotation=$N&interval=M1&startDate=$SM&endDate=$T&resolution=1h" \
+                      "simple_chart_history?chartType=PRICE&idNotation=$N&interval=D1&startDate=$S1&endDate=$T&resolution=1m" ; do
+            printf "== %s\n   " "$path"; curl -s -o /tmp/b -w "%{http_code} " "$B/$path"
+            jq -c '{keys: keys, n: ((.datetimeLast // .datetimeTick // [])|length), step_min: (((.datetimeLast // .datetimeTick // [0,0]) as $t | if ($t|length)>1 then ($t[-1]-$t[-2]) else 0 end) / (if ((.datetimeLast // [1e12])[0] > 1e11) then 60000 else 60 end))}' /tmp/b 2>/dev/null || head -c 250 /tmp/b; echo
           done
-          for res in 1m 5m 15m 1h 1D; do
-            printf "chart_history res=%s (1 month): " $res; curl -s "$B/$EV/chart_history?idNotation=$N&resolution=$res&startDate=$(date -u -d '-1 month' +%Y-%m-%d)&endDate=$T" | stat; echo
-          done
-          printf "eod_history: "; curl -s "$B/$EV/eod_history?idNotation=$N&range=M1&startDate=$(date -u -d '-1 month' +%Y-%m-%d)" | head -c 200; echo
