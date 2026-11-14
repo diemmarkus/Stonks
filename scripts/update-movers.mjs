@@ -79,7 +79,7 @@ async function trackedSymbols() {
     for (const d of body.documents || []) {
       const fld = d.fields || {};
       const symbol = fld.symbol?.stringValue;
-      if (symbol && /^[A-Z0-9.-]{1,12}$/.test(symbol)) out.push([symbol, fld.name?.stringValue || symbol, fld.type?.stringValue === "etf" ? "etf" : "stock"]);
+      if (symbol && /^[A-Z0-9.-]{1,12}$/.test(symbol) && !/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(symbol)) out.push([symbol, fld.name?.stringValue || symbol, fld.type?.stringValue === "etf" ? "etf" : "stock"]);
     }
     pageToken = body.nextPageToken || "";
   } while (pageToken);
@@ -112,6 +112,12 @@ const data = {
   tracked: tracked.map(({ symbol, name, kind, price, change, changePct }) => ({ symbol, name, kind, price, change, changePct })),
 };
 
+let prevQuotes = null;
+try { const prev = JSON.parse(await (await import("node:fs/promises")).readFile(OUT, "utf8")); prevQuotes = JSON.stringify([prev.quotes, prev.tracked]); } catch {}
+if (!sample && prevQuotes === JSON.stringify([data.quotes, data.tracked])) {
+  console.log("Quotes unchanged, leaving movers.json as is.");
+  process.exit(0);
+}
 await mkdir(new URL("../data/", import.meta.url), { recursive: true });
 await writeFile(OUT, JSON.stringify(data, null, 2) + "\n");
 console.log(`Wrote ${data.quotes.length} quotes · stocks ↑${data.stocks.gainers.map((g) => g.symbol)} ↓${data.stocks.losers.map((g) => g.symbol)} · etfs ↑${data.etfs.gainers.map((g) => g.symbol)} ↓${data.etfs.losers.map((g) => g.symbol)}`);
