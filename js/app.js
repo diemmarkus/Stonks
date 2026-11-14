@@ -292,6 +292,7 @@ function renderOverview() {
   const byType = [
     { key: "stock", label: "Stocks", value: rows.filter((r) => r.type === "stock").reduce((s, r) => s + r.value, 0) },
     { key: "etf", label: "ETFs", value: rows.filter((r) => r.type === "etf").reduce((s, r) => s + r.value, 0) },
+    { key: "certificate", label: "Certificates", value: rows.filter((r) => r.type === "certificate").reduce((s, r) => s + r.value, 0) },
     { key: "crypto", label: "Crypto", value: rows.filter((r) => r.type === "crypto").reduce((s, r) => s + r.value, 0) },
   ].filter((x) => x.value > 0);
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
@@ -299,7 +300,7 @@ function renderOverview() {
   const allocBar = byType.map((x) =>
     `<div class="alloc__seg alloc__seg--${x.key}" style="flex:${x.value}" title="${x.label}: ${fmtEur(x.value)} (${share(x.value).toFixed(1)}%)"></div>`).join("");
   const allocLegend = byType.map((x) => `
-    <li><span class="legend__sw" style="background:var(--${{ stock: "stocks", etf: "etfs", crypto: "crypto" }[x.key]})"></span>
+    <li><span class="legend__sw" style="background:var(--${{ stock: "stocks", etf: "etfs", certificate: "certs", crypto: "crypto" }[x.key]})"></span>
       <span>${x.label}</span><span class="legend__val">${fmtEur(x.value)}</span><span class="legend__pct">${share(x.value).toFixed(1)}%</span></li>`).join("");
 
   const top = pos.slice(0, 5);
@@ -407,7 +408,7 @@ function renderPortfolio() {
         <li class="pos${open ? " is-open" : ""}">
           <button class="holding pos__head" type="button" data-pos="${esc(g.key)}" aria-expanded="${open}" aria-controls="pos-${i}">
             <div class="row__id">
-              <div class="row__title">${esc(g.label)}<span class="holding__tag holding__tag--${g.type}">${{ etf: "ETF", crypto: "Crypto" }[g.type] || "Stock"}</span></div>
+              <div class="row__title">${esc(g.label)}<span class="holding__tag holding__tag--${g.type}">${{ etf: "ETF", certificate: "Certificate", crypto: "Crypto" }[g.type] || "Stock"}</span></div>
               <div class="row__name row__name--mono">${esc(g.sub)}</div>
               <div class="holding__sub">${buys} ${buys === 1 ? "buy" : "buys"} · ${fmtQty.format(g.qty)} × ${fmtEur(g.avgBuy)}${buys > 1 ? " avg" : ""} → ${g.live ? fmtEur(g.price) : `<span class="stale">no live price</span>`}</div>
             </div>

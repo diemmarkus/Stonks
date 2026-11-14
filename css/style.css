@@ -188,6 +188,7 @@ h1 em.down { color: var(--down); }
 :root {
   --stocks: var(--accent-2);
   --etfs: var(--accent);
+  --certs: #8F72F0;    /* violet, validated */
   --crypto: #BA8400;   /* amber, validated against the plum surface */
   --tabbar-h: 64px;
 }
@@ -288,6 +289,7 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .alloc__seg--stock { background: var(--stocks); }
 .alloc__seg--etf { background: var(--etfs); }
 .alloc__seg--crypto { background: var(--crypto); }
+.alloc__seg--certificate { background: var(--certs); }
 .legend { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
 .legend li { display: grid; grid-template-columns: 12px 1fr auto auto; align-items: center; gap: 10px; font-size: 14px; }
 .legend__sw { width: 10px; height: 10px; border-radius: 3px; }
@@ -311,6 +313,7 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .holding__tag { display: inline-block; font: 600 10px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
 .holding__tag--stock { color: var(--stocks); background: rgba(60, 203, 244, .14); }
 .holding__tag--etf { color: var(--etfs); background: rgba(255, 46, 136, .14); }
+.holding__tag--certificate { color: #A994FF; background: rgba(143, 114, 240, .16); }
 .holding__tag--crypto { color: #E0A21A; background: rgba(186, 132, 0, .16); }
 .stale { color: #FFC861; }
 .pf-total { display: flex; justify-content: space-between; padding: 14px 18px; border-top: 1px solid var(--line); font: 600 14px/1 var(--mono); }

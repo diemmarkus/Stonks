@@ -55,7 +55,8 @@ export async function lookupIsin(isin, fetchOpts = {}) {
   return {
     isin,
     name: hit.name || instrument?.name || isin,
-    type: /FUND|ETF|DERIVATIVE/.test(entityType) ? "etf" : "stock",
+    // ETCs/ETNs (e.g. physical gold) are certificates in onvista's DERIVATIVE category
+    type: /DERIVATIVE|CERTIFICATE/.test(entityType) ? "certificate" : /FUND|ETF/.test(entityType) ? "etf" : "stock",
     tv,
     venue,
     currency: "EUR",
