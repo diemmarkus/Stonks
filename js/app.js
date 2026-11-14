@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=27";
-import { legalDoc } from "./legal.js?v=27";
-import { isCryptoCode } from "./crypto.js?v=27";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=28";
+import { legalDoc } from "./legal.js?v=28";
+import { isCryptoCode } from "./crypto.js?v=28";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -39,6 +39,7 @@ const state = {
   fx: {},              // { USD: dollars per euro }
   pricesAt: null,
   names: {},           // your own names for positions: key (ISIN) → name
+  venues: {},          // exchange to value a position with: key (ISIN) → venue name
   holdings: null,      // null = loading
   unsubHoldings: null,
   view: null,
@@ -100,8 +101,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=27").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=27").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=28").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=28").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -193,6 +194,15 @@ document.querySelectorAll("#kind-switch button").forEach((btn) => {
   });
 });
 
+// The quote for an ISIN, from the exchange you picked for it (else the default: gettex first).
+function quoteFor(isin) {
+  const q = state.isin[isin];
+  if (!q) return null;
+  const want = state.venues[isin];
+  const v = want && q.quotes?.find((x) => x.venue === want);
+  return v ? { ...q, price: v.price, change: v.change, changePct: v.changePct, venue: v.venue } : q;
+}
+
 /* ======================================================================
    Valuation
    ====================================================================== */
@@ -200,7 +210,7 @@ function valuate(h0) {
   let h = h0;
   let q = null, price, buy = h.buyPrice, live = false, key, tv = null, sub;
   if (h.isin) {
-    q = state.isin[h.isin];
+    q = quoteFor(h.isin);
     key = h.isin;
     live = Boolean(q);
     price = live ? q.price : h.buyPrice;
@@ -428,6 +438,7 @@ function renderPortfolio() {
                 <span class="pos__name-label">Your name</span>
                 <input class="input" data-pos-name="${esc(g.key)}" value="${g.nicknamed ? esc(g.label) : ""}" placeholder="${esc(g.realName)}" maxlength="60" autocomplete="off" enterkeyhint="done" />
               </label>
+              ${venueSelect(g)}
               <p class="pos__real"><span>${esc(g.realName)}</span> · ${esc(g.sub)}</p>
               <p class="pos__real">${buys} ${buys === 1 ? "buy" : "buys"} · ${fmtQty.format(g.qty)} × ${fmtEur(g.avgBuy)}${buys > 1 ? " avg" : ""} → ${g.live ? fmtEur(g.price) : "no live price"}</p>
             </div>
@@ -448,12 +459,26 @@ function renderPortfolio() {
   if (openPos) fillPosChart(openPos);
 }
 
+function venueSelect(g) {
+  const q = g.isin && state.isin[g.isin];
+  if (!q?.quotes?.length) return "";
+  const chosen = state.venues[g.isin] || "";
+  const fmt = (v) => `${v.venue} · ${fmtEur(v.price)}`;
+  return `<label class="pos__name">
+    <span class="pos__name-label">Price from</span>
+    <select class="input pos__venue" data-pos-venue="${esc(g.isin)}">
+      <option value=""${chosen ? "" : " selected"}>Automatic (${esc(q.venue)} · ${fmtEur(q.price)})</option>
+      ${q.quotes.map((v) => `<option value="${esc(v.venue)}"${v.venue === chosen ? " selected" : ""}>${esc(fmt(v))}</option>`).join("")}
+    </select>
+  </label>`;
+}
+
 function fillPosChart(key) {
   const host = document.querySelector(`[data-pos-chart="${CSS.escape(key)}"]`);
   if (!host) return;
   const g = lotGroups(state.holdings.map(valuate)).find((x) => x.key === key);
   if (!g) return;
-  mountChart(host, g.isin || g.key, g.isin ? "EUR" : "USD");
+  mountChart(host, g.isin || g.key, g.isin ? "EUR" : "USD", g.isin ? state.venues[g.isin] : undefined);
 }
 
 document.addEventListener("click", (e) => {
@@ -477,6 +502,24 @@ document.addEventListener("click", (e) => {
   fillPosChart(key);
 });
 
+// Pick the exchange a position is valued with.
+document.addEventListener("change", async (e) => {
+  const el = e.target;
+  if (!el.matches?.("[data-pos-venue]") || !state.user) return;
+  const key = el.dataset.posVenue;
+  state.venues = { ...state.venues, [key]: el.value || undefined };
+  if (!el.value) delete state.venues[key];
+  renderCurrent();
+  try {
+    const { setVenue } = await import("./store.js?v=28");
+    await setVenue(state.user.uid, key, el.value);
+    toast(el.value ? `Valued with ${el.value} prices` : "Back to automatic prices");
+  } catch (err) {
+    console.error(err);
+    toast("Couldn't save. Please try again.");
+  }
+});
+
 // Rename a position: saved when you leave the field or press Enter; empty = back to the real name.
 document.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && e.target.matches?.("[data-pos-name]")) { e.preventDefault(); e.target.blur(); }
@@ -488,7 +531,7 @@ document.addEventListener("focusout", async (e) => {
   const name = el.value.trim();
   if ((state.names[key] || "") === name) return;
   try {
-    const { setName } = await import("./store.js?v=27");
+    const { setName } = await import("./store.js?v=28");
     await setName(state.user.uid, key, name);
     toast(name ? `Renamed to ${name}` : "Back to the original name");
   } catch (err) {
@@ -728,7 +771,7 @@ form.addEventListener("submit", async (ev) => {
   const btn = $("f-submit");
   btn.disabled = true;
   try {
-    const { saveHolding } = await import("./store.js?v=27");
+    const { saveHolding } = await import("./store.js?v=28");
     await saveHolding(state.user.uid, editingId, {
       isin, quantity, buyPrice, buyDate: f.date.value,
       type: q?.type || guessType(isin), name: q?.name || "",
@@ -754,7 +797,7 @@ $("f-delete").addEventListener("click", async () => {
   resetDelete();
   const label = state.isin[f.isin.value]?.name || f.isin.value || "holding";
   try {
-    const { deleteHolding } = await import("./store.js?v=27");
+    const { deleteHolding } = await import("./store.js?v=28");
     await deleteHolding(state.user.uid, editingId);
     toast(`Removed ${label}`);
     closeAdd();
@@ -771,7 +814,7 @@ const sheet = $("sheet");
 let lastFocus = null;
 
 function openChart(symbol, isin) {
-  const q = isin ? state.isin[isin] : state.prices.get(symbol);
+  const q = isin ? quoteFor(isin) : state.prices.get(symbol);
   const money = isin ? fmtEur : fmtUsd;
   const moneySigned = isin ? fmtEurSigned : fmtUsdSigned;
 
@@ -784,7 +827,7 @@ function openChart(symbol, isin) {
   pill.hidden = !q;
   if (q) { pill.className = `pill ${dir(q.changePct)}`; pill.textContent = `${moneySigned(q.change)} · ${fmtPct(q.changePct)}`; }
 
-  mountChart($("sheet-chart"), isin || symbol, isin ? "EUR" : "USD");
+  mountChart($("sheet-chart"), isin || symbol, isin ? "EUR" : "USD", isin ? state.venues[isin] : undefined);
 
   lastFocus = document.activeElement;
   sheet.hidden = false;
@@ -794,9 +837,9 @@ function openChart(symbol, isin) {
 }
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
-async function mountChart(host, id, currency) {
-  const { mountPriceChart } = await import("./chart.js?v=27");
-  mountPriceChart(host, { id, currency });
+async function mountChart(host, id, currency, venue) {
+  const { mountPriceChart } = await import("./chart.js?v=28");
+  mountPriceChart(host, { id, currency, venue });
 }
 
 function closeChart() {
@@ -933,7 +976,7 @@ async function startHoldings(uid) {
   state.names = {};
   let store;
   try {
-    store = await import("./store.js?v=27");
+    store = await import("./store.js?v=28");
   } catch (e) {
     console.error("Couldn't load store.js", e);
     state.holdings = [];
@@ -959,8 +1002,9 @@ async function startHoldings(uid) {
     renderCurrent();
   }
   try {
-    state.unsubNames = await store.watchNames?.(uid, (names) => {
+    state.unsubNames = await store.watchNames?.(uid, (names, venues) => {
       state.names = names;
+      state.venues = venues || {};
       // don't re-render under the user's fingers while they're typing a name
       if (!document.activeElement?.matches?.("[data-pos-name]")) renderCurrent();
     });

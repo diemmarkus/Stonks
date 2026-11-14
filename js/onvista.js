@@ -35,13 +35,14 @@ export async function lookupIsin(isin, fetchOpts = {}) {
   const byType = { STOCK: "stocks", FUND: "funds", ETF: "funds", BOND: "bonds", DERIVATIVE: "derivatives" };
   const first = byType[hit.entityType] || "stocks";
   const kinds = [first, ...["funds", "stocks", "derivatives", "bonds"].filter((k) => k !== first)];
-  let q = null, instrument = null;
+  let q = null, instrument = null, snapUsed = null;
   for (const kind of kinds) {
     const r = await fetch(`https://api.onvista.de/api/v1/${kind}/ISIN:${isin}/snapshot`, fetchOpts);
     if (!r.ok) continue;
     const snap = await r.json();
     q = pickQuote(snap);
     instrument = snap.instrument || null;
+    snapUsed = snap;
     if (q) break;
   }
   if (!q) return null;
@@ -64,5 +65,26 @@ export async function lookupIsin(isin, fetchOpts = {}) {
     price: round(price),
     change: round(change),
     changePct: round(changePct, 2),
+    quotes: venueQuotes(snapUsed),
   };
+}
+
+// Every EUR exchange with a price, so you can value a position like your broker does.
+function venueQuotes(snap) {
+  const out = [];
+  const seen = new Set();
+  for (const v of snap?.quoteList?.list || []) {
+    const name = v.market?.name;
+    if (!name || v.isoCurrency !== "EUR" || typeof v.last !== "number" || seen.has(name)) continue;
+    seen.add(name);
+    const prev = typeof v.previousLast === "number" ? v.previousLast : null;
+    out.push({
+      venue: name,
+      price: round(v.last),
+      change: prev != null ? round(v.last - prev) : 0,
+      changePct: prev ? round(((v.last - prev) / prev) * 100, 2) : 0,
+      notation: v.market.idNotation || null,
+    });
+  }
+  return out;
 }

@@ -1,6 +1,6 @@
 // Firestore access for holdings.
 //   users/{uid}/holdings/{id}  → { isin, name, type, quantity, buyPrice (EUR), buyDate, currency, createdAt, updatedAt }
-import { getDb } from "./firebase.js?v=27";
+import { getDb } from "./firebase.js?v=28";
 
 export async function watchHoldings(uid, callback, onError) {
   const { db, collection, onSnapshot } = await getDb();
@@ -33,20 +33,25 @@ export async function deleteHolding(uid, id) {
 }
 
 
-// Your own names for positions, one doc per ISIN: users/{uid}/names/{ISIN} → { name }
+// Your settings per position, one doc per ISIN: users/{uid}/names/{ISIN} → { name, venue }
+// name: your own name for it; venue: the exchange to value it with (like your broker does)
 export async function watchNames(uid, callback) {
   const { db, collection, onSnapshot } = await getDb();
   return onSnapshot(collection(db, "users", uid, "names"), (snap) => {
-    const out = {};
-    snap.docs.forEach((d) => { if (d.data().name) out[d.id] = d.data().name; });
-    callback(out);
+    const names = {}, venues = {};
+    snap.docs.forEach((d) => {
+      const v = d.data();
+      if (v.name) names[d.id] = v.name;
+      if (v.venue) venues[d.id] = v.venue;
+    });
+    callback(names, venues);
   }, (e) => console.warn("Names listener failed", e));
 }
 
-export async function setName(uid, key, name) {
-  const { db, doc, setDoc, deleteDoc, serverTimestamp } = await getDb();
-  const ref = doc(db, "users", uid, "names", key);
-  const clean = (name || "").trim().slice(0, 60);
-  if (clean) await setDoc(ref, { name: clean, updatedAt: serverTimestamp() });
-  else await deleteDoc(ref);
+async function setPositionField(uid, key, field, value) {
+  const { db, doc, setDoc, deleteField, serverTimestamp } = await getDb();
+  const clean = (value || "").trim().slice(0, 60);
+  await setDoc(doc(db, "users", uid, "names", key), { [field]: clean || deleteField(), updatedAt: serverTimestamp() }, { merge: true });
 }
+export const setName = (uid, key, name) => setPositionField(uid, key, "name", name);
+export const setVenue = (uid, key, venue) => setPositionField(uid, key, "venue", venue);

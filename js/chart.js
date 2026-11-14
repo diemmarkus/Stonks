@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=27";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=28";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -28,13 +28,13 @@ function startDate(back) {
 const sourceCache = new Map();
 
 // `id` is an ISIN, a flatex crypto code or a US ticker (movers). `currency` picks the listing.
-function resolve(id, currency) {
-  const key = `${id}|${currency}`;
-  if (!sourceCache.has(key)) sourceCache.set(key, resolveUncached(id, currency).catch((e) => { sourceCache.delete(key); throw e; }));
+function resolve(id, currency, venue) {
+  const key = `${id}|${currency}|${venue || ""}`;
+  if (!sourceCache.has(key)) sourceCache.set(key, resolveUncached(id, currency, venue).catch((e) => { sourceCache.delete(key); throw e; }));
   return sourceCache.get(key);
 }
 
-async function resolveUncached(id, currency) {
+async function resolveUncached(id, currency, venue) {
   if (isCryptoCode(id)) return { kind: "crypto", cg: CRYPTO[id].cg, currency: "EUR", credit: "CoinGecko" };
   const s = await fetch(`${OV}/instruments/search/facet?searchValue=${encodeURIComponent(id)}`);
   const hits = s.ok ? ((await s.json()).facets || []).flatMap((f) => f.results || []) : [];
@@ -52,7 +52,8 @@ async function resolveUncached(id, currency) {
     // same exchange as the price list: gettex first (flatex values with it), then Xetra
     const want = (q) => (currency === "USD" ? q.isoCurrency === "USD" : /gettex/i.test(q.market.name || ""));
     const want2 = (q) => currency !== "USD" && /xetra/i.test(q.market.name || "");
-    const pick = quotes.find(want) || quotes.find(want2) || quotes.find((q) => q.isoCurrency === currency) || null;
+    const chosen = venue && quotes.find((q) => q.market.name === venue);
+    const pick = chosen || quotes.find(want) || quotes.find(want2) || quotes.find((q) => q.isoCurrency === currency) || null;
     const notation = pick?.market.idNotation || snap.chart?.idNotation || snap.quote?.market?.idNotation;
     return { kind: "onvista", type: inst.entityType, id: inst.entityValue, notation, currency: pick?.isoCurrency || currency, credit: "onvista" };
   }
@@ -195,7 +196,7 @@ function draw(plot, pts, range, currency) {
 /* ---------- public ---------- */
 // Mounts a chart with range buttons into `host`.
 // opts: { id: ISIN / crypto code / US ticker, currency: "EUR" | "USD" }
-export function mountPriceChart(host, { id, currency = "EUR" }) {
+export function mountPriceChart(host, { id, currency = "EUR", venue }) {
   const crypto = isCryptoCode(id);
   const ranges = Object.keys(RANGES).filter((r) => !crypto || RANGES[r].cg);
   let range = "1M";
@@ -218,11 +219,11 @@ export function mountPriceChart(host, { id, currency = "EUR" }) {
     if (!plot.querySelector("svg")) plot.innerHTML = `<p class="pchart__msg">Loading chart…</p>`;
     else plot.classList.add("is-loading");
     try {
-      const src = await resolve(id, currency);
+      const src = await resolve(id, currency, venue);
       const pts = await history(src, range);
       if (mine !== token) return;
       plot.classList.remove("is-loading");
-      host.querySelector(".pchart__credit").textContent = `Price data: ${src.credit}`;
+      host.querySelector(".pchart__credit").textContent = `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}`;
       if (pts.length < 2) { plot.innerHTML = `<p class="pchart__msg">No price history for this range.</p>`; return; }
       draw(plot, pts, range, src.currency || currency);
     } catch (e) {
