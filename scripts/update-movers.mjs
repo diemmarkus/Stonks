@@ -74,6 +74,48 @@ const tracked = [];
 for (const [symbol, name, kind] of extra) tracked.push(...(await collect([[symbol, name]], kind)));
 if (extra.length) console.log(`Tracked symbols: ${extra.length} requested, ${tracked.length} priced`);
 
+// ---- Analyst consensus (Finnhub /stock/recommendation), refreshed at most once a day ----
+// Ratings are analysts' 12-month views; we show the 3 strongest and 3 weakest consensus.
+let previous = {};
+try { previous = JSON.parse(await (await import("node:fs/promises")).readFile(OUT, "utf8")); } catch {}
+
+async function recommendation(symbol) {
+  const res = await fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${encodeURIComponent(symbol)}&token=${key}`);
+  if (res.status === 429) { await sleep(5000); return recommendation(symbol); }
+  if (!res.ok) throw new Error(`${symbol}: HTTP ${res.status}`);
+  const list = await res.json();
+  return Array.isArray(list) && list.length ? list[0] : null; // newest period first
+}
+
+async function analysts() {
+  const fresh = previous.analysts?.updatedAt && Date.now() - Date.parse(previous.analysts.updatedAt) < 20 * 3600e3;
+  if (sample || fresh) return previous.analysts || null;
+  const rows = [];
+  for (const [symbol, name] of STOCKS) {
+    try {
+      const r = await recommendation(symbol);
+      if (r) {
+        const sb = r.strongBuy || 0, b = r.buy || 0, h = r.hold || 0, se = r.sell || 0, ss = r.strongSell || 0;
+        const total = sb + b + h + se + ss;
+        // score from -2 (all strong sell) to +2 (all strong buy)
+        if (total >= 8) rows.push({ symbol, name, period: r.period, strongBuy: sb, buy: b, hold: h, sell: se, strongSell: ss, total, score: Math.round(((2 * sb + b - se - 2 * ss) / total) * 100) / 100 });
+      }
+    } catch (e) { console.warn(`analysts ${symbol}: ${e.message}`); }
+    await sleep(1100);
+  }
+  if (rows.length < 6) return previous.analysts || null;
+  const sorted = [...rows].sort((a, b) => b.score - a.score || b.total - a.total);
+  return {
+    updatedAt: new Date().toISOString(),
+    period: rows.map((r) => r.period).sort().at(-1),
+    buys: sorted.slice(0, TOP_N),
+    sells: sorted.slice(-TOP_N).reverse(),
+    count: rows.length,
+  };
+}
+const analystData = await analysts();
+if (analystData) console.log(`Analysts: buy ${analystData.buys.map((r) => `${r.symbol} ${r.score}`)} · weakest ${analystData.sells.map((r) => `${r.symbol} ${r.score}`)}`);
+
 if (stocks.length + etfs.length < 10) {
   console.error("Too few quotes received — keeping the previous file.");
   process.exit(1);
@@ -89,11 +131,10 @@ const data = {
   etfs: rank(etfs),
   quotes: [...stocks, ...etfs].map(({ symbol, name, kind, price, change, changePct }) => ({ symbol, name, kind, price, change, changePct })),
   tracked: tracked.map(({ symbol, name, kind, price, change, changePct }) => ({ symbol, name, kind, price, change, changePct })),
+  analysts: analystData,
 };
 
-let prevQuotes = null;
-try { const prev = JSON.parse(await (await import("node:fs/promises")).readFile(OUT, "utf8")); prevQuotes = JSON.stringify([prev.quotes, prev.tracked]); } catch {}
-if (!sample && prevQuotes === JSON.stringify([data.quotes, data.tracked])) {
+if (!sample && JSON.stringify([previous.quotes, previous.tracked, previous.analysts]) === JSON.stringify([data.quotes, data.tracked, data.analysts])) {
   console.log("Quotes unchanged, leaving movers.json as is.");
   process.exit(0);
 }
