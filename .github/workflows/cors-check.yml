@@ -1,0 +1,19 @@
+name: CORS check (temporary)
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/cors-check.yml"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B="https://api.onvista.de/api/v1/instruments/FUND/156424987"; N=262733170
+          T=$(date -u -d '+1 day' +%Y-%m-%d)
+          for iv in "Y1 $(date -u -d '-1 year' +%Y-%m-%d)" "Y3 $(date -u -d '-3 year' +%Y-%m-%d)" "Y5 $(date -u -d '-5 year' +%Y-%m-%d)" "Y10 $(date -u -d '-10 year' +%Y-%m-%d)" "MAX 1986-01-01" "MAX 2019-01-01"; do set -- $iv
+            for r in none 1d 1D 1w 1W 1M 1mo 4h; do
+              q="chartType=PRICE&idNotation=$N&interval=$1&startDate=$2&endDate=$T&withEarnings=false"; [ $r != none ] && q="$q&resolution=$r"
+              printf "%s %s %s: " $1 $2 $r; curl -s -o /tmp/b -w "%{http_code} " "$B/simple_chart_history?$q"
+              jq -c '{n: (.datetimeTick|length), step_days: (if (.datetimeTick|length)>2 then ((.datetimeTick[2]-.datetimeTick[1])/86400000) else null end), first: (if (.datetimeTick|length)>0 then (.datetimeTick[0]/1000|todate) else null end)}' /tmp/b 2>/dev/null || true
+            done
+          done
