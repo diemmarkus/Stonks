@@ -79,7 +79,7 @@ async function loadPrices() {
     state.fx = data.fx || {};
     state.pricesAt = data.updatedAt;
     fillIsinList();
-    if (state.view === "add" || state.view === "edit") updateIsinHint();
+    if (!$("add-sheet").hidden) updateIsinHint();
     renderCurrent();
   } catch (e) {
     console.warn("No portfolio prices yet", e);
@@ -161,7 +161,8 @@ document.querySelectorAll("#kind-switch button").forEach((btn) => {
 /* ======================================================================
    Valuation
    ====================================================================== */
-function valuate(h) {
+function valuate(h0) {
+  let h = h0;
   let q = null, price, buy = h.buyPrice, live = false, key, tv = null, sub;
   if (h.isin) {
     q = state.isin[h.isin];
@@ -170,6 +171,7 @@ function valuate(h) {
     price = live ? q.price : h.buyPrice;
     tv = q?.tv || null;
     sub = q?.venue ? `${h.isin} · ${q.venue}` : h.isin;
+    if (q?.type) h = { ...h, type: q.type };
   } else {
     // older holding entered by US ticker in USD → convert to EUR
     const usd = state.fx.USD || 1;
@@ -234,7 +236,8 @@ function emptyState() {
       <h3>Nothing here yet</h3>
       <p>Add your first stock or ETF and your overview builds itself.</p>
       <a class="btn btn--primary" href="#/add">Add a holding</a>
-    </div>`;
+    </div>
+    <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>`;
 }
 
 function loadingState() {
@@ -323,6 +326,7 @@ function renderOverview() {
       </article>` : ""}
     </div>
 
+    <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>
     ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. New ISINs are picked up by the next price update.</p>` : ""}`;
 }
 
@@ -361,20 +365,19 @@ function renderPortfolio() {
 }
 
 /* ======================================================================
-   Add / edit
+   Add / edit sheet — "Bought [10] for [€100.00] each [today]"
    ====================================================================== */
 const form = $("add-form");
-const f = { isin: $("f-isin"), name: $("f-name"), qty: $("f-qty"), price: $("f-price"), date: $("f-date") };
+const addSheet = $("add-sheet");
+const f = { isin: $("f-isin"), qty: $("f-qty"), price: $("f-price"), date: $("f-date") };
 let editingId = null;
 let pendingEditId = null;
-let nameWasAuto = false;
 let deleteArmed = null;
+let addLastFocus = null;
 
-function setType(type) {
-  form.querySelectorAll("[data-type]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.type === type)));
-}
-const getType = () => form.querySelector('[data-type][aria-checked="true"]').dataset.type;
-form.querySelectorAll("[data-type]").forEach((b) => b.addEventListener("click", () => setType(b.dataset.type)));
+const parseNum = (v) => parseFloat(String(v).trim().replace(/\s/g, "").replace(",", "."));
+const guessType = (isin) => (/^(IE|LU)/.test(isin) ? "etf" : "stock");
+const isoToday = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
 
 function fillIsinList() {
   $("isin-list").innerHTML = Object.values(state.isin)
@@ -382,30 +385,58 @@ function fillIsinList() {
     .map((q) => `<option value="${esc(q.isin)}">${esc(q.name)}</option>`).join("");
 }
 
+const NATIVE_SIZING = typeof CSS !== "undefined" && CSS.supports?.("field-sizing", "content");
+function sizePill(input) {
+  // fallback for browsers without `field-sizing: content`
+  if (NATIVE_SIZING) return;
+  const len = Math.max(input.value.length, input.placeholder.length, 1);
+  input.style.width = `${len * 0.62 + 0.2}em`;
+}
+
+function updateDateShow() {
+  const v = f.date.value;
+  let text = "today";
+  if (v && v !== isoToday()) {
+    const d = new Date(`${v}T12:00:00`);
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    text = v === y.toLocaleDateString("en-CA") ? "yesterday"
+      : `on ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) })}`;
+  }
+  $("f-dateshow").textContent = text;
+}
+
+function updateTotal() {
+  const q = parseNum(f.qty.value), p = parseNum(f.price.value);
+  $("f-total").textContent = q > 0 && p > 0 ? `= ${fmtEur(q * p)} invested` : "";
+}
+
 function updateIsinHint() {
   const isin = f.isin.value.trim().toUpperCase();
   const hint = $("f-isin-hint");
   const q = state.isin[isin];
-  hint.classList.toggle("is-ok", Boolean(q));
-  if (!isin) hint.textContent = "12 characters, e.g. IE00BK5BQT80. Prices in EUR.";
+  if (!isin) hint.textContent = "";
   else if (isin.length < 12) hint.textContent = `${12 - isin.length} more character${isin.length === 11 ? "" : "s"}`;
   else if (!isValidIsin(isin)) hint.textContent = "That doesn't look like a valid ISIN. Check for typos.";
   else if (q) {
-    hint.textContent = `${q.name} · ${fmtEur(q.price)} on ${q.venue}`;
-    if (!f.name.value || nameWasAuto) { f.name.value = q.name; nameWasAuto = true; }
-    if (q.type) setType(q.type);
-    if (!f.price.value && !editingId) f.price.placeholder = q.price.toFixed(2);
+    hint.innerHTML = `<b>${esc(q.name)}</b> · <span class="ok">${fmtEur(q.price)}</span> on ${esc(q.venue)}`;
+    if (!f.price.value && !editingId) { f.price.placeholder = q.price.toFixed(2); sizePill(f.price); }
   } else hint.textContent = "Valid ISIN. Name and price arrive with the next price update.";
 }
+
 f.isin.addEventListener("input", () => {
   const pos = f.isin.selectionStart;
   f.isin.value = f.isin.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
   try { f.isin.setSelectionRange(pos, pos); } catch {}
   f.isin.removeAttribute("aria-invalid");
   updateIsinHint();
+  if (isValidIsin(f.isin.value) && !f.qty.value) f.qty.focus();
 });
-f.name.addEventListener("input", () => (nameWasAuto = false));
-[f.qty, f.price].forEach((el) => el.addEventListener("input", () => el.removeAttribute("aria-invalid")));
+[f.qty, f.price].forEach((el) => {
+  el.addEventListener("input", () => { el.parentElement.removeAttribute("aria-invalid"); sizePill(el); updateTotal(); });
+  el.parentElement.addEventListener("click", () => el.focus());
+});
+f.date.addEventListener("click", () => { try { f.date.showPicker?.(); } catch {} });
+f.date.addEventListener("change", () => { if (!f.date.value) f.date.value = isoToday(); updateDateShow(); });
 
 function resetDelete() {
   clearTimeout(deleteArmed);
@@ -413,42 +444,64 @@ function resetDelete() {
   $("f-delete").textContent = "Delete holding";
 }
 
-function enterAdd(id) {
-  form.reset();
-  form.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
-  $("f-error").hidden = true;
-  resetDelete();
-  nameWasAuto = false;
-  editingId = null;
-  pendingEditId = null;
-  f.price.placeholder = "100.00";
-
-  if (id) {
-    if (state.holdings === null) { pendingEditId = id; return; }
-    const h = state.holdings.find((x) => x.id === id);
-    if (!h) { toast("That holding doesn't exist anymore"); location.hash = "#/portfolio"; return; }
-    editingId = id;
-    $("add-title").textContent = "Edit holding";
-    $("f-submit").textContent = "Save changes";
-    $("f-delete").hidden = false;
-    f.isin.value = h.isin || ""; f.name.value = h.name || ""; f.qty.value = String(h.quantity); f.price.value = h.isin ? String(h.buyPrice) : ""; f.date.value = h.buyDate || "";
-    setType(h.type);
-    if (!h.isin) showError(`This holding was added by ticker (${h.symbol}, USD). Enter its ISIN and the buy price in EUR to switch it over.`);
-  } else {
-    $("add-title").textContent = "Add holding";
-    $("f-submit").textContent = "Add to portfolio";
-    $("f-delete").hidden = true;
-    setType("stock");
-    f.date.value = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
-  }
-  updateIsinHint();
-  if (!id && matchMedia("(pointer: fine)").matches) f.isin.focus();
-}
-
 function showError(msg) {
   $("f-error").textContent = msg;
   $("f-error").hidden = false;
 }
+
+function openAdd(id) {
+  form.reset();
+  form.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+  $("f-error").hidden = true;
+  resetDelete();
+  editingId = null;
+  pendingEditId = null;
+  f.price.placeholder = "100.00";
+  f.date.value = isoToday();
+  f.date.max = isoToday();
+
+  if (id) {
+    if (state.holdings === null) { pendingEditId = id; return; }
+    const h = state.holdings.find((x) => x.id === id);
+    if (!h) { toast("That holding doesn't exist anymore"); return; }
+    editingId = id;
+    $("add-title").textContent = "Edit holding";
+    $("f-submit").textContent = "Save";
+    $("f-delete").hidden = false;
+    f.isin.value = h.isin || "";
+    f.qty.value = String(h.quantity);
+    f.price.value = h.isin ? String(h.buyPrice) : "";
+    f.date.value = h.buyDate || isoToday();
+    if (!h.isin) showError(`This holding was added by ticker (${h.symbol}, USD). Enter its ISIN and the buy price in EUR to switch it over.`);
+  } else {
+    $("add-title").textContent = "Add holding";
+    $("f-submit").textContent = "Add";
+    $("f-delete").hidden = true;
+  }
+  updateIsinHint(); updateDateShow(); updateTotal();
+  [f.qty, f.price].forEach(sizePill);
+
+  addLastFocus = document.activeElement;
+  addSheet.hidden = false;
+  document.body.classList.add("sheet-open");
+  document.querySelector('.tab[data-tab="add"]')?.setAttribute("aria-current", "page");
+  requestAnimationFrame(() => {
+    addSheet.classList.add("is-open");
+    if (!id) f.isin.focus({ preventScroll: true });
+  });
+}
+
+function closeAdd() {
+  if (addSheet.hidden) return;
+  addSheet.classList.remove("is-open");
+  document.body.classList.remove("sheet-open");
+  document.querySelector('.tab[data-tab="add"]')?.removeAttribute("aria-current");
+  pendingEditId = null;
+  setTimeout(() => { addSheet.hidden = true; }, 220);
+  addLastFocus?.focus?.({ preventScroll: true });
+}
+addSheet.querySelectorAll("[data-close-add]").forEach((el) => el.addEventListener("click", closeAdd));
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAdd(); });
 
 function firestoreMessage(e) {
   if (e?.code === "permission-denied") return "Firestore blocked this. Check the security rules (see README).";
@@ -461,24 +514,26 @@ form.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   $("f-error").hidden = true;
   const isin = f.isin.value.trim().toUpperCase();
-  const quantity = parseFloat(String(f.qty.value).replace(",", "."));
-  const buyPrice = parseFloat(String(f.price.value).replace(",", "."));
+  const quantity = parseNum(f.qty.value);
+  const buyPrice = parseNum(f.price.value);
   let bad = null;
-  if (!isValidIsin(isin)) bad = [f.isin, "Enter a valid ISIN, e.g. IE00BK5BQT80."];
-  else if (!(quantity > 0)) bad = [f.qty, "Quantity must be more than 0."];
-  else if (!(buyPrice > 0)) bad = [f.price, "Enter the price you paid per share."];
-  if (bad) { bad[0].setAttribute("aria-invalid", "true"); bad[0].focus(); showError(bad[1]); return; }
+  if (!isValidIsin(isin)) bad = [f.isin, f.isin, "Enter a valid ISIN, e.g. IE00BK5BQT80."];
+  else if (!(quantity > 0)) bad = [f.qty, f.qty.parentElement, "How many did you buy?"];
+  else if (!(buyPrice > 0)) bad = [f.price, f.price.parentElement, "What did you pay per share (EUR)?"];
+  if (bad) { bad[1].setAttribute("aria-invalid", "true"); bad[0].focus(); showError(bad[2]); return; }
 
+  const q = state.isin[isin];
   const btn = $("f-submit");
   btn.disabled = true;
   try {
     const { saveHolding } = await import("./store.js");
     await saveHolding(state.user.uid, editingId, {
-      isin, quantity, buyPrice, type: getType(), name: f.name.value.trim(), buyDate: f.date.value,
+      isin, quantity, buyPrice, buyDate: f.date.value,
+      type: q?.type || guessType(isin), name: q?.name || "",
     });
-    const label = f.name.value.trim() || isin;
-    toast(editingId ? `Saved ${label}` : `Added ${label} to your portfolio`);
-    location.hash = "#/portfolio";
+    const label = q?.name || isin;
+    toast(editingId ? `Saved ${label}` : `Added ${label}`);
+    closeAdd();
   } catch (e) {
     console.error(e);
     showError(firestoreMessage(e));
@@ -495,12 +550,12 @@ $("f-delete").addEventListener("click", async () => {
     return;
   }
   resetDelete();
-  const sym = f.name.value.trim() || f.isin.value;
+  const label = state.isin[f.isin.value]?.name || f.isin.value || "holding";
   try {
     const { deleteHolding } = await import("./store.js");
     await deleteHolding(state.user.uid, editingId);
-    toast(`Removed ${sym}`);
-    location.hash = "#/portfolio";
+    toast(`Removed ${label}`);
+    closeAdd();
   } catch (e) {
     console.error(e);
     showError(firestoreMessage(e));
@@ -597,7 +652,7 @@ window.addEventListener("hashchange", closeChart);
 /* ======================================================================
    Router
    ====================================================================== */
-const PROTECTED = ["overview", "add", "edit", "portfolio"];
+const PROTECTED = ["overview", "portfolio"];
 const LEGAL = ["imprint", "privacy"];
 
 function renderLegal(kind) {
@@ -625,8 +680,19 @@ function renderCurrent() {
 }
 
 function route() {
-  const [name, arg] = location.hash.replace(/^#\/?/, "").split("/");
-  let view = PROTECTED.includes(name) || LEGAL.includes(name) ? name : "home";
+  let [name, arg] = location.hash.replace(/^#\/?/, "").split("/");
+
+  // Add / edit open as a sheet on top of the current screen.
+  if (name === "add" || name === "edit") {
+    const under = state.view && state.view !== "home" ? state.view : "overview";
+    history.replaceState(null, "", `#/${under}`);
+    if (state.user) openAdd(name === "edit" ? decodeURIComponent(arg || "") : null);
+    else if (!state.authReady) pendingRoute = [name, arg];
+    name = under;
+  }
+
+  // Signed in, the overview is the start page; the market movers live at #/movers.
+  let view = PROTECTED.includes(name) || LEGAL.includes(name) ? name : name === "movers" ? "home" : state.user ? "overview" : "home";
 
   if (PROTECTED.includes(view) && !state.user) {
     if (!state.authReady) { document.querySelectorAll(".view").forEach((v) => (v.hidden = true)); return; }
@@ -634,22 +700,22 @@ function route() {
     if (location.hash && location.hash !== "#/") history.replaceState(null, "", "#/");
   }
 
-  const section = view === "edit" ? "add" : LEGAL.includes(view) ? "legal" : view;
-  const changed = state.view !== view || view === "edit";
+  const section = LEGAL.includes(view) ? "legal" : view;
+  const changed = state.view !== view;
   state.view = view;
 
   document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== `view-${section}`));
   document.querySelector(".foot__note").hidden = view !== "home";
   document.querySelectorAll(".tab").forEach((t) => {
-    if (t.dataset.tab === section) t.setAttribute("aria-current", "page");
+    if (t.dataset.tab === section || (t.dataset.tab === "add" && !addSheet.hidden)) t.setAttribute("aria-current", "page");
     else t.removeAttribute("aria-current");
   });
 
   if (changed) window.scrollTo(0, 0);
   if (section === "legal") renderLegal(view);
-  if (section === "add") enterAdd(view === "edit" ? decodeURIComponent(arg || "") : null);
   renderCurrent();
 }
+let pendingRoute = null;
 window.addEventListener("hashchange", route);
 
 /* ======================================================================
@@ -680,7 +746,7 @@ async function startHoldings(uid) {
     const { watchHoldings } = await import("./store.js");
     state.unsubHoldings = await watchHoldings(uid, (list) => {
       state.holdings = list;
-      if (pendingEditId) enterAdd(pendingEditId);
+      if (pendingEditId) openAdd(pendingEditId);
       renderCurrent();
     }, (e) => {
       console.error("Holdings listener failed", e);
@@ -717,6 +783,7 @@ onUser((user) => {
     state.holdings = null;
   }
   route();
+  if (user && pendingRoute) { const [n, a] = pendingRoute; pendingRoute = null; openAdd(n === "edit" ? decodeURIComponent(a || "") : null); }
 }).catch((e) => {
   console.error("Auth init failed", e);
   state.authReady = true;
