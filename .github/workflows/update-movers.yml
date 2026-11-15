@@ -51,6 +51,6 @@ jobs:
             echo "No changes"
           else
             git commit -m "Update prices"
-            git pull --rebase --quiet
+            git pull --rebase --quiet -X theirs  # our freshly fetched data wins over an older copy
             git push
           fi
