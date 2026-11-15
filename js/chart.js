@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=54";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=55";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -174,7 +174,7 @@ function thin(pts, max) {
 }
 
 /* ---------- drawing ---------- */
-const UP = "#5BD48A", DOWN = "#FF9F4A";
+const UP = "#2EE6A6", DOWN = "#FF6A3D";
 
 function fmtMoney(v, currency) {
   const digits = v >= 1000 ? 0 : v >= 1 ? 2 : 4;
