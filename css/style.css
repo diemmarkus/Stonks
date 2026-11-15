@@ -330,6 +330,10 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .sheet.is-open .sheet__panel { transform: none; }
 .sheet__grip { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 2px auto 12px; }
 .sheet__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+/* long names wrap/ellipsize instead of pushing the close button off screen */
+.sheet__id { flex: 1; min-width: 0; }
+.sheet__id .sheet__sym { overflow-wrap: anywhere; }
+.sheet__id .row__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sheet__sym { margin: 0; font: 600 22px/1.2 var(--mono); }
 .sheet__close { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); display: grid; place-items: center; cursor: pointer; }
 .sheet__close svg { width: 18px; height: 18px; stroke: var(--ink-2); stroke-width: 2; fill: none; stroke-linecap: round; }
