@@ -704,7 +704,7 @@ body.has-tabbar #view-home .hero { display: none; }
 .inline--alloc .donut { padding: 0; overflow: visible; max-height: none; }
 /* the open item and its chart share one lighter block, edge to edge across the card */
 :root { --open-bg: color-mix(in srgb, var(--ink) 5%, transparent); --card-pad: 18px; }
-.row.is-expanded { background: var(--open-bg); border-radius: 0; margin: 0 calc(-1 * var(--card-pad)); padding-left: var(--card-pad); padding-right: var(--card-pad); }
+.row.is-expanded, .yr.is-expanded { background: var(--open-bg); border-radius: 0; margin: 0 calc(-1 * var(--card-pad)); padding-left: var(--card-pad); padding-right: var(--card-pad); }
 .inline--row { background: var(--open-bg); margin: 0 calc(-1 * var(--card-pad)); padding: 6px var(--card-pad) 14px; }
 .legend li.is-expanded { background: var(--open-bg); margin: 0 calc(-1 * var(--card-pad)); padding: 6px var(--card-pad); }
 .inline--alloc { background: var(--open-bg); margin: -10px calc(-1 * var(--card-pad)) 0; padding: 6px var(--card-pad) 14px; }
@@ -743,3 +743,11 @@ body.has-tabbar #view-home .hero { display: none; }
 .yr__val { font: 400 12.5px/1.2 var(--mono); text-align: right; min-width: 72px; }
 .years__note { margin: 6px 0 10px; font-size: 12px; color: var(--ink-3); }
 @media (prefers-reduced-motion: reduce) { .yr__bar.is-wait { animation: none; } }
+
+.yr { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.yr.is-expanded { border-top-color: transparent; }
+.yr.is-expanded + .inline--year + .yr { border-top-color: transparent; }
+.inline--year { padding-top: 0; }
+@media (hover: hover) { .yr:hover { background: color-mix(in srgb, var(--ink) 3%, transparent); } }
+.inline--year .lot__val { display: grid; gap: 2px; }
+.inline--year .lot__val > span:last-child:not(:first-child) { font-size: 12px; }

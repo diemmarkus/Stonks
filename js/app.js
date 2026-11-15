@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=93";
-import { legalDoc } from "./legal.js?v=93";
-import { isCryptoCode } from "./crypto.js?v=93";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=94";
+import { legalDoc } from "./legal.js?v=94";
+import { isCryptoCode } from "./crypto.js?v=94";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=93") : import("./store.js?v=93"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=94") : import("./store.js?v=94"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=93").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=93").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=94").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=94").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1130,13 +1130,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=93");
+  const { CRYPTO } = await import("./crypto.js?v=94");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=93");
+    const { searchInstruments } = await import("./onvista.js?v=94");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1417,7 +1417,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=93").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=94").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1432,7 +1432,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=93").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=94").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1446,7 +1446,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=93");
+  const { mountPriceChart } = await import("./chart.js?v=94");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1469,7 +1469,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=93").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=94").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -1491,7 +1491,7 @@ function yearsCard(rows) {
         <ol class="years">${ys.map((y) => {
           const net = flows[y].buys - flows[y].sales, g = gains?.[y];
           return `
-          <li class="yr">
+          <li class="yr" data-year="${y}" tabindex="0" role="button" aria-expanded="false" aria-label="${y}: show buys and sales">
             <span class="yr__year">${y === nowY ? `${y}<small> so far</small>` : y}</span>
             <div class="yr__bars">
               <div class="yr__line"><span class="yr__lbl">Invested</span>${bar(net, net >= 0 ? "is-in" : "is-out")}<span class="yr__val">${whole(net)}</span></div>
@@ -1502,6 +1502,36 @@ function yearsCard(rows) {
         <p class="years__note">Invested: buys minus sales. Gain: how much your holdings grew or shrank that year, sales included.${missing ? ` ${missing} position${missing === 1 ? "" : "s"} without price history left out of the gain.` : ""}</p>
       </article>`;
 }
+
+// Tap a year: its buys and sales unfold below, like the lots in the Portfolio.
+function toggleYear(y) {
+  toggleExpand(`year|${y}`, () => document.querySelector(`#view-overview .yr[data-year="${y}"]`), () => {
+    computeSells(state.holdings);
+    const rows = state.holdings.map(valuate);
+    const dated = rows.map((r) => Number(r.buyDate?.slice(0, 4))).filter(Boolean);
+    const first = dated.length ? Math.min(...dated) : new Date().getFullYear();
+    const list = rows.filter((r) => (Number(r.buyDate?.slice(0, 4)) || first) === Number(y))
+      .sort((a, b) => (b.buyDate || "").localeCompare(a.buyDate || ""));
+    const node = document.createElement("li");
+    node.className = "inline inline--row inline--year";
+    node.innerHTML = list.length ? `<ol class="lots">${list.map((r) => `
+      <li><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` ${fmtDate(r.buyDate, true)}` : ""}">
+        <span class="lot__date">${r.sell ? "Sold · " : ""}${esc(r.label)}</span>
+        <span class="lot__qty">${r.buyDate ? (relDay(`${r.buyDate}T12:00:00`) || new Date(`${r.buyDate}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })) : "No date"} · ${r.sell ? `${fmtQty.format(r.quantity)} × ${fmtEur(r.sellPrice)}` : `${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)}`}</span>
+        <span class="lot__val">${r.sell
+          ? `<span>${fmtEur(r.quantity * r.sellPrice)}</span><span class="${dir(r.realized)}">${fmtEurSigned(r.realized)}</span>`
+          : `<span>${fmtEur(r.quantity * r.buyEur)}</span>${r.live && r.left > 0 ? `<span class="${dir(r.gain)}">${fmtPct(r.gainPct)}</span>` : r.left <= 0 ? `<span class="stale">sold</span>` : ""}`}</span>
+      </a></li>`).join("")}</ol>` : `<p class="inline__caption">No buys or sales this year.</p>`;
+    return node;
+  });
+}
+document.addEventListener("click", (e) => {
+  const y = e.target.closest(".yr[data-year]");
+  if (y) toggleYear(y.dataset.year);
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches?.(".yr[data-year]")) { e.preventDefault(); toggleYear(e.target.dataset.year); }
+});
 
 /* ======================================================================
    Allocation → tap a class (Stocks, ETFs, …) for a donut of the positions in it
@@ -1970,7 +2000,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=93");
+  const { resetDemo } = await import("./demo-store.js?v=94");
   resetDemo();
   state.demo = true;
   state.names = {};
