@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=44";
-import { legalDoc } from "./legal.js?v=44";
-import { isCryptoCode } from "./crypto.js?v=44";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=45";
+import { legalDoc } from "./legal.js?v=45";
+import { isCryptoCode } from "./crypto.js?v=45";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,7 +46,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=44") : import("./store.js?v=44"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=45") : import("./store.js?v=45"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -105,8 +105,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=44").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=44").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=45").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=45").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -616,12 +616,17 @@ function renderPortfolio() {
           </button>
           <div class="pos__body" id="pos-${i}"${open ? "" : " hidden"}>
             <div class="pos__namebox">
-              <label class="pos__name">
-                <span class="pos__name-label">Your name</span>
-                <input class="input" data-pos-name="${esc(g.key)}" value="${g.nicknamed ? esc(g.label) : ""}" placeholder="${esc(g.realName)}" maxlength="60" autocomplete="off" enterkeyhint="done" />
-              </label>
-              ${venueSelect(g)}
-              <p class="pos__real"><span>${esc(g.realName)}</span> · ${esc(g.sub)}</p>
+              <div class="pos__realrow">
+                <p class="pos__real"><span>${esc(g.realName)}</span> · ${esc(g.sub)}</p>
+                <button type="button" class="pos__editbtn" data-pos-edit="${esc(g.key)}" aria-expanded="${editPos.has(g.key)}">${editPos.has(g.key) ? "Done" : "Edit"}</button>
+              </div>
+              <div class="pos__edit" data-pos-editbox="${esc(g.key)}"${editPos.has(g.key) ? "" : " hidden"}>
+                <label class="pos__name">
+                  <span class="pos__name-label">Your name</span>
+                  <input class="input" data-pos-name="${esc(g.key)}" value="${g.nicknamed ? esc(g.label) : ""}" placeholder="${esc(g.realName)}" maxlength="60" autocomplete="off" enterkeyhint="done" />
+                </label>
+                ${venueSelect(g)}
+              </div>
               <p class="pos__real">${buys} ${buys === 1 ? "buy" : "buys"}${sells ? ` · ${sells} ${sells === 1 ? "sell" : "sells"}` : ""} · ${g.closed ? "all sold" : `${fmtQty.format(g.qty)} × ${fmtEur(g.avgBuy)}${buys > 1 || sells ? " avg" : ""} → ${g.live ? fmtEur(g.price) : "no live price"}`}</p>
               ${g.realized ? `<p class="pos__real">Realised: <span class="${dir(g.realized)}">${fmtEurSigned(g.realized)}</span> · open: <span class="${dir(g.value - g.cost)}">${fmtEurSigned(g.value - g.cost)}</span></p>` : ""}
             </div>
@@ -643,6 +648,21 @@ function renderPortfolio() {
     </div>`;
   if (openPos) fillPosChart(openPos);
 }
+
+// "Your name" and "Price from" sit behind an Edit button per position (kept open across re-renders)
+const editPos = new Set();
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-pos-edit]");
+  if (!b) return;
+  const key = b.dataset.posEdit;
+  const open = !editPos.has(key);
+  if (open) editPos.add(key); else editPos.delete(key);
+  const box = document.querySelector(`[data-pos-editbox="${CSS.escape(key)}"]`);
+  if (box) box.hidden = !open;
+  b.textContent = open ? "Done" : "Edit";
+  b.setAttribute("aria-expanded", String(open));
+  if (open) box?.querySelector("input")?.focus();
+});
 
 function venueSelect(g) {
   const q = g.isin && state.isin[g.isin];
@@ -856,13 +876,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=44");
+  const { CRYPTO } = await import("./crypto.js?v=45");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=44");
+    const { searchInstruments } = await import("./onvista.js?v=45");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1130,7 +1150,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=44").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=45").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1144,7 +1164,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=44");
+  const { mountPriceChart } = await import("./chart.js?v=45");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1381,7 +1401,7 @@ function applyUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=44");
+  const { resetDemo } = await import("./demo-store.js?v=45");
   resetDemo();
   state.demo = true;
   state.names = {};

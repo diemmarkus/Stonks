@@ -581,3 +581,9 @@ body.has-tabbar #view-home .hero { display: none; }
 .lot--sell { border-left: 2px solid var(--down); margin-left: -2px; }
 .lot--sell .lot__date { color: var(--down); }
 .pos__real .up { color: var(--up); } .pos__real .down { color: var(--down); }
+
+/* unfolded position: name + exchange behind Edit */
+.pos__realrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.pos__editbtn { flex: none; border: 1px solid var(--line); background: transparent; color: var(--ink-2); font: 500 13px/1 var(--sans); padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+.pos__editbtn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.pos__edit { display: grid; gap: 8px; padding: 10px 0 4px; }
