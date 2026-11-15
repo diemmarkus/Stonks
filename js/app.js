@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=71";
-import { legalDoc } from "./legal.js?v=71";
-import { isCryptoCode } from "./crypto.js?v=71";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=72";
+import { legalDoc } from "./legal.js?v=72";
+import { isCryptoCode } from "./crypto.js?v=72";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=71") : import("./store.js?v=71"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=72") : import("./store.js?v=72"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=71").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=71").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=72").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=72").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -249,7 +249,7 @@ function moverCard(d, title, body, info) {
   const i = info ? infoButton("About these movers") : null;
   return `
     <article class="card card--${d}">
-      <div class="card__head"><h3 class="card__title">${title}</h3><span class="card__side"><span class="card__hint">${moverRange} change</span>${i ? i.btn : ""}</span></div>
+      <div class="card__head"><h3 class="card__title">${title}</h3><span class="card__side">${rangePicker()}${i ? i.btn : ""}</span></div>
       ${i ? `<p class="info__text" id="${i.id}" hidden>${info}</p>` : ""}
       <ol class="rows">${body}</ol>
     </article>`;
@@ -430,22 +430,20 @@ function moversFor(data, kind) {
     losers: items.filter((i) => i.changePct < 0).reverse().slice(0, 3),
   };
 }
-function paintRangeSwitch() {
-  document.querySelectorAll("#range-switch button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.range === moverRange)));
-  $("range-switch").hidden = activeKind === "analysts";
-}
-document.querySelectorAll("#range-switch button").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    moverRange = btn.dataset.range;
-    try { localStorage.setItem(MOVER_RANGE_KEY, moverRange); } catch {}
-    paintRangeSwitch();
-    renderHome();
-  });
+// a small drop-down in each movers card, where the "1D change" hint used to be
+const rangePicker = () => `
+  <label class="card__range">
+    <select data-mover-range aria-label="Time range">${["1D", "1W", "1M", "1Y", "5Y"].map((r) => `<option value="${r}"${r === moverRange ? " selected" : ""}>${r} change</option>`).join("")}</select>
+  </label>`;
+document.addEventListener("change", (e) => {
+  if (!e.target.matches?.("[data-mover-range]")) return;
+  moverRange = e.target.value;
+  try { localStorage.setItem(MOVER_RANGE_KEY, moverRange); } catch {}
+  renderHome();
 });
 
 function renderHome() {
   const data = state.market;
-  paintRangeSwitch();
   $("boards").innerHTML = GROUPS.map(({ kind, title }) => {
     const g = moversFor(data, kind);
     const rows = (list, d) => (g.none ? `<li class="row"><p class="lookup__hint">${moverRange} changes appear after the next price update.</p></li>`
@@ -473,7 +471,6 @@ document.querySelectorAll("#kind-switch button").forEach((btn) => {
     activeKind = btn.dataset.kind;
     document.querySelectorAll("#kind-switch button").forEach((b) => b.setAttribute("aria-selected", String(b === btn)));
     document.querySelectorAll(".group").forEach((g) => g.classList.toggle("is-active", g.dataset.kind === activeKind));
-    paintRangeSwitch();
   });
 });
 
@@ -1129,13 +1126,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=71");
+  const { CRYPTO } = await import("./crypto.js?v=72");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=71");
+    const { searchInstruments } = await import("./onvista.js?v=72");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1412,7 +1409,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=71").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=72").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1426,7 +1423,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=71");
+  const { mountPriceChart } = await import("./chart.js?v=72");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1694,7 +1691,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=71");
+  const { resetDemo } = await import("./demo-store.js?v=72");
   resetDemo();
   state.demo = true;
   state.names = {};

@@ -665,8 +665,12 @@ body.has-tabbar #view-home .hero { display: none; }
 .addsheet__found:empty { display: none; }
 .sentence { margin-top: 0; }
 
-/* time range for the movers: 1D … 5Y */
-.switch--small { display: flex; width: fit-content; margin-top: -6px; }
-.switch--small button { padding: 6px 14px; font: 500 13px/1.2 var(--mono); }
-.switch button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
-.switch[hidden] { display: none; }
+/* time range for the movers: a drop-down in the card head (1D … 5Y) */
+.card__range { position: relative; display: inline-flex; align-items: center; }
+.card__range select {
+  appearance: none; -webkit-appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: 400 12px/1.2 var(--mono); color: var(--ink-3); padding: 4px 16px 4px 4px; margin: -4px 0;
+}
+.card__range::after { content: "▾"; position: absolute; right: 2px; pointer-events: none; font-size: 10px; color: var(--ink-3); }
+.card__range select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.card__range option { color: initial; }
