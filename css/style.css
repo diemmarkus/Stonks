@@ -704,5 +704,13 @@ body.has-tabbar #view-home .hero { display: none; }
 .inline__caption { margin: 0 0 10px; font: 400 12px/1.4 var(--mono); color: var(--ink-3); }
 .inline--total .inline__caption { margin: 6px 0 0; }
 .inline--alloc .donut { padding: 0; overflow: visible; max-height: none; }
-.row.is-expanded, .legend li.is-expanded { background: color-mix(in srgb, var(--ink) 5%, transparent); border-radius: 10px; }
+/* the open item and its chart share one lighter block */
+:root { --open-bg: color-mix(in srgb, var(--ink) 5%, transparent); }
+.row.is-expanded, .legend li.is-expanded { background: var(--open-bg); border-radius: 10px 10px 0 0; }
+.inline--row, .inline--alloc { background: var(--open-bg); border-radius: 0 0 10px 10px; padding: 6px 10px 14px; }
+.inline--row { margin: 0 -10px; }
+.legend li.is-expanded { margin: 0 -10px; padding: 6px 10px; }
+.inline--alloc { margin: -10px -10px 0; }
+.inline--total { background: var(--open-bg); border-radius: 14px; padding: 10px 10px 12px; margin-bottom: 12px; }
+.pos.is-open { background: var(--open-bg); border-radius: 12px; }
 @media (prefers-reduced-motion: reduce) { .inline { animation: none; } }
