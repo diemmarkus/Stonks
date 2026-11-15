@@ -67,10 +67,15 @@ function bestHit(c, hits) {
   for (const h of hits) {
     if (!h.isin || /\b(CDR|ADR|GDR)\b/.test(h.name || "")) continue;
     const got = words(h.name || "");
-    if (got[0] !== want[0]) continue; // first significant word must match
+    // first significant word must match ("ExxonMobil" ≈ "Exxon Mobil" also counts)
+    const joinedW = want.join(""), joinedG = got.join("");
+    const sameStart = got[0] === want[0] || joinedG.startsWith(joinedW) || joinedW.startsWith(joinedG) || joinedG.startsWith(want[0]);
+    if (!got.length || !sameStart) continue;
+    const hasClass = cls && new RegExp(`(^|\\s)${cls}(\\s|$|\\))`).test(h.name);
+    if (cls && !hasClass) continue; // share classes must match (GOOG = Alphabet C)
     let score = 10 + want.filter((w) => got.includes(w)).length;
     if (/^US/.test(h.isin)) score += 3;
-    if (cls) score += new RegExp(`(^|\\s)${cls}(\\s|$|\\))`).test(h.name) ? 5 : -2;
+    if (hasClass) score += 5;
     if (score > bestScore) { best = h; bestScore = score; }
   }
   return best;
@@ -78,7 +83,8 @@ function bestHit(c, hits) {
 
 async function onvistaIsin(c) {
   const plain = c.name.replace(/\(.*?\)/g, "").trim();
-  for (const q of [plain, c.symbol]) {
+  const cleaned = words(c.name).join(" ");
+  for (const q of [...new Set([cleaned, plain, c.symbol])]) {
     try {
       const r = await fetch(`https://api.onvista.de/api/v1/instruments/search/facet?searchValue=${encodeURIComponent(q)}`);
       if (r.ok) {
