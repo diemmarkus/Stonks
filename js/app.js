@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=47";
-import { legalDoc } from "./legal.js?v=47";
-import { isCryptoCode } from "./crypto.js?v=47";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=48";
+import { legalDoc } from "./legal.js?v=48";
+import { isCryptoCode } from "./crypto.js?v=48";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,7 +46,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=47") : import("./store.js?v=47"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=48") : import("./store.js?v=48"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -105,8 +105,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=47").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=47").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=48").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=48").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -247,8 +247,8 @@ function lookupMatches(q) {
 
 function lookupResultsHtml(q) {
   const list = state.analystsAll || getAnalysts()?.list;
+  if (!q.trim()) return `<p class="lookup__hint">Type a name, ticker or ISIN of a US-listed company${list ? ` (${list.length.toLocaleString("en-US")} with ratings)` : ""}.</p>`;
   if (!list) { loadAllAnalysts(); return `<p class="lookup__hint">Loading analyst ratings…</p>`; }
-  if (!q.trim()) return `<p class="lookup__hint">Type a name, ticker or ISIN of a US-listed company (${list.length.toLocaleString("en-US")} with ratings).</p>`;
   const hits = lookupMatches(q);
   return hits.length
     ? `<ol class="rows">${analystRows(hits)}</ol>`
@@ -901,13 +901,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=47");
+  const { CRYPTO } = await import("./crypto.js?v=48");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=47");
+    const { searchInstruments } = await import("./onvista.js?v=48");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1175,7 +1175,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=47").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=48").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1189,7 +1189,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=47");
+  const { mountPriceChart } = await import("./chart.js?v=48");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1426,7 +1426,7 @@ function applyUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=47");
+  const { resetDemo } = await import("./demo-store.js?v=48");
   resetDemo();
   state.demo = true;
   state.names = {};
