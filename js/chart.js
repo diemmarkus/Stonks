@@ -300,12 +300,16 @@ export function mountPortfolioChart(host, { positions }) {
     if (!series.length) return { pts: [] };
 
     // time grid: all timestamps inside the range (the 1D window follows the securities, not crypto's 24h)
-    const firstOf = (s) => s.pts[0].t;
-    const start = range === "1D" ? Math.max(...series.filter((s) => !isCryptoCode(s.p.id)).map(firstOf).concat([-Infinity])) : -Infinity;
-    const grid = [...new Set(series.flatMap((s) => s.pts.map((q) => q.t)))].filter((t) => t >= start).sort((a, b) => a - b);
+    // The portfolio only exists from its first buy: long ranges (Max, 5Y) start there instead of
+    // decades back. Buys without a date count from that first dated buy.
+    const dayStart = (d) => (d ? new Date(`${d}T00:00:00`).getTime() : NaN);
+    const dated = positions.flatMap((p) => p.lots.map((l) => dayStart(l.date))).filter((t) => isFinite(t));
+    const firstBuy = dated.length ? Math.min(...dated) : -Infinity;
+    const lots = series.map((s) => s.p.lots.map((l) => ({ ...l, from: isFinite(dayStart(l.date)) ? dayStart(l.date) : firstBuy })));
 
-    const dayStart = (d) => (d ? new Date(`${d}T00:00:00`).getTime() : -Infinity);
-    const lots = series.map((s) => s.p.lots.map((l) => ({ ...l, from: dayStart(l.date) })));
+    const firstOf = (s) => s.pts[0].t;
+    const start = range === "1D" ? Math.max(...series.filter((s) => !isCryptoCode(s.p.id)).map(firstOf).concat([-Infinity])) : firstBuy;
+    const grid = [...new Set(series.flatMap((s) => s.pts.map((q) => q.t)))].filter((t) => t >= start).sort((a, b) => a - b);
     const idx = series.map(() => 0);
     const pts = [], ref = [];
     for (const t of grid) {
