@@ -10,6 +10,7 @@ import { STOCKS, ETFS } from "./watchlist.mjs";
 
 const OUT = new URL("../data/movers.json", import.meta.url);
 const TOP_N = 3;
+const ANALYST_N = 5;
 const sample = process.argv.includes("--sample");
 const key = process.env.FINNHUB_API_KEY;
 
@@ -75,7 +76,7 @@ for (const [symbol, name, kind] of extra) tracked.push(...(await collect([[symbo
 if (extra.length) console.log(`Tracked symbols: ${extra.length} requested, ${tracked.length} priced`);
 
 // ---- Analyst consensus (Finnhub /stock/recommendation), refreshed at most once a day ----
-// Ratings are analysts' 12-month views; we show the 3 strongest and 3 weakest consensus.
+// Ratings are analysts' 12-month views; we show the 5 strongest and 5 weakest consensus.
 let previous = {};
 try { previous = JSON.parse(await (await import("node:fs/promises")).readFile(OUT, "utf8")); } catch {}
 
@@ -88,7 +89,8 @@ async function recommendation(symbol) {
 }
 
 async function analysts() {
-  const fresh = previous.analysts?.updatedAt && Date.now() - Date.parse(previous.analysts.updatedAt) < 20 * 3600e3;
+  const fresh = previous.analysts?.updatedAt && previous.analysts.buys?.length === ANALYST_N
+    && Date.now() - Date.parse(previous.analysts.updatedAt) < 20 * 3600e3;
   if (sample || fresh) return previous.analysts || null;
   const rows = [];
   for (const [symbol, name] of STOCKS) {
@@ -108,8 +110,8 @@ async function analysts() {
   return {
     updatedAt: new Date().toISOString(),
     period: rows.map((r) => r.period).sort().at(-1),
-    buys: sorted.slice(0, TOP_N),
-    sells: sorted.slice(-TOP_N).reverse(),
+    buys: sorted.slice(0, ANALYST_N),
+    sells: sorted.slice(-ANALYST_N).reverse(),
     count: rows.length,
   };
 }

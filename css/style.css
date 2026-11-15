@@ -484,9 +484,7 @@ body.has-tabbar .markets-head { display: flex; }
 body.has-tabbar #view-home .hero { display: none; }
 
 /* five slots: Markets · Overview · + · Portfolio · You */
-.tabbar { grid-template-columns: 1fr 1fr 84px 1fr 1fr; }
-.tab span { font-size: 10.5px; }
-@media (min-width: 720px) { .tabbar { width: 440px; } }
+.tabbar { grid-template-columns: 1fr 96px 1fr; }
 
 /* analyst ratings */
 .rating { display: flex; gap: 2px; height: 6px; margin-top: 8px; max-width: 200px; }
@@ -521,3 +519,8 @@ body.has-tabbar #view-home .hero { display: none; }
 }
 .user__item { width: 100%; text-align: left; border: 0; background: none; color: var(--ink); font: 500 15px/1 var(--sans); padding: 12px 12px; border-radius: 9px; cursor: pointer; }
 .user__item:hover, .user__item:focus-visible { background: rgba(255, 255, 255, 0.07); outline: none; }
+.hero-num[role="button"] { cursor: pointer; border-radius: 16px; margin: 0 -10px; padding-left: 10px; padding-right: 10px; -webkit-tap-highlight-color: transparent; }
+.hero-num[role="button"]:active { background: rgba(255, 255, 255, 0.04); }
+.hero-num[role="button"]:focus-visible { outline: 2px solid var(--accent); }
+.hero-num__label::after { content: " ›"; color: var(--ink-3); }
+.pchart__ref { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 4 4; }

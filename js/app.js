@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=30";
-import { legalDoc } from "./legal.js?v=30";
-import { isCryptoCode } from "./crypto.js?v=30";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=33";
+import { legalDoc } from "./legal.js?v=33";
+import { isCryptoCode } from "./crypto.js?v=33";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -101,8 +101,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=30").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=30").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=33").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=33").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -319,6 +319,7 @@ function emptyState() {
       <p>Add your first stock or ETF and your overview builds itself.</p>
       <a class="btn btn--primary" href="#/add">Add a holding</a>
     </div>
+    ${analysts ? `<p class="note">Wall Street analysts' 12-month consensus for large US stocks (Finnhub, ${esc(analysts.period || "")}). Their opinion, not advice from stonks.</p>` : ""}
     <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>`;
 }
 
@@ -366,18 +367,10 @@ function renderOverview() {
       </div>
     </li>`).join("");
 
-  const today = pos.filter((p) => p.live).sort((a, b) => b.dayPct - a.dayPct);
-  const todayRows = today.slice(0, 5).map((p) => `
-    <li class="row row--link" data-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button">
-      <div class="row__id"><div class="row__title">${esc(p.label)}</div></div>
-      <div class="row__nums">
-        <div class="row__price">${fmtEurSigned(p.dayChange)}</div>
-        <span class="pill ${dir(p.dayPct)}">${fmtPct(p.dayPct)}</span>
-      </div>
-    </li>`).join("");
+  const analysts = state.market?.analysts;
 
   body.innerHTML = `
-    <section class="hero-num">
+    <section class="hero-num" id="hero-num" role="button" tabindex="0" aria-label="Show a chart of your whole portfolio">
       <div class="hero-num__label">Total value</div>
       <div class="hero-num__value"><small>€</small>${whole}<small>.${cents}</small></div>
       <div class="hero-num__sub">
@@ -402,10 +395,14 @@ function renderOverview() {
         <ol class="rows weights">${topRows}</ol>
       </article>
 
-      ${today.length ? `
-      <article class="card panel">
-        <div class="card__head"><h3 class="card__title">Your movers</h3><span class="card__hint">1D change</span></div>
-        <ol class="rows movers-mini">${todayRows}</ol>
+      ${analysts ? `
+      <article class="card panel card--up">
+        <div class="card__head"><h3 class="card__title">Analysts' top buys</h3><span class="card__hint">12-month view</span></div>
+        <ol class="rows">${analystRows(analysts.buys)}</ol>
+      </article>
+      <article class="card panel card--down">
+        <div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div>
+        <ol class="rows">${analystRows(analysts.sells)}</ol>
       </article>` : ""}
     </div>
 
@@ -546,7 +543,7 @@ document.addEventListener("change", async (e) => {
   if (!el.value) delete state.venues[key];
   renderCurrent();
   try {
-    const { setVenue } = await import("./store.js?v=30");
+    const { setVenue } = await import("./store.js?v=33");
     await setVenue(state.user.uid, key, el.value);
     toast(el.value ? `Valued with ${el.value} prices` : "Back to automatic prices");
   } catch (err) {
@@ -566,7 +563,7 @@ document.addEventListener("focusout", async (e) => {
   const name = el.value.trim();
   if ((state.names[key] || "") === name) return;
   try {
-    const { setName } = await import("./store.js?v=30");
+    const { setName } = await import("./store.js?v=33");
     await setName(state.user.uid, key, name);
     toast(name ? `Renamed to ${name}` : "Back to the original name");
   } catch (err) {
@@ -806,7 +803,7 @@ form.addEventListener("submit", async (ev) => {
   const btn = $("f-submit");
   btn.disabled = true;
   try {
-    const { saveHolding } = await import("./store.js?v=30");
+    const { saveHolding } = await import("./store.js?v=33");
     await saveHolding(state.user.uid, editingId, {
       isin, quantity, buyPrice, buyDate: f.date.value,
       type: q?.type || guessType(isin), name: q?.name || "",
@@ -832,7 +829,7 @@ $("f-delete").addEventListener("click", async () => {
   resetDelete();
   const label = state.isin[f.isin.value]?.name || f.isin.value || "holding";
   try {
-    const { deleteHolding } = await import("./store.js?v=30");
+    const { deleteHolding } = await import("./store.js?v=33");
     await deleteHolding(state.user.uid, editingId);
     toast(`Removed ${label}`);
     closeAdd();
@@ -871,9 +868,43 @@ function openChart(symbol, isin) {
   $("sheet-close").focus();
 }
 
+// Tap the total value → your whole portfolio over time.
+function openPortfolioChart() {
+  if (!state.holdings?.length) return;
+  const rows = state.holdings.map(valuate);
+  const t = totals(rows);
+  const usd = state.fx.USD || 1;
+  const byKey = new Map();
+  for (const r of rows) {
+    const id = r.isin || r.symbol;
+    if (!id) continue;
+    const p = byKey.get(id) || { id, currency: r.isin ? "EUR" : "USD", venue: r.isin ? state.venues[r.isin] : undefined, toEur: r.isin ? 1 : 1 / usd, lots: [] };
+    p.lots.push({ qty: r.quantity, buyEur: r.buyEur, date: r.buyDate || "" });
+    byKey.set(id, p);
+  }
+  $("sheet-sym").textContent = "Your portfolio";
+  $("sheet-sym").classList.add("sheet__sym--name");
+  $("sheet-name").textContent = `${byKey.size} ${byKey.size === 1 ? "position" : "positions"} · dashed line: invested`;
+  $("sheet-price").textContent = fmtEur(t.value);
+  const pill = $("sheet-pill");
+  pill.hidden = false;
+  pill.className = `pill ${dir(t.day)}`;
+  pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
+  import("./chart.js?v=33").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  lastFocus = document.activeElement;
+  sheet.hidden = false;
+  document.body.classList.add("sheet-open");
+  requestAnimationFrame(() => sheet.classList.add("is-open"));
+  $("sheet-close").focus();
+}
+document.addEventListener("click", (e) => { if (e.target.closest?.("#hero-num")) openPortfolioChart(); });
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.closest?.("#hero-num")) { e.preventDefault(); openPortfolioChart(); }
+});
+
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=30");
+  const { mountPriceChart } = await import("./chart.js?v=33");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -958,7 +989,7 @@ let pendingRoute = null;
 window.addEventListener("hashchange", route);
 
 /* Swipe left/right to switch between Overview and Portfolio (like the tabs in Snapchat). */
-const SWIPE_TABS = ["home", "overview", "portfolio", "you"];
+const SWIPE_TABS = ["overview", "portfolio"];
 const TAB_HASH = { home: "#/markets", overview: "#/overview", portfolio: "#/portfolio", you: "#/you" };
 let swipe = null;
 document.addEventListener("touchstart", (e) => {
@@ -1034,7 +1065,7 @@ async function startHoldings(uid) {
   state.names = {};
   let store;
   try {
-    store = await import("./store.js?v=30");
+    store = await import("./store.js?v=33");
   } catch (e) {
     console.error("Couldn't load store.js", e);
     state.holdings = [];
