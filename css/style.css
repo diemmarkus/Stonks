@@ -664,3 +664,9 @@ body.has-tabbar #view-home .hero { display: none; }
 .addsheet__found { margin: -2px 2px 0; min-height: 0; }
 .addsheet__found:empty { display: none; }
 .sentence { margin-top: 0; }
+
+/* time range for the movers: 1D … 5Y */
+.switch--small { display: flex; width: fit-content; margin-top: -6px; }
+.switch--small button { padding: 6px 14px; font: 500 13px/1.2 var(--mono); }
+.switch button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.switch[hidden] { display: none; }

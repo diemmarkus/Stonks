@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=69";
-import { legalDoc } from "./legal.js?v=69";
-import { isCryptoCode } from "./crypto.js?v=69";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=70";
+import { legalDoc } from "./legal.js?v=70";
+import { isCryptoCode } from "./crypto.js?v=70";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=69") : import("./store.js?v=69"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=70") : import("./store.js?v=70"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=69").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=69").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=70").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=70").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -249,14 +249,14 @@ function moverCard(d, title, body, info) {
   const i = info ? infoButton("About these movers") : null;
   return `
     <article class="card card--${d}">
-      <div class="card__head"><h3 class="card__title">${title}</h3><span class="card__side"><span class="card__hint">1D change</span>${i ? i.btn : ""}</span></div>
+      <div class="card__head"><h3 class="card__title">${title}</h3><span class="card__side"><span class="card__hint">${moverRange} change</span>${i ? i.btn : ""}</span></div>
       ${i ? `<p class="info__text" id="${i.id}" hidden>${info}</p>` : ""}
       <ol class="rows">${body}</ol>
     </article>`;
 }
 // What the movers are based on — folded behind the (i) in the Top gainers card
 const moversInfo = (data) => data && !data.sample
-  ? `Daily change among a fixed watchlist of ${data.quotes?.length ?? ""} large US-listed stocks and ETFs · prices via ${esc(data.source || "market data")} · updated ${stampOf(data.updatedAt)}. Not investment advice — just numbers.`
+  ? `${moverRange === "1D" ? "Daily change" : `Change over ${moverRange} (from onvista's price history)`} among a fixed watchlist of ${data.quotes?.length ?? ""} large US-listed stocks and ETFs · prices via ${esc(data.source || "market data")} · updated ${stampOf(data.updatedAt)}. Not investment advice — just numbers.`
   : null;
 
 // Analyst consensus: score from -2 (all strong sell) to +2 (all strong buy)
@@ -414,16 +414,48 @@ function analystGroup(a) {
       </div>`;
 }
 
+// Movers over 1D (Finnhub) or 1W … 5Y (from onvista's history, added by the hourly job)
+const MOVER_RANGE_KEY = "stonks-movers-range";
+let moverRange = (() => { try { return localStorage.getItem(MOVER_RANGE_KEY) || "1D"; } catch { return "1D"; } })();
+function moversFor(data, kind) {
+  if (!data) return null;
+  if (moverRange === "1D") return data[kind];
+  const k = kind === "stocks" ? "stock" : "etf";
+  const items = (data.quotes || []).filter((q) => q.kind === k && q.perf?.[moverRange] != null)
+    .map((q) => ({ ...q, changePct: q.perf[moverRange] }))
+    .sort((a, b) => b.changePct - a.changePct);
+  if (!items.length) return { gainers: [], losers: [], none: true };
+  return {
+    gainers: items.filter((i) => i.changePct > 0).slice(0, 3),
+    losers: items.filter((i) => i.changePct < 0).reverse().slice(0, 3),
+  };
+}
+function paintRangeSwitch() {
+  document.querySelectorAll("#range-switch button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.range === moverRange)));
+  $("range-switch").hidden = activeKind === "analysts";
+}
+document.querySelectorAll("#range-switch button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    moverRange = btn.dataset.range;
+    try { localStorage.setItem(MOVER_RANGE_KEY, moverRange); } catch {}
+    paintRangeSwitch();
+    renderHome();
+  });
+});
+
 function renderHome() {
   const data = state.market;
+  paintRangeSwitch();
   $("boards").innerHTML = GROUPS.map(({ kind, title }) => {
-    const g = data?.[kind];
+    const g = moversFor(data, kind);
+    const rows = (list, d) => (g.none ? `<li class="row"><p class="lookup__hint">${moverRange} changes appear after the next price update.</p></li>`
+      : list.length ? moverRows(list, d) : `<li class="row"><p class="lookup__hint">None over ${moverRange}.</p></li>`);
     return `
       <div class="group ${kind === activeKind ? "is-active" : ""}" data-kind="${kind}">
         <h2 class="group__title">${title}</h2>
         <div class="group__cards">
-          ${moverCard("up", "Top gainers", g ? moverRows(g.gainers, "up") : skeletonRows(), moversInfo(data))}
-          ${moverCard("down", "Top losers", g ? moverRows(g.losers, "down") : skeletonRows())}
+          ${moverCard("up", "Top gainers", g ? rows(g.gainers, "up") : skeletonRows(), moversInfo(data))}
+          ${moverCard("down", "Top losers", g ? rows(g.losers, "down") : skeletonRows())}
         </div>
       </div>`;
   }).join("") + analystGroup(getAnalysts());
@@ -441,6 +473,7 @@ document.querySelectorAll("#kind-switch button").forEach((btn) => {
     activeKind = btn.dataset.kind;
     document.querySelectorAll("#kind-switch button").forEach((b) => b.setAttribute("aria-selected", String(b === btn)));
     document.querySelectorAll(".group").forEach((g) => g.classList.toggle("is-active", g.dataset.kind === activeKind));
+    paintRangeSwitch();
   });
 });
 
@@ -1096,13 +1129,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=69");
+  const { CRYPTO } = await import("./crypto.js?v=70");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=69");
+    const { searchInstruments } = await import("./onvista.js?v=70");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1379,7 +1412,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=69").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=70").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1393,7 +1426,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=69");
+  const { mountPriceChart } = await import("./chart.js?v=70");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1661,7 +1694,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=69");
+  const { resetDemo } = await import("./demo-store.js?v=70");
   resetDemo();
   state.demo = true;
   state.names = {};
