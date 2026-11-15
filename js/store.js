@@ -1,6 +1,6 @@
 // Firestore access for holdings.
 //   users/{uid}/holdings/{id}  → { isin, name, type, quantity, buyPrice (EUR), buyDate, currency, createdAt, updatedAt }
-import { getDb } from "./firebase.js?v=42";
+import { getDb } from "./firebase.js?v=43";
 
 export async function watchHoldings(uid, callback, onError) {
   const { db, collection, onSnapshot } = await getDb();
@@ -23,6 +23,9 @@ export async function saveHolding(uid, id, h) {
     buyDate: h.buyDate || "",
     updatedAt: serverTimestamp(),
   };
+  // sells are stored like buys with side "sell" (buyPrice = the sell price)
+  if (h.side === "sell") data.side = "sell";
+  else if (id) data.side = deleteField();
   if (id) await updateDoc(doc(db, "users", uid, "holdings", id), { ...data, symbol: deleteField() });
   else await addDoc(collection(db, "users", uid, "holdings"), { ...data, createdAt: serverTimestamp() });
 }

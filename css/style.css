@@ -573,3 +573,11 @@ body.has-tabbar #view-home .hero { display: none; }
   margin: 4px 0 10px; padding: 10px 12px; border-radius: 10px; background: rgba(60, 203, 244, .08);
   border: 1px solid rgba(60, 203, 244, .22); color: var(--ink-2); font-size: 13px; line-height: 1.5;
 }
+
+/* sells */
+.sentence .pill--side { border: 0; cursor: pointer; font: 600 16px/1.2 var(--sans); padding: 0 12px; min-height: 34px; background: rgba(255, 255, 255, 0.06); color: var(--ink); }
+.sentence .pill--side::after { content: " ⇄"; color: var(--ink-3); font-size: .85em; }
+.sentence .pill--side.is-sell { background: var(--down-dim); color: var(--down); }
+.lot--sell { border-left: 2px solid var(--down); margin-left: -2px; }
+.lot--sell .lot__date { color: var(--down); }
+.pos__real .up { color: var(--up); } .pos__real .down { color: var(--down); }

@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=42";
-import { legalDoc } from "./legal.js?v=42";
-import { isCryptoCode } from "./crypto.js?v=42";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=43";
+import { legalDoc } from "./legal.js?v=43";
+import { isCryptoCode } from "./crypto.js?v=43";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,7 +46,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=42") : import("./store.js?v=42"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=43") : import("./store.js?v=43"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -105,8 +105,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=42").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=42").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=43").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=43").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -342,6 +342,37 @@ function quoteFor(isin) {
 /* ======================================================================
    Valuation
    ====================================================================== */
+// Sells use the average buy price of the units held at that moment (Austrian-style
+// moving average). Precomputed per position in date order: id → { avg, realized }.
+let sellInfo = new Map();
+function computeSells(holdings) {
+  sellInfo = new Map();
+  const byKey = new Map();
+  for (const h of holdings) {
+    const key = h.isin || h.symbol;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(h);
+  }
+  const usd = state.fx.USD || 1;
+  for (const list of byKey.values()) {
+    // buys before sells on the same day; undated buys first
+    list.sort((a, b) => (a.buyDate || "").localeCompare(b.buyDate || "") || (a.side === "sell") - (b.side === "sell"));
+    let qty = 0, cost = 0;
+    for (const h of list) {
+      const px = h.isin ? h.buyPrice : h.buyPrice / usd;
+      if (h.side === "sell") {
+        const avg = qty > 0 ? cost / qty : px;
+        const q = Math.min(h.quantity, qty);
+        sellInfo.set(h.id, { avg, realized: h.quantity * (px - avg) });
+        qty -= q; cost -= q * avg;
+      } else { qty += h.quantity; cost += h.quantity * px; }
+    }
+  }
+}
+const heldUnits = (key, exceptId) => (state.holdings || [])
+  .filter((h) => (h.isin || h.symbol) === key && h.id !== exceptId)
+  .reduce((n, h) => n + (h.side === "sell" ? -h.quantity : h.quantity), 0);
+
 function valuate(h0) {
   let h = h0;
   let q = null, price, buy = h.buyPrice, live = false, key, tv = null, sub;
@@ -365,8 +396,14 @@ function valuate(h0) {
     tv = h.symbol;
     sub = `${h.symbol} · needs ISIN`;
   }
-  const value = h.quantity * price;
-  const cost = h.quantity * buy;
+  // a sell is a negative lot: its units leave at the average cost of that time
+  const sell = h.side === "sell";
+  const si = sell ? sellInfo.get(h.id) : null;
+  const units = sell ? -h.quantity : h.quantity;
+  if (sell) buy = si?.avg ?? buy;
+  const value = units * price;
+  const cost = units * buy;
+  const realized = si?.realized || 0;
   return {
     ...h,
     key,
@@ -378,22 +415,27 @@ function valuate(h0) {
     live,
     price,
     buyEur: buy,
+    sell,
+    units,
+    sellPrice: sell ? (h.isin ? h.buyPrice : h.buyPrice / (state.fx.USD || 1)) : null,
+    realized,
     value,
     cost,
     gain: value - cost,
     gainPct: cost ? ((value - cost) / cost) * 100 : 0,
-    dayChange: live ? h.quantity * q.change : 0,
-    prevValue: live ? h.quantity * (q.price - q.change) : 0,
+    dayChange: live ? units * q.change : 0,
+    prevValue: live ? units * (q.price - q.change) : 0,
     dayPct: live ? q.changePct : 0,
   };
 }
 
 function totals(rows) {
   const t = rows.reduce((a, r) => {
-    a.value += r.value; a.cost += r.cost; a.day += r.dayChange; a.prev += r.prevValue;
+    a.value += r.value; a.cost += r.cost; a.day += r.dayChange; a.prev += r.prevValue; a.realized += r.realized || 0;
     return a;
-  }, { value: 0, cost: 0, day: 0, prev: 0 });
-  t.gain = t.value - t.cost;
+  }, { value: 0, cost: 0, day: 0, prev: 0, realized: 0 });
+  t.unrealized = t.value - t.cost;
+  t.gain = t.unrealized + t.realized; // like flatex "Gesamt": open gain + gains already taken
   t.gainPct = t.cost ? (t.gain / t.cost) * 100 : 0;
   t.dayPct = t.prev ? (t.day / t.prev) * 100 : 0;
   return t;
@@ -407,7 +449,7 @@ function positions(rows) {
     p.value += r.value; p.cost += r.cost; p.dayChange += r.dayChange; p.prevValue += r.prevValue;
     map.set(r.key, p);
   }
-  return [...map.values()];
+  return [...map.values()].filter((p) => p.value > 0.005 || p.cost > 0.005);
 }
 
 /* ======================================================================
@@ -420,7 +462,7 @@ function emptyState() {
       <p>Add your first stock or ETF and your overview builds itself.</p>
       <a class="btn btn--primary" href="#/add">Add a holding</a>
     </div>
-    <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>`;
+    `;
 }
 
 function loadingState() {
@@ -481,7 +523,7 @@ function renderOverview() {
 
     <div class="tiles">
       <div class="tile"><div class="tile__label">Invested</div><div class="tile__value">${fmtEur(t.cost)}</div></div>
-      <div class="tile"><div class="tile__label">Total return</div><div class="tile__value ${dir(t.gain)}">${fmtEurSigned(t.gain)}</div><div class="tile__sub ${dir(t.gain)}">${fmtPct(t.gainPct)}</div></div>
+      <div class="tile"><div class="tile__label">Total return</div><div class="tile__value ${dir(t.gain)}">${fmtEurSigned(t.gain)}</div><div class="tile__sub ${dir(t.gain)}">${fmtPct(t.gainPct)}${t.realized ? ` · incl. ${fmtEurSigned(t.realized)} realised` : ""}</div></div>
     </div>
 
     <div class="panels">
@@ -509,7 +551,6 @@ function renderOverview() {
       ${lookupHtml("overview")}` : ""}
     </div>
 
-    <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>
     ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. Prices are fetched from onvista when the app opens; try again in a moment.</p>` : ""}`;
 }
 
@@ -524,14 +565,19 @@ function lotGroups(rows) {
   const map = new Map();
   for (const r of rows) {
     const g = map.get(r.key) || { key: r.key, isin: r.isin, tv: r.tv, label: r.label, realName: r.realName, nicknamed: r.nicknamed, sub: r.sub, type: r.type, live: r.live, price: r.price, lots: [], qty: 0, value: 0, cost: 0 };
-    g.lots.push(r); g.qty += r.quantity; g.value += r.value; g.cost += r.cost;
+    g.lots.push(r); g.qty += r.units; g.value += r.value; g.cost += r.cost; g.realized = (g.realized || 0) + r.realized;
+    if (!r.sell) g.bought = (g.bought || 0) + r.cost;
     map.set(r.key, g);
   }
   return [...map.values()].map((g) => {
     g.lots.sort((a, b) => (b.buyDate || "").localeCompare(a.buyDate || ""));
-    g.avgBuy = g.qty ? g.cost / g.qty : 0;
-    g.gain = g.value - g.cost;
-    g.gainPct = g.cost ? (g.gain / g.cost) * 100 : 0;
+    g.qty = Math.round(g.qty * 1e8) / 1e8;
+    g.closed = g.qty <= 0;
+    g.avgBuy = g.qty > 0 ? g.cost / g.qty : 0;
+    g.realized ||= 0;
+    g.gain = g.value - g.cost + g.realized;
+    const base = g.closed ? (g.bought || 0) : g.cost;
+    g.gainPct = base ? (g.gain / base) * 100 : 0;
     return g;
   });
 }
@@ -546,23 +592,24 @@ function renderPortfolio() {
   const groups = lotGroups(rows).sort((a, b) => (b.live - a.live) || (b.gain - a.gain));
   const t = totals(rows);
   if (openPos && !groups.some((g) => g.key === openPos)) openPos = null;
-  $("pf-count").textContent = `${groups.length} ${groups.length === 1 ? "position" : "positions"} · ${rows.length} ${rows.length === 1 ? "buy" : "buys"}`;
+  const nSells = rows.filter((r) => r.sell).length, nBuys = rows.length - nSells;
+  $("pf-count").textContent = `${groups.length} ${groups.length === 1 ? "position" : "positions"} · ${nBuys} ${nBuys === 1 ? "buy" : "buys"}${nSells ? ` · ${nSells} ${nSells === 1 ? "sell" : "sells"}` : ""}`;
 
   body.innerHTML = `
     <div class="card" style="padding:0">
       <ul class="holdings">
         ${groups.map((g, i) => {
           const open = g.key === openPos;
-          const buys = g.lots.length;
+          const buys = g.lots.filter((r) => !r.sell).length, sells = g.lots.length - buys;
           return `
         <li class="pos${open ? " is-open" : ""}">
           <button class="holding pos__head" type="button" data-pos="${esc(g.key)}" aria-expanded="${open}" aria-controls="pos-${i}">
             <div class="row__id">
               <div class="row__title">${esc(g.label)}<span class="holding__tag holding__tag--${g.type}">${{ etf: "ETF", certificate: "Certificate", crypto: "Crypto" }[g.type] || "Stock"}</span></div>
-              <div class="row__name">${fmtEur(g.value)}${g.live ? "" : ` · <span class="stale">no live price</span>`}</div>
+              <div class="row__name">${g.closed ? "Sold" : fmtEur(g.value)}${g.live || g.closed ? "" : ` · <span class="stale">no live price</span>`}</div>
             </div>
             <div class="row__nums">
-              ${g.live ? `<div class="row__price ${dir(g.gain)}">${fmtEurSigned(g.gain)}</div>
+              ${g.live || g.closed ? `<div class="row__price ${dir(g.gain)}">${fmtEurSigned(g.gain)}</div>
               <span class="pill ${dir(g.gain)}">${fmtPct(g.gainPct)}</span>` : `<span class="holding__sub">—</span>`}
             </div>
             <svg class="pos__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
@@ -575,15 +622,18 @@ function renderPortfolio() {
               </label>
               ${venueSelect(g)}
               <p class="pos__real"><span>${esc(g.realName)}</span> · ${esc(g.sub)}</p>
-              <p class="pos__real">${buys} ${buys === 1 ? "buy" : "buys"} · ${fmtQty.format(g.qty)} × ${fmtEur(g.avgBuy)}${buys > 1 ? " avg" : ""} → ${g.live ? fmtEur(g.price) : "no live price"}</p>
+              <p class="pos__real">${buys} ${buys === 1 ? "buy" : "buys"}${sells ? ` · ${sells} ${sells === 1 ? "sell" : "sells"}` : ""} · ${g.closed ? "all sold" : `${fmtQty.format(g.qty)} × ${fmtEur(g.avgBuy)}${buys > 1 || sells ? " avg" : ""} → ${g.live ? fmtEur(g.price) : "no live price"}`}</p>
+              ${g.realized ? `<p class="pos__real">Realised: <span class="${dir(g.realized)}">${fmtEurSigned(g.realized)}</span> · open: <span class="${dir(g.value - g.cost)}">${fmtEurSigned(g.value - g.cost)}</span></p>` : ""}
             </div>
             <div class="pos__chart" data-pos-chart="${esc(g.key)}"></div>
             <ol class="lots" aria-label="Buys of ${esc(g.label)}">
               ${g.lots.map((r) => `
-              <li><a class="lot" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit buy of ${esc(r.label)}${r.buyDate ? ` on ${fmtDate(r.buyDate)}` : ""}">
-                <span class="lot__date">${r.buyDate ? fmtDate(r.buyDate) : "No date"}</span>
-                <span class="lot__qty">${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)}</span>
-                <span class="lot__val">${fmtEur(r.value)}${r.live ? ` <span class="${dir(r.gain)}">${fmtPct(r.gainPct)}</span>` : ""}</span>
+              <li><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` on ${fmtDate(r.buyDate)}` : ""}">
+                <span class="lot__date">${r.sell ? "Sold · " : ""}${r.buyDate ? fmtDate(r.buyDate) : "No date"}</span>
+                <span class="lot__qty">${r.sell ? `${fmtQty.format(r.quantity)} × ${fmtEur(r.sellPrice)} (avg cost ${fmtEur(r.buyEur)})` : `${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)}`}</span>
+                <span class="lot__val">${r.sell
+                  ? `<span class="${dir(r.realized)}">${fmtEurSigned(r.realized)}</span>`
+                  : `${fmtEur(r.value)}${r.live ? ` <span class="${dir(r.gain)}">${fmtPct(r.gainPct)}</span>` : ""}`}</span>
               </a></li>`).join("")}
             </ol>
           </div>
@@ -764,7 +814,7 @@ f.datetext.addEventListener("blur", () => {
 
 function updateTotal() {
   const q = parseNum(f.qty.value), p = parseNum(f.price.value);
-  $("f-total").textContent = q > 0 && p > 0 ? `= ${fmtEur(q * p)} invested` : "";
+  $("f-total").textContent = q > 0 && p > 0 ? `= ${fmtEur(q * p)} ${side === "sell" ? "received" : "invested"}` : "";
 }
 
 function updateIsinHint() {
@@ -806,13 +856,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=42");
+  const { CRYPTO } = await import("./crypto.js?v=43");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=42");
+    const { searchInstruments } = await import("./onvista.js?v=43");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -864,6 +914,19 @@ $("f-results").addEventListener("click", (e) => {
   el.parentElement.addEventListener("click", () => el.focus());
 });
 
+// "Bought" / "Sold": the first word of the sentence is a toggle
+let side = "buy";
+function setSide(next) {
+  side = next;
+  const b = $("f-side");
+  b.textContent = side === "sell" ? "Sold" : "Bought";
+  b.setAttribute("aria-pressed", String(side === "sell"));
+  b.classList.toggle("is-sell", side === "sell");
+  if (!editingId) $("add-title").textContent = side === "sell" ? "Record a sale" : "Add holding";
+  updateTotal();
+}
+$("f-side").addEventListener("click", () => setSide(side === "sell" ? "buy" : "sell"));
+
 function resetDelete() {
   clearTimeout(deleteArmed);
   deleteArmed = null;
@@ -885,6 +948,7 @@ function openAdd(id) {
   pendingEditId = null;
   f.price.placeholder = "100.00";
   f.date.value = isoToday();
+  setSide("buy");
 
   if (id) {
     if (state.holdings === null) { pendingEditId = id; return; }
@@ -898,6 +962,9 @@ function openAdd(id) {
     f.qty.value = String(h.quantity);
     f.price.value = h.isin ? String(h.buyPrice) : "";
     f.date.value = h.buyDate || isoToday();
+    setSide(h.side === "sell" ? "sell" : "buy");
+    $("add-title").textContent = h.side === "sell" ? "Edit sale" : "Edit holding";
+    $("f-delete").textContent = h.side === "sell" ? "Delete sale" : "Delete holding";
     if (!h.isin) showError(`This holding was added by ticker (${h.symbol}, USD). Enter its ISIN and the buy price in EUR to switch it over.`);
   } else {
     $("add-title").textContent = "Add holding";
@@ -964,7 +1031,11 @@ form.addEventListener("submit", async (ev) => {
   if (!isValidId(isin)) bad = [f.isin, f.isin, looksLikeId(isin) ? "That ISIN isn't valid. Check for typos." : "Pick one of the results, or enter an ISIN."];
   else if (!f.date.value) bad = [f.datetext, f.datetext.parentElement, "Enter the buy date as dd.mm.yyyy."];
   else if (!(quantity > 0)) bad = [f.qty, f.qty.parentElement, "How many did you buy?"];
-  else if (!(buyPrice > 0)) bad = [f.price, f.price.parentElement, "What did you pay per share (EUR)?"];
+  else if (!(buyPrice > 0)) bad = [f.price, f.price.parentElement, side === "sell" ? "What did you get per share (EUR)?" : "What did you pay per share (EUR)?"];
+  else if (side === "sell") {
+    const held = heldUnits(isin, editingId);
+    if (quantity > held + 1e-9) bad = [f.qty, f.qty.parentElement, held > 0 ? `You only hold ${fmtQty.format(held)}.` : "You don't hold any of this."];
+  }
   if (bad) { bad[1].setAttribute("aria-invalid", "true"); bad[0].focus(); showError(bad[2]); return; }
 
   const q = state.isin[isin];
@@ -973,11 +1044,11 @@ form.addEventListener("submit", async (ev) => {
   try {
     const { saveHolding } = await loadStore();
     await saveHolding(state.user.uid, editingId, {
-      isin, quantity, buyPrice, buyDate: f.date.value,
+      isin, quantity, buyPrice, buyDate: f.date.value, side,
       type: q?.type || guessType(isin), name: q?.name || "",
     });
     const label = q?.name || isin;
-    toast(editingId ? `Saved ${label}` : `Added ${label}`);
+    toast(editingId ? `Saved ${label}` : side === "sell" ? `Recorded sale of ${label}` : `Added ${label}`);
     closeAdd();
   } catch (e) {
     console.error(e);
@@ -1039,6 +1110,7 @@ function openChart(symbol, isin) {
 // Tap the total value → your whole portfolio over time.
 function openPortfolioChart() {
   if (!state.holdings?.length) return;
+  computeSells(state.holdings);
   const rows = state.holdings.map(valuate);
   const t = totals(rows);
   const usd = state.fx.USD || 1;
@@ -1047,7 +1119,7 @@ function openPortfolioChart() {
     const id = r.isin || r.symbol;
     if (!id) continue;
     const p = byKey.get(id) || { id, currency: r.isin ? "EUR" : "USD", venue: r.isin ? state.venues[r.isin] : undefined, toEur: r.isin ? 1 : 1 / usd, lots: [] };
-    p.lots.push({ qty: r.quantity, buyEur: r.buyEur, date: r.buyDate || "" });
+    p.lots.push({ qty: r.units, buyEur: r.buyEur, date: r.buyDate || "" }); // sells: negative units at their average cost
     byKey.set(id, p);
   }
   $("sheet-sym").textContent = "Your portfolio";
@@ -1058,7 +1130,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=42").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=43").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1072,7 +1144,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=42");
+  const { mountPriceChart } = await import("./chart.js?v=43");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1112,6 +1184,7 @@ function renderLegal(kind) {
 }
 
 function renderCurrent() {
+  if (state.holdings) computeSells(state.holdings);
   withLookupFocus(() => {
     if (state.view === "overview") renderOverview();
     else if (state.view === "portfolio") renderPortfolio();
@@ -1308,7 +1381,7 @@ function applyUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=42");
+  const { resetDemo } = await import("./demo-store.js?v=43");
   resetDemo();
   state.demo = true;
   state.names = {};
