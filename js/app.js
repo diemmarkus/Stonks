@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=72";
-import { legalDoc } from "./legal.js?v=72";
-import { isCryptoCode } from "./crypto.js?v=72";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=73";
+import { legalDoc } from "./legal.js?v=73";
+import { isCryptoCode } from "./crypto.js?v=73";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=72") : import("./store.js?v=72"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=73") : import("./store.js?v=73"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=72").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=72").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=73").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=73").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -656,9 +656,9 @@ function renderOverview() {
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
 
   const allocBar = byType.map((x) =>
-    `<div class="alloc__seg alloc__seg--${x.key}" style="flex:${x.value}" title="${x.label}: ${fmtEur(x.value)} (${share(x.value).toFixed(1)}%)"></div>`).join("");
+    `<div class="alloc__seg alloc__seg--${x.key}" data-alloc="${x.key}" style="flex:${x.value}" title="${x.label}: ${fmtEur(x.value)} (${share(x.value).toFixed(1)}%)"></div>`).join("");
   const allocLegend = byType.map((x) => `
-    <li><span class="legend__sw" style="background:var(--${{ stock: "stocks", etf: "etfs", certificate: "certs", crypto: "crypto" }[x.key]})"></span>
+    <li class="legend__link" data-alloc="${x.key}" tabindex="0" role="button" aria-label="${x.label}: show the split"><span class="legend__sw" style="background:var(--${{ stock: "stocks", etf: "etfs", certificate: "certs", crypto: "crypto" }[x.key]})"></span>
       <span>${x.label}</span><span class="legend__val">${fmtEur(x.value)}</span><span class="legend__pct">${share(x.value).toFixed(1)}%</span></li>`).join("");
 
   const top = pos.slice(0, 3);
@@ -1126,13 +1126,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=72");
+  const { CRYPTO } = await import("./crypto.js?v=73");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=72");
+    const { searchInstruments } = await import("./onvista.js?v=73");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1409,7 +1409,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=72").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=73").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1423,9 +1423,89 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=72");
+  const { mountPriceChart } = await import("./chart.js?v=73");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
+
+/* ======================================================================
+   Allocation → tap a class (Stocks, ETFs, …) for a donut of the positions in it
+   ====================================================================== */
+// categorical slots, validated for the sheet surface (dark): blue, orange, aqua, yellow, magenta, green
+const SLICE_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c"];
+const CLASS_NAMES = { stock: "stocks", etf: "ETFs", certificate: "certificates", crypto: "crypto" };
+function openAllocation(type) {
+  if (!state.holdings?.length) return;
+  computeSells(state.holdings);
+  const rows = state.holdings.map(valuate);
+  const all = totals(rows);
+  const items = positions(rows).filter((p) => p.type === type && p.value > 0.005).sort((a, b) => b.value - a.value);
+  if (!items.length) return;
+  const sum = items.reduce((n, p) => n + p.value, 0);
+  const day = items.reduce((n, p) => n + p.dayChange, 0), prev = items.reduce((n, p) => n + p.prevValue, 0);
+  // at most 6 slices; the rest folds into "Other"
+  const slices = items.length > 6
+    ? [...items.slice(0, 5), { label: `Other (${items.length - 5})`, value: items.slice(5).reduce((n, p) => n + p.value, 0), other: true }]
+    : items;
+  slices.forEach((s, i) => { s.color = s.other ? "var(--ink-3)" : SLICE_COLORS[i]; s.pct = (s.value / sum) * 100; });
+
+  // donut: one arc per slice, a 2px gap of surface between them
+  const R = 80, W = 26, C = 2 * Math.PI * R, gap = slices.length > 1 ? 2 : 0;
+  let off = 0;
+  const arcs = slices.map((s, i) => {
+    const len = Math.max((s.value / sum) * C - gap, 0.5);
+    const a = `<circle class="donut__arc" data-slice="${i}" r="${R}" cx="100" cy="100" fill="none" stroke="${s.color}" stroke-width="${W}"
+      stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 100 100)"><title>${esc(s.label)}: ${fmtEur(s.value)} (${s.pct.toFixed(1)}%)</title></circle>`;
+    off += (s.value / sum) * C;
+    return a;
+  }).join("");
+  const name = CLASS_NAMES[type] || type;
+  $("sheet-chart").innerHTML = `
+    <div class="donut">
+      <div class="donut__plot">
+        <svg viewBox="0 0 200 200" role="img" aria-label="Your ${name}: ${slices.map((s) => `${s.label} ${s.pct.toFixed(0)}%`).join(", ")}">
+          <circle r="${R}" cx="100" cy="100" fill="none" stroke="var(--line)" stroke-width="${W}" opacity=".35"/>${arcs}
+        </svg>
+        <div class="donut__center" aria-hidden="true"><b data-donut-val>${fmtEur(sum)}</b><span data-donut-lbl>${items.length} ${items.length === 1 ? "position" : "positions"}</span></div>
+      </div>
+      <ul class="legend donut__legend">${slices.map((s, i) => `
+        <li${s.other ? "" : ` class="legend__link" data-chart="${esc(s.isin || s.key)}"${s.isin ? ` data-isin="${esc(s.isin)}"` : ""} tabindex="0" role="button"`} data-slice="${i}">
+          <span class="legend__sw" style="background:${s.color}"></span><span>${esc(s.label)}</span><span class="legend__val">${fmtEur(s.value)}</span><span class="legend__pct">${s.pct.toFixed(1)}%</span></li>`).join("")}
+      </ul>
+    </div>`;
+  // point at a slice or its legend row: the centre shows that slice
+  const host = $("sheet-chart");
+  const show = (i) => {
+    const s = slices[i];
+    host.querySelectorAll("[data-slice]").forEach((el) => el.classList.toggle("is-dim", i != null && el.dataset.slice !== String(i)));
+    host.querySelector("[data-donut-val]").textContent = s ? fmtEur(s.value) : fmtEur(sum);
+    host.querySelector("[data-donut-lbl]").textContent = s ? `${s.label} · ${s.pct.toFixed(1)}%` : `${items.length} ${items.length === 1 ? "position" : "positions"}`;
+  };
+  host.querySelectorAll("[data-slice]").forEach((el) => {
+    el.addEventListener("pointerenter", () => show(Number(el.dataset.slice)));
+    el.addEventListener("pointerleave", () => show(null));
+  });
+
+  $("sheet-sym").textContent = `Your ${name}`;
+  $("sheet-sym").classList.add("sheet__sym--name");
+  $("sheet-name").textContent = `${items.length} ${items.length === 1 ? "position" : "positions"} · ${all.value ? ((sum / all.value) * 100).toFixed(1) : 0}% of your portfolio`;
+  $("sheet-price").textContent = fmtEur(sum);
+  const pill = $("sheet-pill");
+  pill.hidden = false;
+  pill.className = `pill ${dir(day)}`;
+  pill.textContent = `${fmtEurSigned(day)} · ${fmtPct(prev ? (day / prev) * 100 : 0)}`;
+  lastFocus = document.activeElement;
+  sheet.hidden = false;
+  document.body.classList.add("sheet-open");
+  requestAnimationFrame(() => sheet.classList.add("is-open"));
+  $("sheet-close").focus();
+}
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-alloc]");
+  if (el) openAllocation(el.dataset.alloc);
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches?.("[data-alloc]")) { e.preventDefault(); openAllocation(e.target.dataset.alloc); }
+});
 
 function closeChart() {
   if (sheet.hidden) return;
@@ -1691,7 +1771,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=72");
+  const { resetDemo } = await import("./demo-store.js?v=73");
   resetDemo();
   state.demo = true;
   state.names = {};
