@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-15T05:50:04.600Z",
+  "updatedAt": "2026-11-15T12:37:26.888Z",
   "marketTime": "2026-11-13T21:00:00.000Z",
   "source": "Finnhub",
   "sample": false,
@@ -106,7 +106,13 @@
       "kind": "stock",
       "price": 356.27,
       "change": 1.39,
-      "changePct": 0.39
+      "changePct": 0.39,
+      "perf": {
+        "1W": 4.06,
+        "1M": 4.17,
+        "1Y": 30.78,
+        "5Y": 137.51
+      }
     },
     {
       "symbol": "MSFT",
@@ -114,7 +120,13 @@
       "kind": "stock",
       "price": 523.88,
       "change": 0.88,
-      "changePct": 0.17
+      "changePct": 0.17,
+      "perf": {
+        "1W": -1.27,
+        "1M": -2.88,
+        "1Y": 2.69,
+        "5Y": 55.88
+      }
     },
     {
       "symbol": "NVDA",
@@ -122,7 +134,13 @@
       "kind": "stock",
       "price": 162.85,
       "change": -3.34,
-      "changePct": -2.01
+      "changePct": -2.01,
+      "perf": {
+        "1W": -12.75,
+        "1M": -25.03,
+        "1Y": -14.37,
+        "5Y": 442.38
+      }
     },
     {
       "symbol": "AMZN",
@@ -130,7 +148,13 @@
       "kind": "stock",
       "price": 266.66,
       "change": -0.78,
-      "changePct": -0.29
+      "changePct": -0.29,
+      "perf": {
+        "1W": 2.84,
+        "1M": 4.67,
+        "1Y": 13.62,
+        "5Y": 50.41
+      }
     },
     {
       "symbol": "GOOGL",
@@ -138,7 +162,13 @@
       "kind": "stock",
       "price": 295.77,
       "change": -2.93,
-      "changePct": -0.98
+      "changePct": -0.98,
+      "perf": {
+        "1W": 3.86,
+        "1M": -15.31,
+        "1Y": 7,
+        "5Y": 99.24
+      }
     },
     {
       "symbol": "META",
@@ -146,7 +176,13 @@
       "kind": "stock",
       "price": 641.69,
       "change": 18.08,
-      "changePct": 2.9
+      "changePct": 2.9,
+      "perf": {
+        "1W": 5.17,
+        "1M": -12.9,
+        "1Y": 5.29,
+        "5Y": 84.63
+      }
     },
     {
       "symbol": "TSLA",
@@ -154,7 +190,13 @@
       "kind": "stock",
       "price": 390.22,
       "change": -7.23,
-      "changePct": -1.82
+      "changePct": -1.82,
+      "perf": {
+        "1W": 8.93,
+        "1M": 7.66,
+        "1Y": -3.49,
+        "5Y": 15.52
+      }
     },
     {
       "symbol": "AVGO",
@@ -162,7 +204,13 @@
       "kind": "stock",
       "price": 347.01,
       "change": -17.35,
-      "changePct": -4.76
+      "changePct": -4.76,
+      "perf": {
+        "1W": 18.16,
+        "1M": 0.78,
+        "1Y": 1.33,
+        "5Y": 513.34
+      }
     },
     {
       "symbol": "BRK.B",
@@ -170,7 +218,13 @@
       "kind": "stock",
       "price": 592.94,
       "change": 3.11,
-      "changePct": 0.53
+      "changePct": 0.53,
+      "perf": {
+        "1W": 3.86,
+        "1M": 12.79,
+        "1Y": 16.5,
+        "5Y": 108.29
+      }
     },
     {
       "symbol": "JPM",
@@ -178,7 +232,13 @@
       "kind": "stock",
       "price": 346.19,
       "change": 3.37,
-      "changePct": 0.98
+      "changePct": 0.98,
+      "perf": {
+        "1W": 3.5,
+        "1M": 3.18,
+        "1Y": 14.02,
+        "5Y": 107.85
+      }
     },
     {
       "symbol": "V",
@@ -186,7 +246,13 @@
       "kind": "stock",
       "price": 425.76,
       "change": 5.45,
-      "changePct": 1.3
+      "changePct": 1.3,
+      "perf": {
+        "1W": 0.74,
+        "1M": 6.51,
+        "1Y": 29.01,
+        "5Y": 100.55
+      }
     },
     {
       "symbol": "MA",
@@ -194,7 +260,13 @@
       "kind": "stock",
       "price": 661.19,
       "change": 8.59,
-      "changePct": 1.32
+      "changePct": 1.32,
+      "perf": {
+        "1W": 1.3,
+        "1M": 7.28,
+        "1Y": 21.16,
+        "5Y": 82.97
+      }
     },
     {
       "symbol": "LLY",
@@ -202,7 +274,13 @@
       "kind": "stock",
       "price": 1443.5,
       "change": 16.22,
-      "changePct": 1.14
+      "changePct": 1.14,
+      "perf": {
+        "1W": 6.61,
+        "1M": 15.33,
+        "1Y": 40.79,
+        "5Y": 458.57
+      }
     },
     {
       "symbol": "UNH",
@@ -210,7 +288,13 @@
       "kind": "stock",
       "price": 407.46,
       "change": 2.33,
-      "changePct": 0.58
+      "changePct": 0.58,
+      "perf": {
+        "1W": 3.38,
+        "1M": 0.19,
+        "1Y": 26.6,
+        "5Y": -9.61
+      }
     },
     {
       "symbol": "JNJ",
@@ -218,7 +302,13 @@
       "kind": "stock",
       "price": 285.75,
       "change": 2.23,
-      "changePct": 0.79
+      "changePct": 0.79,
+      "perf": {
+        "1W": 3.45,
+        "1M": 12.82,
+        "1Y": 45.84,
+        "5Y": 74.75
+      }
     },
     {
       "symbol": "XOM",
@@ -226,7 +316,13 @@
       "kind": "stock",
       "price": 170.59,
       "change": 0.81,
-      "changePct": 0.48
+      "changePct": 0.48,
+      "perf": {
+        "1W": 2.85,
+        "1M": -2.34,
+        "1Y": 43,
+        "5Y": 165.01
+      }
     },
     {
       "symbol": "WMT",
@@ -234,7 +330,13 @@
       "kind": "stock",
       "price": 128.09,
       "change": 1.9,
-      "changePct": 1.51
+      "changePct": 1.51,
+      "perf": {
+        "1W": 2.05,
+        "1M": 8.67,
+        "1Y": 24.99,
+        "5Y": 161.57
+      }
     },
     {
       "symbol": "COST",
@@ -242,7 +344,13 @@
       "kind": "stock",
       "price": 1106.21,
       "change": 14,
-      "changePct": 1.28
+      "changePct": 1.28,
+      "perf": {
+        "1W": 5,
+        "1M": 13.11,
+        "1Y": 19.85,
+        "5Y": 112.78
+      }
     },
     {
       "symbol": "KO",
@@ -250,7 +358,13 @@
       "kind": "stock",
       "price": 99.25,
       "change": 1.81,
-      "changePct": 1.86
+      "changePct": 1.86,
+      "perf": {
+        "1W": 3.74,
+        "1M": 7.88,
+        "1Y": 39.47,
+        "5Y": 75.29
+      }
     },
     {
       "symbol": "PEP",
@@ -258,7 +372,13 @@
       "kind": "stock",
       "price": 145.44,
       "change": 3.18,
-      "changePct": 2.24
+      "changePct": 2.24,
+      "perf": {
+        "1W": 2.9,
+        "1M": 13.29,
+        "1Y": -0.28,
+        "5Y": -11.21
+      }
     },
     {
       "symbol": "NFLX",
@@ -266,7 +386,13 @@
       "kind": "stock",
       "price": 62.15,
       "change": -0.54,
-      "changePct": -0.86
+      "changePct": -0.86,
+      "perf": {
+        "1W": -1.99,
+        "1M": -14.41,
+        "1Y": -44.12,
+        "5Y": -8.51
+      }
     },
     {
       "symbol": "AMD",
@@ -274,7 +400,13 @@
       "kind": "stock",
       "price": 534.06,
       "change": -51.24,
-      "changePct": -8.75
+      "changePct": -8.75,
+      "perf": {
+        "1W": 18.93,
+        "1M": -5.01,
+        "1Y": 116.39,
+        "5Y": 264.57
+      }
     },
     {
       "symbol": "ORCL",
@@ -282,7 +414,13 @@
       "kind": "stock",
       "price": 125.35,
       "change": -1.76,
-      "changePct": -1.38
+      "changePct": -1.38,
+      "perf": {
+        "1W": 7.97,
+        "1M": -6.78,
+        "1Y": -43.75,
+        "5Y": 33.32
+      }
     },
     {
       "symbol": "CRM",
@@ -290,7 +428,13 @@
       "kind": "stock",
       "price": 217.84,
       "change": 0.27,
-      "changePct": 0.12
+      "changePct": 0.12,
+      "perf": {
+        "1W": 1.96,
+        "1M": -11.71,
+        "1Y": -10.6,
+        "5Y": -28.69
+      }
     },
     {
       "symbol": "ADBE",
@@ -298,7 +442,13 @@
       "kind": "stock",
       "price": 243.08,
       "change": 4.54,
-      "changePct": 1.9
+      "changePct": 1.9,
+      "perf": {
+        "1W": 1.58,
+        "1M": -3.41,
+        "1Y": -26.59,
+        "5Y": -63.15
+      }
     },
     {
       "symbol": "INTC",
@@ -306,7 +456,13 @@
       "kind": "stock",
       "price": 59.66,
       "change": -1.54,
-      "changePct": -2.52
+      "changePct": -2.52,
+      "perf": {
+        "1W": 6.01,
+        "1M": -37.44,
+        "1Y": 67.96,
+        "5Y": 18.56
+      }
     },
     {
       "symbol": "DIS",
@@ -314,7 +470,13 @@
       "kind": "stock",
       "price": 118.97,
       "change": 0.74,
-      "changePct": 0.63
+      "changePct": 0.63,
+      "perf": {
+        "1W": 1.9,
+        "1M": 7.49,
+        "1Y": 12.45,
+        "5Y": -24.91
+      }
     },
     {
       "symbol": "BA",
@@ -322,7 +484,13 @@
       "kind": "stock",
       "price": 171.5,
       "change": -0.05,
-      "changePct": -0.03
+      "changePct": -0.03,
+      "perf": {
+        "1W": -1.1,
+        "1M": -9.13,
+        "1Y": -11.83,
+        "5Y": -26.42
+      }
     },
     {
       "symbol": "PLTR",
@@ -330,7 +498,13 @@
       "kind": "stock",
       "price": 167.99,
       "change": -3.59,
-      "changePct": -2.09
+      "changePct": -2.09,
+      "perf": {
+        "1W": 4.74,
+        "1M": -16.21,
+        "1Y": -3.46,
+        "5Y": 617.6
+      }
     },
     {
       "symbol": "UBER",
@@ -338,7 +512,13 @@
       "kind": "stock",
       "price": 69.69,
       "change": 0.57,
-      "changePct": 0.82
+      "changePct": 0.82,
+      "perf": {
+        "1W": 1.6,
+        "1M": -2.22,
+        "1Y": -23.94,
+        "5Y": 59.8
+      }
     },
     {
       "symbol": "NKE",
@@ -346,7 +526,13 @@
       "kind": "stock",
       "price": 37.99,
       "change": 0.23,
-      "changePct": 0.61
+      "changePct": 0.61,
+      "perf": {
+        "1W": -1.55,
+        "1M": 2.29,
+        "1Y": -40.8,
+        "5Y": -77.5
+      }
     },
     {
       "symbol": "SAP",
@@ -354,7 +540,13 @@
       "kind": "stock",
       "price": 234.9,
       "change": 0.84,
-      "changePct": 0.36
+      "changePct": 0.36,
+      "perf": {
+        "1W": 1.05,
+        "1M": 5.04,
+        "1Y": -4.29,
+        "5Y": 66.54
+      }
     },
     {
       "symbol": "ASML",
@@ -362,7 +554,13 @@
       "kind": "stock",
       "price": 1495.16,
       "change": -1.96,
-      "changePct": -0.13
+      "changePct": -0.13,
+      "perf": {
+        "1W": 4.4,
+        "1M": -10.85,
+        "1Y": 48.3,
+        "5Y": 74.53
+      }
     },
     {
       "symbol": "NVO",
@@ -370,7 +568,13 @@
       "kind": "stock",
       "price": 41.63,
       "change": 0.98,
-      "changePct": 2.41
+      "changePct": 2.41,
+      "perf": {
+        "1W": 4,
+        "1M": 5.46,
+        "1Y": -13.57,
+        "5Y": -26.91
+      }
     },
     {
       "symbol": "TSM",
@@ -378,7 +582,13 @@
       "kind": "stock",
       "price": 398.73,
       "change": -6.76,
-      "changePct": -1.67
+      "changePct": -1.67,
+      "perf": {
+        "1W": 6.2,
+        "1M": -5.57,
+        "1Y": 39.99,
+        "5Y": 237.56
+      }
     },
     {
       "symbol": "SPY",
@@ -386,7 +596,13 @@
       "kind": "etf",
       "price": 754.37,
       "change": -2.75,
-      "changePct": -0.36
+      "changePct": -0.36,
+      "perf": {
+        "1W": 1.57,
+        "1M": -2.82,
+        "1Y": 11.9,
+        "5Y": 61.19
+      }
     },
     {
       "symbol": "VOO",
@@ -394,7 +610,13 @@
       "kind": "etf",
       "price": 693.38,
       "change": -2.62,
-      "changePct": -0.38
+      "changePct": -0.38,
+      "perf": {
+        "1W": 2.57,
+        "1M": -2.26,
+        "1Y": 12.23,
+        "5Y": 61.34
+      }
     },
     {
       "symbol": "QQQ",
@@ -402,7 +624,12 @@
       "kind": "etf",
       "price": 679.89,
       "change": -8.28,
-      "changePct": -1.2
+      "changePct": -1.2,
+      "perf": {
+        "1W": 2.25,
+        "1M": -6.89,
+        "1Y": 11.14
+      }
     },
     {
       "symbol": "VTI",
@@ -410,7 +637,13 @@
       "kind": "etf",
       "price": 371.11,
       "change": -1.51,
-      "changePct": -0.41
+      "changePct": -0.41,
+      "perf": {
+        "1W": 2.54,
+        "1M": -1.93,
+        "1Y": 12.51,
+        "5Y": 53.51
+      }
     },
     {
       "symbol": "VT",
@@ -418,7 +651,13 @@
       "kind": "etf",
       "price": 155.3,
       "change": -0.45,
-      "changePct": -0.29
+      "changePct": -0.29,
+      "perf": {
+        "1W": 2.35,
+        "1M": -1.9,
+        "1Y": 11.53,
+        "5Y": 42.63
+      }
     },
     {
       "symbol": "IWM",
@@ -426,7 +665,13 @@
       "kind": "etf",
       "price": 277.54,
       "change": -0.9,
-      "changePct": -0.32
+      "changePct": -0.32,
+      "perf": {
+        "1W": 1.41,
+        "1M": 0.89,
+        "1Y": 16.87,
+        "5Y": 16.34
+      }
     },
     {
       "symbol": "DIA",
@@ -434,7 +679,13 @@
       "kind": "etf",
       "price": 523.15,
       "change": 0.68,
-      "changePct": 0.13
+      "changePct": 0.13,
+      "perf": {
+        "1W": 2.13,
+        "1M": 0.38,
+        "1Y": 10.88,
+        "5Y": 44.82
+      }
     },
     {
       "symbol": "VEA",
@@ -442,7 +693,13 @@
       "kind": "etf",
       "price": 69.44,
       "change": 0.01,
-      "changePct": 0.01
+      "changePct": 0.01,
+      "perf": {
+        "1W": 2.27,
+        "1M": -0.32,
+        "1Y": 13.24,
+        "5Y": 32.02
+      }
     },
     {
       "symbol": "VWO",
@@ -450,7 +707,11 @@
       "kind": "etf",
       "price": 56.38,
       "change": -0.05,
-      "changePct": -0.09
+      "changePct": -0.09,
+      "perf": {
+        "1M": -8.63,
+        "1Y": -9.59
+      }
     },
     {
       "symbol": "EFA",
@@ -458,7 +719,13 @@
       "kind": "etf",
       "price": 104.17,
       "change": 0.16,
-      "changePct": 0.15
+      "changePct": 0.15,
+      "perf": {
+        "1W": 9.88,
+        "1M": 7.81,
+        "1Y": 17.37,
+        "5Y": 35.08
+      }
     },
     {
       "symbol": "EWG",
@@ -466,7 +733,13 @@
       "kind": "etf",
       "price": 42.9,
       "change": 0.09,
-      "changePct": 0.21
+      "changePct": 0.21,
+      "perf": {
+        "1W": 3.17,
+        "1M": 3.27,
+        "1Y": 4.99,
+        "5Y": 26.33
+      }
     },
     {
       "symbol": "VGK",
@@ -482,7 +755,13 @@
       "kind": "etf",
       "price": 355.45,
       "change": 0.56,
-      "changePct": 0.16
+      "changePct": 0.16,
+      "perf": {
+        "1W": -4.58,
+        "1M": -7.12,
+        "1Y": -5.46,
+        "5Y": 104.07
+      }
     },
     {
       "symbol": "SLV",
@@ -490,7 +769,13 @@
       "kind": "etf",
       "price": 44.13,
       "change": -0.99,
-      "changePct": -2.19
+      "changePct": -2.19,
+      "perf": {
+        "1W": -5.85,
+        "1M": -15,
+        "1Y": -3.98,
+        "5Y": 89.89
+      }
     },
     {
       "symbol": "TLT",
@@ -506,7 +791,12 @@
       "kind": "etf",
       "price": 170.28,
       "change": -3.49,
-      "changePct": -2.01
+      "changePct": -2.01,
+      "perf": {
+        "1W": -0.8,
+        "1M": -13.53,
+        "1Y": 10.71
+      }
     },
     {
       "symbol": "XLF",
@@ -514,7 +804,11 @@
       "kind": "etf",
       "price": 58.68,
       "change": 0.47,
-      "changePct": 0.81
+      "changePct": 0.81,
+      "perf": {
+        "1W": -14.6,
+        "1M": -8.83
+      }
     },
     {
       "symbol": "XLE",
@@ -522,7 +816,11 @@
       "kind": "etf",
       "price": 64.96,
       "change": 0.63,
-      "changePct": 0.98
+      "changePct": 0.98,
+      "perf": {
+        "1M": 18.44,
+        "1Y": 80.38
+      }
     },
     {
       "symbol": "XLV",
@@ -530,7 +828,13 @@
       "kind": "etf",
       "price": 188.85,
       "change": 1.02,
-      "changePct": 0.54
+      "changePct": 0.54,
+      "perf": {
+        "1W": 2.19,
+        "1M": 6.58,
+        "1Y": 24.38,
+        "5Y": 42.01
+      }
     },
     {
       "symbol": "SMH",
@@ -538,7 +842,13 @@
       "kind": "etf",
       "price": 486.75,
       "change": -14.98,
-      "changePct": -2.99
+      "changePct": -2.99,
+      "perf": {
+        "1W": 4.91,
+        "1M": -12.9,
+        "1Y": 41.1,
+        "5Y": 223.74
+      }
     },
     {
       "symbol": "ARKK",
@@ -546,7 +856,13 @@
       "kind": "etf",
       "price": 74.99,
       "change": -1.51,
-      "changePct": -1.97
+      "changePct": -1.97,
+      "perf": {
+        "1W": -0.62,
+        "1M": -12.49,
+        "1Y": -2.51,
+        "5Y": -36.2
+      }
     },
     {
       "symbol": "SCHD",
@@ -570,137 +886,290 @@
       "kind": "etf",
       "price": 38.94,
       "change": -1.42,
-      "changePct": -3.52
+      "changePct": -3.52,
+      "perf": {
+        "1W": -9.19,
+        "1M": -16.42,
+        "1Y": -27.18
+      }
     }
   ],
-  "tracked": [],
-  "analysts": {
-    "updatedAt": "2026-11-15T05:50:04.599Z",
-    "period": "2026-11-01",
-    "buys": [
-      {
-        "symbol": "NVDA",
-        "name": "NVIDIA",
-        "period": "2026-11-01",
-        "strongBuy": 25,
-        "buy": 41,
-        "hold": 2,
-        "sell": 1,
-        "strongSell": 0,
-        "total": 69,
-        "score": 1.3
-      },
-      {
-        "symbol": "MSFT",
-        "name": "Microsoft",
-        "period": "2026-11-01",
-        "strongBuy": 22,
-        "buy": 40,
-        "hold": 3,
-        "sell": 0,
-        "strongSell": 0,
-        "total": 65,
-        "score": 1.29
-      },
-      {
-        "symbol": "BA",
-        "name": "Boeing",
-        "period": "2026-11-01",
-        "strongBuy": 13,
-        "buy": 21,
-        "hold": 3,
-        "sell": 0,
-        "strongSell": 0,
-        "total": 37,
-        "score": 1.27
-      },
-      {
-        "symbol": "AVGO",
-        "name": "Broadcom",
-        "period": "2026-11-01",
-        "strongBuy": 17,
-        "buy": 37,
-        "hold": 3,
-        "sell": 0,
-        "strongSell": 0,
-        "total": 57,
-        "score": 1.25
-      },
-      {
-        "symbol": "TSM",
-        "name": "Taiwan Semiconductor",
-        "period": "2026-11-01",
-        "strongBuy": 12,
-        "buy": 28,
-        "hold": 2,
-        "sell": 0,
-        "strongSell": 0,
-        "total": 42,
-        "score": 1.24
-      }
-    ],
-    "sells": [
-      {
-        "symbol": "BRK.B",
-        "name": "Berkshire Hathaway",
-        "period": "2026-11-01",
-        "strongBuy": 0,
-        "buy": 1,
-        "hold": 3,
-        "sell": 3,
-        "strongSell": 3,
-        "total": 10,
-        "score": -0.8
-      },
-      {
-        "symbol": "NVO",
-        "name": "Novo Nordisk",
-        "period": "2026-11-01",
-        "strongBuy": 4,
-        "buy": 6,
-        "hold": 20,
-        "sell": 5,
-        "strongSell": 1,
-        "total": 36,
-        "score": 0.19
-      },
-      {
-        "symbol": "NKE",
-        "name": "Nike",
-        "period": "2026-11-01",
-        "strongBuy": 8,
-        "buy": 6,
-        "hold": 26,
-        "sell": 7,
-        "strongSell": 2,
-        "total": 49,
-        "score": 0.22
-      },
-      {
-        "symbol": "INTC",
-        "name": "Intel",
-        "period": "2026-11-01",
-        "strongBuy": 4,
-        "buy": 12,
-        "hold": 38,
-        "sell": 1,
-        "strongSell": 0,
-        "total": 55,
-        "score": 0.35
-      },
-      {
-        "symbol": "ADBE",
-        "name": "Adobe",
-        "period": "2026-11-01",
-        "strongBuy": 7,
-        "buy": 8,
-        "hold": 24,
-        "sell": 6,
-        "strongSell": 0,
-        "total": 45,
-        "score": 0.36
-      }
-    ],
-    "count": 35
-  }
+  "sources": {
+    "AAPL": {
+      "type": "STOCK",
+      "id": "86627",
+      "notation": 253929
+    },
+    "MSFT": {
+      "type": "STOCK",
+      "id": "87089",
+      "notation": 273978
+    },
+    "NVDA": {
+      "type": "STOCK",
+      "id": "92472",
+      "notation": 277381
+    },
+    "AMZN": {
+      "type": "STOCK",
+      "id": "90929",
+      "notation": 252992
+    },
+    "GOOGL": {
+      "type": "STOCK",
+      "id": "11288971",
+      "notation": 10390991
+    },
+    "META": {
+      "type": "STOCK",
+      "id": "50838870",
+      "notation": 63750376
+    },
+    "TSLA": {
+      "type": "STOCK",
+      "id": "33837581",
+      "notation": 37295290
+    },
+    "AVGO": {
+      "type": "STOCK",
+      "id": "25633669",
+      "notation": 30300105
+    },
+    "BRK.B": {
+      "type": "STOCK",
+      "id": "27651144",
+      "notation": 255747
+    },
+    "JPM": {
+      "type": "STOCK",
+      "id": "3542940",
+      "notation": 274385
+    },
+    "V": {
+      "type": "STOCK",
+      "id": "19564871",
+      "notation": 22119292
+    },
+    "MA": {
+      "type": "STOCK",
+      "id": "12912586",
+      "notation": 14865888
+    },
+    "LLY": {
+      "type": "STOCK",
+      "id": "86088",
+      "notation": 271586
+    },
+    "UNH": {
+      "type": "STOCK",
+      "id": "213508",
+      "notation": 85339
+    },
+    "JNJ": {
+      "type": "STOCK",
+      "id": "85647",
+      "notation": 270227
+    },
+    "XOM": {
+      "type": "STOCK",
+      "id": "85595",
+      "notation": 3306396
+    },
+    "WMT": {
+      "type": "STOCK",
+      "id": "86254",
+      "notation": 291252
+    },
+    "COST": {
+      "type": "STOCK",
+      "id": "208867",
+      "notation": 72721
+    },
+    "KO": {
+      "type": "STOCK",
+      "id": "85429",
+      "notation": 258521
+    },
+    "PEP": {
+      "type": "STOCK",
+      "id": "85546",
+      "notation": 279541
+    },
+    "NFLX": {
+      "type": "STOCK",
+      "id": "6598127",
+      "notation": 5492248
+    },
+    "AMD": {
+      "type": "STOCK",
+      "id": "86389",
+      "notation": 252218
+    },
+    "ORCL": {
+      "type": "STOCK",
+      "id": "87157",
+      "notation": 1552869
+    },
+    "CRM": {
+      "type": "STOCK",
+      "id": "10222552",
+      "notation": 10344703
+    },
+    "ADBE": {
+      "type": "STOCK",
+      "id": "87205",
+      "notation": 252079
+    },
+    "INTC": {
+      "type": "STOCK",
+      "id": "85841",
+      "notation": 269226
+    },
+    "DIS": {
+      "type": "STOCK",
+      "id": "85842",
+      "notation": 260731
+    },
+    "BA": {
+      "type": "STOCK",
+      "id": "85406",
+      "notation": 256223
+    },
+    "PLTR": {
+      "type": "STOCK",
+      "id": "180671359",
+      "notation": 306400664
+    },
+    "UBER": {
+      "type": "STOCK",
+      "id": "155412997",
+      "notation": 252350657
+    },
+    "NKE": {
+      "type": "STOCK",
+      "id": "86712",
+      "notation": 276651
+    },
+    "SAP": {
+      "type": "STOCK",
+      "id": "82849",
+      "notation": 9493482
+    },
+    "ASML": {
+      "type": "STOCK",
+      "id": "55344798",
+      "notation": 657979
+    },
+    "NVO": {
+      "type": "STOCK",
+      "id": "18860267",
+      "notation": 9492039
+    },
+    "TSM": {
+      "type": "STOCK",
+      "id": "91340",
+      "notation": 286266
+    },
+    "SPY": {
+      "type": "FUND",
+      "id": "49422063",
+      "notation": 263585727
+    },
+    "VOO": {
+      "type": "FUND",
+      "id": "36814345",
+      "notation": 38717796
+    },
+    "QQQ": {
+      "type": "FUND",
+      "id": "7734113",
+      "notation": 285767169
+    },
+    "VTI": {
+      "type": "FUND",
+      "id": "4653018",
+      "notation": 7884880
+    },
+    "VT": {
+      "type": "FUND",
+      "id": "20991418",
+      "notation": 23555454
+    },
+    "IWM": {
+      "type": "FUND",
+      "id": "210587",
+      "notation": 10747127
+    },
+    "DIA": {
+      "type": "FUND",
+      "id": "28902742",
+      "notation": 7879875
+    },
+    "VEA": {
+      "type": "FUND",
+      "id": "17475000",
+      "notation": 18645230
+    },
+    "VWO": {
+      "type": "FUND",
+      "id": "147123913",
+      "notation": 365327856
+    },
+    "EFA": {
+      "type": "FUND",
+      "id": "56168136",
+      "notation": 72055367
+    },
+    "EWG": {
+      "type": "FUND",
+      "id": "210569",
+      "notation": 10746728
+    },
+    "GLD": {
+      "type": "FUND",
+      "id": "20604675",
+      "notation": 21313928
+    },
+    "SLV": {
+      "type": "FUND",
+      "id": "14352898",
+      "notation": 14730527
+    },
+    "XLK": {
+      "type": "FUND",
+      "id": "89950924",
+      "notation": 302379484
+    },
+    "XLF": {
+      "type": "FUND",
+      "id": "89950919",
+      "notation": 265568209
+    },
+    "XLE": {
+      "type": "FUND",
+      "id": "89950918",
+      "notation": 272389743
+    },
+    "XLV": {
+      "type": "FUND",
+      "id": "110700",
+      "notation": 7885373
+    },
+    "SMH": {
+      "type": "FUND",
+      "id": "46816431",
+      "notation": 68943446
+    },
+    "ARKK": {
+      "type": "FUND",
+      "id": "83882705",
+      "notation": 116463327
+    },
+    "IBIT": {
+      "type": "FUND",
+      "id": "251489549",
+      "notation": 446690379
+    }
+  },
+  "tracked": []
 }
