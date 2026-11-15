@@ -446,6 +446,7 @@ body.sheet-open { overflow: hidden; }
 .pchart__ranges button[aria-selected="true"] { background: var(--ink); color: var(--bg); }
 .pchart__ranges button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pchart__credit { margin: 0; text-align: right; font-size: 11px; color: var(--ink-3); }
+.pchart__credit:empty { display: none; }
 .pos__chart { height: 300px; background: none; margin: 0 0 10px; overflow: visible; }
 
 /* swipe between tabs */

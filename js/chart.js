@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=64";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=65";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -319,12 +319,12 @@ function mountRanged(host, ranges, loader) {
 }
 
 // One security. opts: { id: ISIN / crypto code / US ticker, currency: "EUR" | "USD", venue }
-export function mountPriceChart(host, { id, currency = "EUR", venue, hint }) {
+export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credit = true }) {
   const ranges = Object.keys(RANGES).filter((r) => !isCryptoCode(id) || RANGES[r].cg);
   mountRanged(host, ranges, async (range) => {
     const src = await resolve(id, currency, venue, hint);
     const pts = await history(src, range);
-    return { pts, currency: src.currency || currency, credit: `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` };
+    return { pts, currency: src.currency || currency, credit: credit ? `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` : "" };
   });
 }
 
