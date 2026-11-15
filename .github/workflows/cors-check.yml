@@ -1,0 +1,9 @@
+name: probe
+on: { push: { paths: [".github/workflows/cors-check.yml"] } }
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - env: { K: "${{ secrets.FINNHUB_API_KEY }}" }
+        run: |
+          for s in AAPL NVDA SNAP MO; do echo "== $s"; curl -s "https://finnhub.io/api/v1/stock/recommendation?symbol=$s&token=$K" | jq -c '[length, (map(.period)|join(" "))]'; done

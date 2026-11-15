@@ -862,70 +862,28 @@ function ratingFor(key) {
 function posRatingHtml(key, part) {
   const r = ratingFor(key);
   if (!r) return "";
-  const counts = (x) => {
-    const buy = x.strongBuy + x.buy, hold = x.hold, sell = x.sell + x.strongSell, total = buy + hold + sell;
-    return { buy, hold, sell, total, score: total ? (2 * x.strongBuy + x.buy - x.sell - 2 * x.strongSell) / total : 0 };
-  };
-  const now = counts(r);
-  const verdict = now.score >= 0.5 ? "Buy" : now.score <= -0.5 ? "Sell" : "Hold";
+  const buy = r.strongBuy + r.buy, hold = r.hold, sell = r.sell + r.strongSell, total = buy + hold + sell;
+  const score = r.score ?? (2 * r.strongBuy + r.buy - r.sell - 2 * r.strongSell) / total;
+  const seg = (n, cls) => (n ? `<span class="rating__seg ${cls}" style="flex:${n}"></span>` : "");
+  const month = r.period ? new Date(`${r.period.slice(0, 7)}-15T12:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : "";
+  const verdict = score >= 0.5 ? "Buy" : score <= -0.5 ? "Sell" : "Hold";
   const open = ratingOpen.has(key);
   if (part === "button") return `<button class="pos__verdict pill ${verdict === "Buy" ? "up" : verdict === "Sell" ? "down" : ""}${open ? " is-open" : ""}" type="button" data-pos-verdict="${esc(key)}" aria-expanded="${open}" aria-label="Analysts say ${verdict}: ${open ? "hide" : "show"} details">${verdict}</button>`;
-
-  // months to pick from: the stored history (up to 12), else just the newest month
-  const latest = { month: (r.period || "").slice(0, 7), strongBuy: r.strongBuy, buy: r.buy, hold: r.hold, sell: r.sell, strongSell: r.strongSell };
-  const hist = (histFor(r.symbol) || []).map(([month, strongBuy, buy, hold, sell, strongSell]) => ({ month, strongBuy, buy, hold, sell, strongSell }));
-  const months = hist.length ? hist : latest.month ? [latest] : [];
-  const pick = months.find((m) => m.month === ratingMonth.get(key)) || months[0] || latest;
-  const c = counts(pick);
-  const seg = (n, cls) => (n ? `<span class="rating__seg ${cls}" style="flex:${n}"></span>` : "");
-  const label = (m, long) => new Date(`${m}-15T12:00:00`).toLocaleDateString(long ? "en-GB" : "en-US", long ? { month: "long", year: "numeric" } : { month: "short", ...(m.slice(0, 4) !== String(new Date().getFullYear()) ? { year: "2-digit" } : {}) });
   return `
     <div class="pos__analysts"${open ? "" : " hidden"}>
       <div class="pos__analysts-detail">
-        ${months.length > 1 ? `<div class="pos__months" role="group" aria-label="Month">${months.map((m) => `<button type="button" class="pos__month${m === pick ? " is-on" : ""}" data-rating-month="${esc(key)}|${m.month}" aria-pressed="${m === pick}">${label(m.month)}</button>`).join("")}</div>` : ""}
-        <div class="pos__analysts-head">Analysts · ${ratingLabel(c.score)} · ${c.total} ${c.total === 1 ? "rating" : "ratings"}${pick.month ? ` · ${label(pick.month, true)}` : ""}</div>
-        <div class="rating" role="img" aria-label="${c.buy} buy, ${c.hold} hold, ${c.sell} sell">${seg(c.buy, "is-buy")}${seg(c.hold, "is-hold")}${seg(c.sell, "is-sell")}</div>
-        <div class="rating__counts">${c.buy} buy · ${c.hold} hold · ${c.sell} sell</div>
+        <div class="pos__analysts-head">Analysts · ${ratingLabel(score)} · ${total} ${total === 1 ? "rating" : "ratings"}${month ? ` · ${month}` : ""}</div>
+        <div class="rating" role="img" aria-label="${buy} buy, ${hold} hold, ${sell} sell">${seg(buy, "is-buy")}${seg(hold, "is-hold")}${seg(sell, "is-sell")}</div>
+        <div class="rating__counts">${buy} buy · ${hold} hold · ${sell} sell</div>
       </div>
     </div>`;
 }
-
-// Rating history (up to 12 months), one small file per first letter, loaded when you open the details.
-const histShards = new Map(); // letter → data | promise
-function histFor(symbol) {
-  if (!symbol) return null;
-  const k = /^[A-Z]/.test(symbol) ? symbol[0] : "_";
-  const v = histShards.get(k);
-  return v && !(v instanceof Promise) ? v[symbol] || null : null;
-}
-function loadHist(symbol) {
-  if (!symbol) return Promise.resolve();
-  const k = /^[A-Z]/.test(symbol) ? symbol[0] : "_";
-  if (!histShards.has(k)) {
-    const p = fetch(`data/analysts-hist/${k}.json?t=${Date.now()}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : {}))
-      .catch(() => ({}))
-      .then((d) => { histShards.set(k, d); });
-    histShards.set(k, p);
-  }
-  const v = histShards.get(k);
-  return v instanceof Promise ? v : Promise.resolve();
-}
-const ratingMonth = new Map(); // position → chosen month (YYYY-MM)
 const ratingOpen = new Set(); // positions whose analyst details are unfolded
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-pos-verdict]");
   if (!b) return;
   const key = b.dataset.posVerdict;
   if (ratingOpen.has(key)) ratingOpen.delete(key); else ratingOpen.add(key);
-  fillPosRating(key);
-  if (ratingOpen.has(key)) loadHist(ratingFor(key)?.symbol).then(() => fillPosRating(key));
-});
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-rating-month]");
-  if (!b) return;
-  const [key, month] = b.dataset.ratingMonth.split("|");
-  ratingMonth.set(key, month);
   fillPosRating(key);
 });
 function fillPosRating(key) {
@@ -964,7 +922,6 @@ document.addEventListener("click", (e) => {
   li.querySelector(".pos__body").hidden = false;
   fillPosChart(key);
   fillPosRating(key);
-  if (ratingOpen.has(key)) loadHist(ratingFor(key)?.symbol).then(() => { if (openPos === key) fillPosRating(key); });
   // the full list (all NYSE + Nasdaq) is loaded on demand
   if (!state.analystsAll) Promise.resolve(loadAllAnalysts()).then(() => { if (openPos === key) fillPosRating(key); });
 });

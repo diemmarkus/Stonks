@@ -7,34 +7,14 @@
 //    week), within a 9-minute budget. The first fill takes about a day; after that most runs
 //    find nothing due and exit without changing anything.
 // 3. ISIN per company: onvista search, matched by name and share class; cached.
-// 4. Ratings: Finnhub /stock/recommendation, 60 requests/minute on the free plan. The free plan
-//    returns the last 4 months; we keep every month we've seen, up to 12, in
-//    data/analysts-hist/<first letter>.json (loaded by the app only when you open the details).
+// 4. Ratings: Finnhub /stock/recommendation (newest month), 60 requests/minute on the free plan.
 //
 //   FINNHUB_API_KEY=xxx node scripts/update-analysts.mjs
 
-import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 
 const OUT = new URL("../data/analysts.json", import.meta.url);
 const OUT_ALL = new URL("../data/analysts-all.json", import.meta.url);
-const HIST_DIR = new URL("../data/analysts-hist/", import.meta.url);
-const HIST_MONTHS = 12;
-// symbol → [[ "YYYY-MM", strongBuy, buy, hold, sell, strongSell ], …] newest first
-const shardOf = (symbol) => (/^[A-Z]/.test(symbol) ? symbol[0] : "_");
-const history = {};
-try {
-  for (const f of await readdir(HIST_DIR)) if (f.endsWith(".json")) Object.assign(history, JSON.parse(await readFile(new URL(f, HIST_DIR), "utf8")));
-} catch {}
-function remember(symbol, months) {
-  const byMonth = new Map((history[symbol] || []).map((m) => [m[0], m]));
-  for (const r of months) {
-    if (!r?.period) continue;
-    const row = [r.period.slice(0, 7), r.strongBuy || 0, r.buy || 0, r.hold || 0, r.sell || 0, r.strongSell || 0];
-    if (row.slice(1).some(Boolean)) byMonth.set(row[0], row);
-  }
-  const list = [...byMonth.values()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, HIST_MONTHS);
-  if (list.length) history[symbol] = list;
-}
 const NASDAQ = "https://raw.githubusercontent.com/datasets/nasdaq-listings/main/data/nasdaq-listed-symbols.csv";
 const OTHER = "https://raw.githubusercontent.com/datasets/nyse-other-listings/main/data/other-listed.csv";
 const PER_RUN = 400;       // ratings per run (Finnhub: 60/min → ~7 min)
@@ -164,10 +144,7 @@ async function recommendation(symbol, attempt = 1) {
   if (res.status === 429 && attempt <= 3) { await sleep(5000 * attempt); return recommendation(symbol, attempt + 1); }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const list = await res.json();
-  if (!Array.isArray(list) || !list.length) return null;
-  list.sort((a, b) => (b.period || "").localeCompare(a.period || ""));
-  remember(symbol, list);
-  return list[0];
+  return Array.isArray(list) && list.length ? list[0] : null;
 }
 
 const prevBySym = new Map((previous.list || []).map((r) => [r.symbol, r]));
@@ -241,11 +218,5 @@ const all = {
 await mkdir(new URL("../data/", import.meta.url), { recursive: true });
 await writeFile(OUT, JSON.stringify(data) + "\n");
 await writeFile(OUT_ALL, JSON.stringify(all) + "\n");
-// month history, one file per first letter (companies no longer listed are dropped)
-const listed = new Set(list.map((r) => r.symbol));
-const shards = {};
-for (const [sym, months] of Object.entries(history)) if (listed.has(sym)) (shards[shardOf(sym)] ||= {})[sym] = months;
-await mkdir(HIST_DIR, { recursive: true });
-for (const [k, v] of Object.entries(shards)) await writeFile(new URL(`${k}.json`, HIST_DIR), JSON.stringify(v) + "\n");
 console.log(`Fetched ${fetched} (${newIsins} new ISINs, ${noRating} without rating); ${rated.length} rated of ${list.length} known; files ${JSON.stringify(data).length >> 10} KB + ${JSON.stringify(all).length >> 10} KB`);
 console.log(`Top: ${data.buys.map((r) => `${r.symbol} ${r.score}`)} · weakest: ${data.sells.map((r) => `${r.symbol} ${r.score}`)}`);
