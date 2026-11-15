@@ -708,7 +708,7 @@ body.has-tabbar #view-home .hero { display: none; }
 .inline--row { background: var(--open-bg); margin: 0 calc(-1 * var(--card-pad)); padding: 6px var(--card-pad) 14px; }
 .legend li.is-expanded { background: var(--open-bg); margin: 0 calc(-1 * var(--card-pad)); padding: 6px var(--card-pad); }
 .inline--alloc { background: var(--open-bg); margin: -10px calc(-1 * var(--card-pad)) 0; padding: 6px var(--card-pad) 14px; }
-.inline--total { background: var(--open-bg); border-radius: 14px; padding: 10px 10px 12px; margin-bottom: 12px; }
+.inline--total { padding: 4px 0 12px; margin-bottom: 8px; }
 .pos.is-open { background: var(--open-bg); margin: 0 calc(-1 * var(--pf-pad)); padding: 0 var(--pf-pad); }
 .pos.is-open + li .holding, .pos.is-open .holding { border-top-color: transparent; }
 @media (prefers-reduced-motion: reduce) { .inline { animation: none; } }
