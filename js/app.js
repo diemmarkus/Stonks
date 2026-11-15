@@ -762,6 +762,7 @@ function renderPortfolio() {
               ${g.realized ? `<p class="pos__real">Realised: <span class="${dir(g.realized)}">${fmtEurSigned(g.realized)}</span> · open: <span class="${dir(g.value - g.cost)}">${fmtEurSigned(g.value - g.cost)}</span></p>` : ""}
             </div>
             <div class="pos__chart" data-pos-chart="${esc(g.key)}"></div>
+            <div data-pos-rating="${esc(g.key)}">${open ? posRatingHtml(g.key) : ""}</div>
             <ol class="lots" aria-label="Buys of ${esc(g.label)}">
               ${g.lots.map((r) => `
               <li><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` ${fmtDate(r.buyDate, true)}` : ""}">
@@ -828,6 +829,38 @@ function venueSelect(g) {
   </label>`;
 }
 
+// Analyst consensus for a position you hold (US-listed companies only), shown under its chart.
+function ratingFor(key) {
+  const a = getAnalysts();
+  const pools = [state.analystsAll, a?.buys, a?.sells, a?.list].filter(Array.isArray);
+  for (const list of pools) {
+    const r = list.find((x) => x.isin === key || (!/^[A-Z]{2}\d/.test(key) && x.symbol === key));
+    if (r && (r.total ?? r.strongBuy + r.buy + r.hold + r.sell + r.strongSell) > 0) return r;
+  }
+  return null;
+}
+function posRatingHtml(key) {
+  const r = ratingFor(key);
+  if (!r) return "";
+  const buy = r.strongBuy + r.buy, hold = r.hold, sell = r.sell + r.strongSell, total = buy + hold + sell;
+  const score = r.score ?? (2 * r.strongBuy + r.buy - r.sell - 2 * r.strongSell) / total;
+  const seg = (n, cls) => (n ? `<span class="rating__seg ${cls}" style="flex:${n}"></span>` : "");
+  const month = r.period ? new Date(`${r.period.slice(0, 7)}-15T12:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : "";
+  return `
+    <div class="pos__analysts">
+      <div class="pos__analysts-head">
+        <span>Analysts · ${total} ${total === 1 ? "rating" : "ratings"}${month ? ` · ${month}` : ""}</span>
+        <span class="pill ${score >= 0.5 ? "up" : score <= -0.5 ? "down" : ""}">${ratingLabel(score)}</span>
+      </div>
+      <div class="rating" role="img" aria-label="${buy} buy, ${hold} hold, ${sell} sell">${seg(buy, "is-buy")}${seg(hold, "is-hold")}${seg(sell, "is-sell")}</div>
+      <div class="rating__counts">${buy} buy · ${hold} hold · ${sell} sell</div>
+    </div>`;
+}
+function fillPosRating(key) {
+  const host = document.querySelector(`[data-pos-rating="${CSS.escape(key)}"]`);
+  if (host) host.innerHTML = posRatingHtml(key);
+}
+
 function fillPosChart(key) {
   const host = document.querySelector(`[data-pos-chart="${CSS.escape(key)}"]`);
   if (!host) return;
@@ -855,6 +888,9 @@ document.addEventListener("click", (e) => {
   head.setAttribute("aria-expanded", "true");
   li.querySelector(".pos__body").hidden = false;
   fillPosChart(key);
+  fillPosRating(key);
+  // the full list (all NYSE + Nasdaq) is loaded on demand
+  if (!state.analystsAll) Promise.resolve(loadAllAnalysts()).then(() => { if (openPos === key) fillPosRating(key); });
 });
 
 // Pick the exchange a position is valued with.
