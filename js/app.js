@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=33";
-import { legalDoc } from "./legal.js?v=33";
-import { isCryptoCode } from "./crypto.js?v=33";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=37";
+import { legalDoc } from "./legal.js?v=37";
+import { isCryptoCode } from "./crypto.js?v=37";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -101,8 +101,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=33").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=33").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=37").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=37").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -319,7 +319,6 @@ function emptyState() {
       <p>Add your first stock or ETF and your overview builds itself.</p>
       <a class="btn btn--primary" href="#/add">Add a holding</a>
     </div>
-    ${analysts ? `<p class="note">Wall Street analysts' 12-month consensus for large US stocks (Finnhub, ${esc(analysts.period || "")}). Their opinion, not advice from stonks.</p>` : ""}
     <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>`;
 }
 
@@ -406,6 +405,7 @@ function renderOverview() {
       </article>` : ""}
     </div>
 
+    ${analysts ? `<p class="note">Wall Street analysts' 12-month consensus for large US stocks (Finnhub, ${esc(analysts.period || "")}). Their opinion, not advice from stonks.</p>` : ""}
     <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>
     ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. Prices are fetched from onvista when the app opens; try again in a moment.</p>` : ""}`;
 }
@@ -543,7 +543,7 @@ document.addEventListener("change", async (e) => {
   if (!el.value) delete state.venues[key];
   renderCurrent();
   try {
-    const { setVenue } = await import("./store.js?v=33");
+    const { setVenue } = await import("./store.js?v=37");
     await setVenue(state.user.uid, key, el.value);
     toast(el.value ? `Valued with ${el.value} prices` : "Back to automatic prices");
   } catch (err) {
@@ -563,7 +563,7 @@ document.addEventListener("focusout", async (e) => {
   const name = el.value.trim();
   if ((state.names[key] || "") === name) return;
   try {
-    const { setName } = await import("./store.js?v=33");
+    const { setName } = await import("./store.js?v=37");
     await setName(state.user.uid, key, name);
     toast(name ? `Renamed to ${name}` : "Back to the original name");
   } catch (err) {
@@ -668,7 +668,7 @@ function updateIsinHint() {
   const isin = f.isin.value.trim().toUpperCase();
   const hint = $("f-isin-hint");
   const q = state.isin[isin];
-  if (!isin) hint.textContent = "";
+  if (!isin || !looksLikeId(isin)) hint.textContent = "";
   else if (isin.length < 12) hint.textContent = `${12 - isin.length} more character${isin.length === 11 ? "" : "s"}`;
   else if (!isValidId(isin)) hint.textContent = "That doesn't look like a valid ISIN or crypto code. Check for typos.";
   else if (q) {
@@ -684,13 +684,77 @@ function updateIsinHint() {
   }
 }
 
-f.isin.addEventListener("input", () => {
-  const pos = f.isin.selectionStart;
-  f.isin.value = f.isin.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  try { f.isin.setSelectionRange(pos, pos); } catch {}
-  f.isin.removeAttribute("aria-invalid");
+// The field takes an ISIN (or flatex crypto code) or a name to search for.
+const looksLikeId = (v) => /^[A-Z]{2}\d/.test(v) || /^XFC/.test(v);
+let searchTimer = null, searchToken = 0;
+
+function hideResults() {
+  $("f-results").hidden = true;
+  $("f-results").innerHTML = "";
+}
+
+function pickResult(isin) {
+  f.isin.value = isin;
+  hideResults();
   updateIsinHint();
-  if (isValidId(f.isin.value) && !f.qty.value) f.qty.focus();
+  f.qty.focus();
+}
+
+async function runSearch(text) {
+  const mine = ++searchToken;
+  const q = text.trim().toLowerCase();
+  const { CRYPTO } = await import("./crypto.js?v=37");
+  const coins = Object.entries(CRYPTO)
+    .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
+    .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
+  let found = [];
+  try {
+    const { searchInstruments } = await import("./onvista.js?v=37");
+    found = await searchInstruments(text.trim());
+  } catch (e) { console.warn("Search failed", e); }
+  if (mine !== searchToken) return;
+  const list = [...coins, ...found].slice(0, 8);
+  const label = { etf: "ETF", certificate: "Certificate", crypto: "Crypto", stock: "Stock" };
+  $("f-results").innerHTML = list.length
+    ? list.map((r) => `<li><button type="button" class="result" role="option" data-pick="${esc(r.isin)}">
+        <span class="result__name">${esc(r.name)}</span>
+        <span class="result__meta">${esc(r.isin)} · <span class="holding__tag holding__tag--${r.type}">${label[r.type]}</span></span>
+      </button></li>`).join("")
+    : `<li class="result result--none">Nothing found for “${esc(text.trim())}”.</li>`;
+  $("f-results").hidden = false;
+  $("f-isin-hint").textContent = "";
+}
+
+f.isin.addEventListener("input", () => {
+  f.isin.removeAttribute("aria-invalid");
+  const compact = f.isin.value.toUpperCase().replace(/\s/g, "");
+  clearTimeout(searchTimer);
+  if (!f.isin.value.trim()) { searchToken++; hideResults(); updateIsinHint(); return; }
+  if (looksLikeId(compact)) {
+    searchToken++;
+    hideResults();
+    if (f.isin.value !== compact) {
+      const pos = f.isin.selectionStart;
+      f.isin.value = compact;
+      try { f.isin.setSelectionRange(pos, pos); } catch {}
+    }
+    updateIsinHint();
+    if (isValidId(compact) && !f.qty.value) f.qty.focus();
+    return;
+  }
+  if (f.isin.value.trim().length < 2) { hideResults(); $("f-isin-hint").textContent = ""; return; }
+  $("f-isin-hint").textContent = "Searching…";
+  searchTimer = setTimeout(() => runSearch(f.isin.value), 250);
+});
+f.isin.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !$("f-results").hidden) {
+    const first = $("f-results").querySelector("[data-pick]");
+    if (first) { e.preventDefault(); pickResult(first.dataset.pick); }
+  }
+});
+$("f-results").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pick]");
+  if (b) pickResult(b.dataset.pick);
 });
 [f.qty, f.price].forEach((el) => {
   el.addEventListener("input", () => { el.parentElement.removeAttribute("aria-invalid"); sizePill(el); updateTotal(); });
@@ -710,6 +774,7 @@ function showError(msg) {
 
 function openAdd(id) {
   form.reset();
+  hideResults();
   form.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
   $("f-error").hidden = true;
   resetDelete();
@@ -793,7 +858,7 @@ form.addEventListener("submit", async (ev) => {
   const quantity = parseNum(f.qty.value);
   const buyPrice = parseNum(f.price.value);
   let bad = null;
-  if (!isValidId(isin)) bad = [f.isin, f.isin, "Enter a valid ISIN, e.g. IE00BK5BQT80."];
+  if (!isValidId(isin)) bad = [f.isin, f.isin, looksLikeId(isin) ? "That ISIN isn't valid. Check for typos." : "Pick one of the results, or enter an ISIN."];
   else if (!f.date.value) bad = [f.datetext, f.datetext.parentElement, "Enter the buy date as dd.mm.yyyy."];
   else if (!(quantity > 0)) bad = [f.qty, f.qty.parentElement, "How many did you buy?"];
   else if (!(buyPrice > 0)) bad = [f.price, f.price.parentElement, "What did you pay per share (EUR)?"];
@@ -803,7 +868,7 @@ form.addEventListener("submit", async (ev) => {
   const btn = $("f-submit");
   btn.disabled = true;
   try {
-    const { saveHolding } = await import("./store.js?v=33");
+    const { saveHolding } = await import("./store.js?v=37");
     await saveHolding(state.user.uid, editingId, {
       isin, quantity, buyPrice, buyDate: f.date.value,
       type: q?.type || guessType(isin), name: q?.name || "",
@@ -829,7 +894,7 @@ $("f-delete").addEventListener("click", async () => {
   resetDelete();
   const label = state.isin[f.isin.value]?.name || f.isin.value || "holding";
   try {
-    const { deleteHolding } = await import("./store.js?v=33");
+    const { deleteHolding } = await import("./store.js?v=37");
     await deleteHolding(state.user.uid, editingId);
     toast(`Removed ${label}`);
     closeAdd();
@@ -890,7 +955,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=33").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=37").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -904,7 +969,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=33");
+  const { mountPriceChart } = await import("./chart.js?v=37");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1065,7 +1130,7 @@ async function startHoldings(uid) {
   state.names = {};
   let store;
   try {
-    store = await import("./store.js?v=33");
+    store = await import("./store.js?v=37");
   } catch (e) {
     console.error("Couldn't load store.js", e);
     state.holdings = [];

@@ -88,3 +88,22 @@ function venueQuotes(snap) {
   }
   return out;
 }
+
+// Search by name, ticker or WKN → [{ isin, name, type, symbol }] (stocks, ETFs/funds, certificates).
+export async function searchInstruments(text, fetchOpts = {}) {
+  const r = await fetch(`https://api.onvista.de/api/v1/instruments/search/facet?searchValue=${encodeURIComponent(text)}`, fetchOpts);
+  if (!r.ok) throw new Error(`onvista search HTTP ${r.status}`);
+  const body = await r.json();
+  const out = [];
+  const seen = new Set();
+  for (const facet of body.facets || []) {
+    if (!["STOCK", "FUND", "ETF", "DERIVATIVE"].includes(facet.type)) continue;
+    for (const h of facet.results || []) {
+      if (!h.isin || seen.has(h.isin)) continue;
+      seen.add(h.isin);
+      const t = h.entityType || facet.type;
+      out.push({ isin: h.isin, name: h.name || h.isin, symbol: h.symbol || "", type: /DERIVATIVE/.test(t) ? "certificate" : /FUND|ETF/.test(t) ? "etf" : "stock" });
+    }
+  }
+  return out;
+}
