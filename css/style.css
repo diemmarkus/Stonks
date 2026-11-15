@@ -26,6 +26,11 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+/* Nothing may widen the page sideways (e.g. the tab-switch slide animation): otherwise phones
+   let you pan horizontally and the fixed tab bar drifts with the viewport. */
+html, body { overflow-x: hidden; overscroll-behavior-x: none; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }
+.tabbar { touch-action: manipulation; }
 ::selection { background: var(--accent-2); color: var(--on-accent); }
 input, textarea { caret-color: var(--accent); }
 input::selection, textarea::selection { background: rgba(60, 203, 244, .4); color: var(--ink); }
