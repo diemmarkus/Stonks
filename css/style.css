@@ -299,9 +299,15 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .tile__sub { margin-top: 2px; font: 400 13px/1.2 var(--mono); }
 .tile__sub.up { color: var(--up); }
 .tile__sub.down { color: var(--down); }
-.tile__note { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font: 400 12px/1.3 var(--sans); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tile__note span { font-family: var(--mono); }
-.tile__note .up { color: var(--up); } .tile__note .down { color: var(--down); }
+/* in/out (Invested) and open/realised (Total return): same two lines in both tiles, aligned at the bottom */
+.tiles .tile { display: flex; flex-direction: column; }
+.tile__notes { margin: auto 0 0; padding-top: 8px; display: grid; gap: 3px; }
+.tile__value + .tile__notes, .tile__sub + .tile__notes { margin-top: auto; }
+.tile__notes::before { content: ""; display: block; height: 1px; background: var(--line); margin: 4px 0 4px; }
+.tile__notes div { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.tile__notes dt { font: 400 12px/1.3 var(--sans); color: var(--ink-3); white-space: nowrap; }
+.tile__notes dd { margin: 0; font: 400 12px/1.3 var(--mono); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile__notes .up { color: var(--up); } .tile__notes .down { color: var(--down); }
 
 /* clickable rows */
 .row--link { cursor: pointer; margin: 0 -10px; padding-left: 10px; padding-right: 10px; transition: background .12s; -webkit-tap-highlight-color: transparent; }
