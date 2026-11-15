@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=51";
-import { legalDoc } from "./legal.js?v=51";
-import { isCryptoCode } from "./crypto.js?v=51";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=52";
+import { legalDoc } from "./legal.js?v=52";
+import { isCryptoCode } from "./crypto.js?v=52";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,7 +46,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=51") : import("./store.js?v=51"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=52") : import("./store.js?v=52"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -175,8 +175,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=51").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=51").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=52").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=52").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -454,15 +454,25 @@ function computeSells(holdings) {
   for (const list of byKey.values()) {
     // buys before sells on the same day; undated buys first
     list.sort((a, b) => (a.buyDate || "").localeCompare(b.buyDate || "") || (a.side === "sell") - (b.side === "sell"));
-    let qty = 0, cost = 0;
+    // FIFO: a sale uses up the oldest buys first; those units are frozen at their own buy price
+    const open = []; // { id, left, px } in buy order
     for (const h of list) {
       const px = h.isin ? h.buyPrice : h.buyPrice / usd;
       if (h.side === "sell") {
-        const avg = qty > 0 ? cost / qty : px;
-        const q = Math.min(h.quantity, qty);
-        sellInfo.set(h.id, { avg, realized: q * (px - avg), soldCost: q * avg });
-        qty -= q; cost -= q * avg;
-      } else { qty += h.quantity; cost += h.quantity * px; }
+        let need = h.quantity, basis = 0, q = 0;
+        for (const lot of open) {
+          if (need <= 1e-9) break;
+          const take = Math.min(lot.left, need);
+          if (take <= 0) continue;
+          lot.left -= take; need -= take; q += take; basis += take * lot.px;
+        }
+        const avg = q > 0 ? basis / q : px;
+        sellInfo.set(h.id, { avg, realized: q * px - basis, soldCost: basis });
+      } else {
+        const lot = { id: h.id, left: h.quantity, px };
+        open.push(lot);
+        sellInfo.set(h.id, lot); // buys: how many units of this lot are still held
+      }
     }
   }
 }
@@ -493,10 +503,13 @@ function valuate(h0) {
     tv = h.symbol;
     sub = `${h.symbol} · needs ISIN`;
   }
-  // a sell is a negative lot: its units leave at the average cost of that time
+  // FIFO: a buy counts only its units still held; a sale only carries its realised gain
   const sell = h.side === "sell";
-  const si = sell ? sellInfo.get(h.id) : null;
-  const units = sell ? -h.quantity : h.quantity;
+  const info = sellInfo.get(h.id);
+  const si = sell ? info : null;
+  const left = sell ? 0 : Math.round((info?.left ?? h.quantity) * 1e8) / 1e8;
+  const units = left;
+  const histUnits = sell ? -h.quantity : h.quantity; // for the portfolio chart over time
   if (sell) buy = si?.avg ?? buy;
   const value = units * price;
   const cost = units * buy;
@@ -515,6 +528,8 @@ function valuate(h0) {
     buyEur: buy,
     sell,
     units,
+    histUnits,
+    left,
     sellPrice: sell ? (h.isin ? h.buyPrice : h.buyPrice / (state.fx.USD || 1)) : null,
     realized,
     soldCost,
@@ -670,7 +685,6 @@ function lotGroups(rows) {
   for (const r of rows) {
     const g = map.get(r.key) || { key: r.key, isin: r.isin, tv: r.tv, label: r.label, realName: r.realName, nicknamed: r.nicknamed, sub: r.sub, type: r.type, live: r.live, price: r.price, lots: [], qty: 0, value: 0, cost: 0 };
     g.lots.push(r); g.qty += r.units; g.value += r.value; g.cost += r.cost; g.realized = (g.realized || 0) + r.realized; g.soldCost = (g.soldCost || 0) + r.soldCost;
-    if (!r.sell) g.bought = (g.bought || 0) + r.cost;
     map.set(r.key, g);
   }
   return [...map.values()].map((g) => {
@@ -736,9 +750,10 @@ function renderPortfolio() {
               ${g.lots.map((r) => `
               <li><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` on ${fmtDate(r.buyDate)}` : ""}">
                 <span class="lot__date">${r.sell ? "Sold · " : ""}${r.buyDate ? fmtDate(r.buyDate) : "No date"}</span>
-                <span class="lot__qty">${r.sell ? `${fmtQty.format(r.quantity)} × ${fmtEur(r.sellPrice)} (avg cost ${fmtEur(r.buyEur)})` : `${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)}`}</span>
+                <span class="lot__qty">${r.sell ? `${fmtQty.format(r.quantity)} × ${fmtEur(r.sellPrice)} (cost ${fmtEur(r.buyEur)})` : `${r.left < r.quantity ? `${fmtQty.format(r.left)} of ` : ""}${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)}`}</span>
                 <span class="lot__val">${r.sell
                   ? `<span class="${dir(r.realized)}">${fmtEurSigned(r.realized)}</span>`
+                  : r.left <= 0 ? `<span class="stale">sold</span>`
                   : `${fmtEur(r.value)}${r.live ? ` <span class="${dir(r.gain)}">${fmtPct(r.gainPct)}</span>` : ""}`}</span>
               </a></li>`).join("")}
             </ol>
@@ -995,13 +1010,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=51");
+  const { CRYPTO } = await import("./crypto.js?v=52");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=51");
+    const { searchInstruments } = await import("./onvista.js?v=52");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1258,7 +1273,7 @@ function openPortfolioChart() {
     const id = r.isin || r.symbol;
     if (!id) continue;
     const p = byKey.get(id) || { id, currency: r.isin ? "EUR" : "USD", venue: r.isin ? state.venues[r.isin] : undefined, toEur: r.isin ? 1 : 1 / usd, lots: [] };
-    p.lots.push({ qty: r.units, buyEur: r.buyEur, date: r.buyDate || "" }); // sells: negative units at their average cost
+    p.lots.push({ qty: r.histUnits, buyEur: r.buyEur, date: r.buyDate || "" }); // sells: negative units at their FIFO cost
     byKey.set(id, p);
   }
   $("sheet-sym").textContent = "Your portfolio";
@@ -1269,7 +1284,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=51").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=52").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1283,7 +1298,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=51");
+  const { mountPriceChart } = await import("./chart.js?v=52");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1552,7 +1567,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=51");
+  const { resetDemo } = await import("./demo-store.js?v=52");
   resetDemo();
   state.demo = true;
   state.names = {};
