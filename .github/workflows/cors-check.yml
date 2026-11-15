@@ -10,7 +10,15 @@ jobs:
       - env:
           K: ${{ secrets.FINNHUB_API_KEY }}
         run: |
-          U="https://www.ishares.com/us/products/239707/ishares-russell-1000-etf/1467271812596.ajax?fileType=csv&fileName=IWB_holdings&dataType=fund"
-          curl -sL -A "Mozilla/5.0" -o /tmp/iwb "$U" -w "ishares IWB: %{http_code}\n"; sed -n 1,12p /tmp/iwb | cut -c1-160; grep -c ',"Equity",' /tmp/iwb; grep -i '"SNAP"' /tmp/iwb | cut -c1-160
-          curl -sL -o /tmp/w "https://en.wikipedia.org/wiki/Russell_1000_Index" -w "wikipedia: %{http_code}\n"; grep -o '>SNAP<' /tmp/w | head -1; grep -c '<td>' /tmp/w
-          printf "finnhub SNAP rec: "; curl -s "https://finnhub.io/api/v1/stock/recommendation?symbol=SNAP&token=$K" | head -c 160; echo
+          curl -sL -A "stonks-bot/1.0 (github.com/diemmarkus/Stonks)" -o /tmp/w "https://en.wikipedia.org/w/api.php?action=parse&page=Russell_1000_Index&prop=text&format=json&formatversion=2" -w "wiki http %{http_code}\n"
+          python3 - <<'PY'
+          import json,re,html
+          t=json.load(open('/tmp/w'))['parse']['text']
+          rows=re.findall(r'<tr>(.*?)</tr>',t,re.S)
+          out=[]
+          for r in rows:
+              cells=[re.sub(r'<.*?>','',c).strip() for c in re.findall(r'<td[^>]*>(.*?)</td>',r,re.S)]
+              if len(cells)>=2: out.append(cells[:3])
+          print("rows:",len(out)); print(out[:3]); print([c for c in out if 'SNAP' in c or 'Snap' in ' '.join(c)])
+          PY
+          printf "finnhub SNAP: "; curl -s "https://finnhub.io/api/v1/stock/recommendation?symbol=SNAP&token=$K" | head -c 160; echo
