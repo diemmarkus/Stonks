@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=48";
-import { legalDoc } from "./legal.js?v=48";
-import { isCryptoCode } from "./crypto.js?v=48";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=49";
+import { legalDoc } from "./legal.js?v=49";
+import { isCryptoCode } from "./crypto.js?v=49";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,7 +46,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=48") : import("./store.js?v=48"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=49") : import("./store.js?v=49"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -105,8 +105,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=48").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=48").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=49").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=49").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -583,6 +583,8 @@ function renderOverview() {
    Portfolio
    ====================================================================== */
 let openPos = null;          // key (ISIN) of the unfolded position, kept across re-renders
+let closedOpen = false;      // the folded "Sold" group stays as you left it
+document.addEventListener("toggle", (e) => { if (e.target.matches?.("details.closed")) closedOpen = e.target.open; }, true);
 const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");
 
 // All buys of one ISIN → one foldable position.
@@ -615,15 +617,11 @@ function renderPortfolio() {
   const rows = state.holdings.map(valuate);
   // biggest gain first, biggest loss last; positions without a live price at the end
   const groups = lotGroups(rows).sort((a, b) => (b.live - a.live) || (b.gain - a.gain));
-  const t = totals(rows);
-  if (openPos && !groups.some((g) => g.key === openPos)) openPos = null;
-  const nSells = rows.filter((r) => r.sell).length, nBuys = rows.length - nSells;
-  $("pf-count").textContent = `${groups.length} ${groups.length === 1 ? "position" : "positions"} · ${nBuys} ${nBuys === 1 ? "buy" : "buys"}${nSells ? ` · ${nSells} ${nSells === 1 ? "sell" : "sells"}` : ""}`;
-
-  body.innerHTML = `
-    <div class="card" style="padding:0">
-      <ul class="holdings">
-        ${groups.map((g, i) => {
+  // fully sold positions fold away at the bottom
+  const openGroups = groups.filter((g) => !g.closed);
+  const closedGroups = groups.filter((g) => g.closed).sort((a, b) => b.gain - a.gain);
+  const closedRealized = closedGroups.reduce((n, g) => n + g.realized, 0);
+  const posItem = (g, i) => {
           const open = g.key === openPos;
           const buys = g.lots.filter((r) => !r.sell).length, sells = g.lots.length - buys;
           return `
@@ -667,8 +665,26 @@ function renderPortfolio() {
               </a></li>`).join("")}
             </ol>
           </div>
-        </li>`; }).join("")}
+        </li>`; };
+  const t = totals(rows);
+  if (openPos && !groups.some((g) => g.key === openPos)) openPos = null;
+  const nSells = rows.filter((r) => r.sell).length, nBuys = rows.length - nSells;
+  $("pf-count").textContent = `${groups.length} ${groups.length === 1 ? "position" : "positions"} · ${nBuys} ${nBuys === 1 ? "buy" : "buys"}${nSells ? ` · ${nSells} ${nSells === 1 ? "sell" : "sells"}` : ""}`;
+
+  body.innerHTML = `
+    <div class="card" style="padding:0">
+      <ul class="holdings">
+        ${openGroups.map(posItem).join("")}
       </ul>
+      ${closedGroups.length ? `
+      <details class="closed"${closedOpen ? " open" : ""}>
+        <summary>
+          <span>Sold · ${closedGroups.length} ${closedGroups.length === 1 ? "position" : "positions"}</span>
+          <span class="closed__sum ${dir(closedRealized)}">${fmtEurSigned(closedRealized)} realised</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </summary>
+        <ul class="holdings">${closedGroups.map((g, i) => posItem(g, openGroups.length + i)).join("")}</ul>
+      </details>` : ""}
       <div class="pf-total"><span>Total</span><span>${fmtEur(t.value)}</span></div>
     </div>`;
   if (openPos) fillPosChart(openPos);
@@ -901,13 +917,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=48");
+  const { CRYPTO } = await import("./crypto.js?v=49");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=48");
+    const { searchInstruments } = await import("./onvista.js?v=49");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1175,7 +1191,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=48").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=49").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1189,7 +1205,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=48");
+  const { mountPriceChart } = await import("./chart.js?v=49");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1426,7 +1442,7 @@ function applyUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=48");
+  const { resetDemo } = await import("./demo-store.js?v=49");
   resetDemo();
   state.demo = true;
   state.names = {};
