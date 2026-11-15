@@ -648,3 +648,9 @@ body.has-tabbar #view-home .hero { display: none; }
 .pos__facts { display: grid; gap: 4px; min-width: 0; flex: 1; }
 .pos__realrow { align-items: center; }
 .pos__realrow .pos__editbtn { width: 32px; height: 32px; }
+
+/* month picker in the analyst details */
+.pos__months { display: flex; gap: 4px; overflow-x: auto; margin: -2px -4px 10px; padding: 2px 4px; scrollbar-width: none; }
+.pos__months::-webkit-scrollbar { display: none; }
+.pos__month { flex: none; border: 1px solid var(--line); background: transparent; color: var(--ink-3); font: 500 12px/1 var(--mono); padding: 6px 9px; border-radius: 999px; cursor: pointer; }
+.pos__month.is-on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
