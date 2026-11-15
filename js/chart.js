@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=53";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=54";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -180,11 +180,18 @@ function fmtMoney(v, currency) {
   const digits = v >= 1000 ? 0 : v >= 1 ? 2 : 4;
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v).replace(/^(-?)€/, "$1€");
 }
+// "Today" / "Yesterday" / "Tomorrow" for dates close to now, else null
+function relDay(when) {
+  const d = new Date(when), day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(d) - day(new Date())) / 864e5);
+  return { "-1": "Yesterday", 0: "Today", 1: "Tomorrow" }[diff] || null;
+}
 function fmtWhen(t, range) {
-  const d = new Date(t);
-  if (range === "1D") return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  if (range === "1W") return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const d = new Date(t), rel = relDay(t);
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  if (range === "1D") return rel ? `${rel} ${time}` : time;
+  if (range === "1W") return `${rel || d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${time}`;
+  return rel || d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function draw(plot, pts, range, currency, opts = {}) {

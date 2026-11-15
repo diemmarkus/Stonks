@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=53";
-import { legalDoc } from "./legal.js?v=53";
-import { isCryptoCode } from "./crypto.js?v=53";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=54";
+import { legalDoc } from "./legal.js?v=54";
+import { isCryptoCode } from "./crypto.js?v=54";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -26,7 +26,18 @@ function isValidIsin(isin) {
 }
 const dir = (n) => (n > 0 ? "up" : n < 0 ? "down" : "");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const stampOf = (iso) => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+// "Today" / "Yesterday" / "Tomorrow" for dates close to now, else null
+function relDay(when) {
+  const d = new Date(when), day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(d) - day(new Date())) / 864e5);
+  return { "-1": "Yesterday", 0: "Today", 1: "Tomorrow" }[diff] || null;
+}
+const stampOf = (iso) => {
+  const rel = relDay(iso);
+  return rel
+    ? `${rel}, ${new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+    : new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+};
 
 $("year").textContent = new Date().getFullYear();
 
@@ -46,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=53") : import("./store.js?v=53"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=54") : import("./store.js?v=54"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -175,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=53").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=53").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=54").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=54").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -677,7 +688,12 @@ function renderOverview() {
 let openPos = null;          // key (ISIN) of the unfolded position, kept across re-renders
 let closedOpen = false;      // the folded "Sold" group stays as you left it
 document.addEventListener("toggle", (e) => { if (e.target.matches?.("details.closed")) closedOpen = e.target.open; }, true);
-const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");
+const fmtDate = (iso, lower) => {
+  if (!iso) return "";
+  const rel = relDay(`${iso}T12:00:00`);
+  if (rel) return lower ? rel.toLowerCase() : rel;
+  return `${lower ? "on " : ""}${new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+};
 
 // All buys of one ISIN → one foldable position.
 function lotGroups(rows) {
@@ -748,7 +764,7 @@ function renderPortfolio() {
             <div class="pos__chart" data-pos-chart="${esc(g.key)}"></div>
             <ol class="lots" aria-label="Buys of ${esc(g.label)}">
               ${g.lots.map((r) => `
-              <li><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` on ${fmtDate(r.buyDate)}` : ""}">
+              <li><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` ${fmtDate(r.buyDate, true)}` : ""}">
                 <span class="lot__date">${r.sell ? "Sold · " : ""}${r.buyDate ? fmtDate(r.buyDate) : "No date"}</span>
                 <span class="lot__qty">${r.sell ? `${fmtQty.format(r.quantity)} × ${fmtEur(r.sellPrice)} (cost ${fmtEur(r.buyEur)})` : `${r.left < r.quantity ? `${fmtQty.format(r.left)} of ` : ""}${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)}`}</span>
                 <span class="lot__val">${r.sell
@@ -928,8 +944,8 @@ function updateDateShow() {
   let text = "today";
   if (v !== isoToday()) {
     const d = new Date(`${v}T12:00:00`);
-    const y = new Date(); y.setDate(y.getDate() - 1);
-    text = v === y.toLocaleDateString("en-CA") ? "yesterday"
+    const rel = relDay(`${v}T12:00:00`);
+    text = rel ? rel.toLowerCase()
       : `on ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) })}`;
   }
   f.datetext.value = text;
@@ -1010,13 +1026,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=53");
+  const { CRYPTO } = await import("./crypto.js?v=54");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=53");
+    const { searchInstruments } = await import("./onvista.js?v=54");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1284,7 +1300,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=53").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=54").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1298,7 +1314,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint) {
-  const { mountPriceChart } = await import("./chart.js?v=53");
+  const { mountPriceChart } = await import("./chart.js?v=54");
   mountPriceChart(host, { id, currency, venue, hint });
 }
 
@@ -1567,7 +1583,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=53");
+  const { resetDemo } = await import("./demo-store.js?v=54");
   resetDemo();
   state.demo = true;
   state.names = {};
