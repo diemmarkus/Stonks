@@ -695,3 +695,14 @@ body.has-tabbar #view-home .hero { display: none; }
 #sheet .sheet__chart { flex: none; height: min(56dvh, 440px); }
 #sheet .sheet__chart:has(.donut) { flex: 0 1 auto; height: auto; min-height: 0; display: flex; }
 #sheet .sheet__chart:has(.donut) .donut { flex: 1; }
+
+/* charts unfold in place, right under the row / total / allocation class */
+.inline { list-style: none; padding: 6px 0 14px; animation: inline-in .18s ease-out; }
+@keyframes inline-in { from { opacity: 0; transform: translateY(-4px); } }
+.inline .pos__chart { height: 280px; margin: 0; background: none; overflow: visible; }
+.legend li.inline { display: block; }
+.inline__caption { margin: 0 0 10px; font: 400 12px/1.4 var(--mono); color: var(--ink-3); }
+.inline--total .inline__caption { margin: 6px 0 0; }
+.inline--alloc .donut { padding: 0; overflow: visible; max-height: none; }
+.row.is-expanded, .legend li.is-expanded { background: color-mix(in srgb, var(--ink) 5%, transparent); border-radius: 10px; }
+@media (prefers-reduced-motion: reduce) { .inline { animation: none; } }
