@@ -431,7 +431,7 @@ function renderOverview() {
     <li><span class="legend__sw" style="background:var(--${{ stock: "stocks", etf: "etfs", certificate: "certs", crypto: "crypto" }[x.key]})"></span>
       <span>${x.label}</span><span class="legend__val">${fmtEur(x.value)}</span><span class="legend__pct">${share(x.value).toFixed(1)}%</span></li>`).join("");
 
-  const top = pos.slice(0, 5);
+  const top = pos.slice(0, 3);
   const topRows = top.map((p) => `
     <li class="row row--link" data-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button">
       <div class="row__id">
