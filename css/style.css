@@ -591,7 +591,10 @@ body.has-tabbar #view-home .hero { display: none; }
 
 /* unfolded position: name + exchange behind Edit */
 .pos__realrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.pos__editbtn { flex: none; border: 1px solid var(--line); background: transparent; color: var(--ink-2); font: 500 13px/1 var(--sans); padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+.pos__editbtn { flex: none; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border: 1px solid var(--line); background: transparent; color: var(--ink-2); border-radius: 50%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pos__editbtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.pos__editbtn:hover { border-color: var(--ink-3); color: var(--ink); }
+.pos__editbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pos__editbtn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
 .pos__edit { display: grid; gap: 8px; padding: 10px 0 4px; }
 
