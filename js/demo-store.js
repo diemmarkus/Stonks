@@ -17,6 +17,12 @@ const SAMPLE = () => [
   { isin: "US67066G1040", type: "stock", name: "NVIDIA", quantity: 30, buyPrice: 118, buyDate: daysAgo(300) },
   { isin: "AT0000743059", type: "stock", name: "OMV", quantity: 50, buyPrice: 41.8, buyDate: daysAgo(520) },
   { isin: "XFC000A2YY6Q", type: "crypto", name: "Bitcoin (BTC)", quantity: 0.08, buyPrice: 61200, buyDate: daysAgo(200) },
+  { isin: "US88160R1014", type: "stock", name: "Tesla", quantity: 10, buyPrice: 210, buyDate: daysAgo(480) },
+  // sells (FIFO: the oldest buys go first). buyPrice is the sell price.
+  { isin: "IE00BK5BQT80", type: "etf", name: "Vanguard FTSE All-World", quantity: 15, buyPrice: 132.5, buyDate: daysAgo(150), side: "sell" },
+  { isin: "US67066G1040", type: "stock", name: "NVIDIA", quantity: 10, buyPrice: 158, buyDate: daysAgo(60), side: "sell" },
+  { isin: "XFC000A2YY6Q", type: "crypto", name: "Bitcoin (BTC)", quantity: 0.03, buyPrice: 92500, buyDate: daysAgo(40), side: "sell" },
+  { isin: "US88160R1014", type: "stock", name: "Tesla", quantity: 10, buyPrice: 305, buyDate: daysAgo(240), side: "sell" }, // fully sold
 ].map((h, i) => ({ id: `demo-${i + 1}`, currency: "EUR", ...h }));
 
 let holdings = SAMPLE();
@@ -40,7 +46,8 @@ export async function watchHoldings(uid, callback) {
 
 export async function saveHolding(uid, id, h) {
   const data = { isin: h.isin, name: h.name || "", type: h.type, quantity: h.quantity, buyPrice: h.buyPrice, currency: "EUR", buyDate: h.buyDate || "" };
-  if (id) holdings = holdings.map((x) => (x.id === id ? { ...x, ...data } : x));
+  if (h.side === "sell") data.side = "sell";
+  if (id) holdings = holdings.map((x) => (x.id === id ? (({ side, ...rest }) => ({ ...rest, ...data }))(x) : x));
   else holdings = [...holdings, { id: `demo-${nextId++}`, ...data }];
   emitHoldings();
 }
