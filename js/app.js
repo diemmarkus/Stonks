@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=61";
-import { legalDoc } from "./legal.js?v=61";
-import { isCryptoCode } from "./crypto.js?v=61";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=62";
+import { legalDoc } from "./legal.js?v=62";
+import { isCryptoCode } from "./crypto.js?v=62";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=61") : import("./store.js?v=61"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=62") : import("./store.js?v=62"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=61").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=61").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=62").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=62").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -752,8 +752,10 @@ function renderPortfolio() {
             <div class="pos__namebox">
               <div class="pos__realrow">
                 <p class="pos__real"><span>${esc(g.realName)}</span> · ${esc(g.sub)}</p>
+                <span class="pos__verdict-slot" data-pos-verdict-slot="${esc(g.key)}">${open ? posRatingHtml(g.key, "button") : ""}</span>
                 <button type="button" class="pos__editbtn" data-pos-edit="${esc(g.key)}" aria-expanded="${editPos.has(g.key)}">${editPos.has(g.key) ? "Done" : "Edit"}</button>
               </div>
+              <div data-pos-rating="${esc(g.key)}">${open ? posRatingHtml(g.key) : ""}</div>
               <div class="pos__edit" data-pos-editbox="${esc(g.key)}"${editPos.has(g.key) ? "" : " hidden"}>
                 <label class="pos__name">
                   <span class="pos__name-label">Your name</span>
@@ -765,7 +767,7 @@ function renderPortfolio() {
               ${g.realized ? `<p class="pos__real">Realised: <span class="${dir(g.realized)}">${fmtEurSigned(g.realized)}</span> · open: <span class="${dir(g.value - g.cost)}">${fmtEurSigned(g.value - g.cost)}</span></p>` : ""}
             </div>
             <div class="pos__chart" data-pos-chart="${esc(g.key)}"></div>
-            <div data-pos-rating="${esc(g.key)}">${open ? posRatingHtml(g.key) : ""}</div>
+
             <ol class="lots" aria-label="Buys of ${esc(g.label)}">
               ${g.lots.map((r) => `
               <li><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` ${fmtDate(r.buyDate, true)}` : ""}">
@@ -842,7 +844,8 @@ function ratingFor(key) {
   }
   return null;
 }
-function posRatingHtml(key) {
+// part "button": the small Buy / Hold / Sell button; otherwise the details it unfolds
+function posRatingHtml(key, part) {
   const r = ratingFor(key);
   if (!r) return "";
   const buy = r.strongBuy + r.buy, hold = r.hold, sell = r.sell + r.strongSell, total = buy + hold + sell;
@@ -851,10 +854,10 @@ function posRatingHtml(key) {
   const month = r.period ? new Date(`${r.period.slice(0, 7)}-15T12:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : "";
   const verdict = score >= 0.5 ? "Buy" : score <= -0.5 ? "Sell" : "Hold";
   const open = ratingOpen.has(key);
+  if (part === "button") return `<button class="pos__verdict pill ${verdict === "Buy" ? "up" : verdict === "Sell" ? "down" : ""}${open ? " is-open" : ""}" type="button" data-pos-verdict="${esc(key)}" aria-expanded="${open}" aria-label="Analysts say ${verdict}: ${open ? "hide" : "show"} details">${verdict}</button>`;
   return `
-    <div class="pos__analysts${open ? " is-open" : ""}">
-      <button class="pos__verdict pill ${verdict === "Buy" ? "up" : verdict === "Sell" ? "down" : ""}" type="button" data-pos-verdict="${esc(key)}" aria-expanded="${open}" aria-label="Analysts say ${verdict}: ${open ? "hide" : "show"} details">${verdict}</button>
-      <div class="pos__analysts-detail"${open ? "" : " hidden"}>
+    <div class="pos__analysts"${open ? "" : " hidden"}>
+      <div class="pos__analysts-detail">
         <div class="pos__analysts-head">Analysts · ${ratingLabel(score)} · ${total} ${total === 1 ? "rating" : "ratings"}${month ? ` · ${month}` : ""}</div>
         <div class="rating" role="img" aria-label="${buy} buy, ${hold} hold, ${sell} sell">${seg(buy, "is-buy")}${seg(hold, "is-hold")}${seg(sell, "is-sell")}</div>
         <div class="rating__counts">${buy} buy · ${hold} hold · ${sell} sell</div>
@@ -872,6 +875,8 @@ document.addEventListener("click", (e) => {
 function fillPosRating(key) {
   const host = document.querySelector(`[data-pos-rating="${CSS.escape(key)}"]`);
   if (host) host.innerHTML = posRatingHtml(key);
+  const slot = document.querySelector(`[data-pos-verdict-slot="${CSS.escape(key)}"]`);
+  if (slot) slot.innerHTML = posRatingHtml(key, "button");
 }
 
 function fillPosChart(key) {
@@ -1075,13 +1080,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=61");
+  const { CRYPTO } = await import("./crypto.js?v=62");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=61");
+    const { searchInstruments } = await import("./onvista.js?v=62");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1349,7 +1354,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=61").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=62").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1363,7 +1368,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint) {
-  const { mountPriceChart } = await import("./chart.js?v=61");
+  const { mountPriceChart } = await import("./chart.js?v=62");
   mountPriceChart(host, { id, currency, venue, hint });
 }
 
@@ -1632,7 +1637,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=61");
+  const { resetDemo } = await import("./demo-store.js?v=62");
   resetDemo();
   state.demo = true;
   state.names = {};
