@@ -642,3 +642,8 @@ body.has-tabbar #view-home .hero { display: none; }
 /* Position chart: the line runs to the card's edges; labels, readout and buttons keep the margin */
 .pos__chart .pchart__plot { margin-inline: calc(-1 * var(--pf-pad, 18px)); --chart-inset: var(--pf-pad, 18px); }
 .pos__chart .pchart__read { left: var(--pf-pad, 18px); }
+
+/* position facts stack on the left; Buy/Sell pill and the pencil sit beside them instead of on a row of their own */
+.pos__facts { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.pos__realrow { align-items: center; }
+.pos__realrow .pos__editbtn { width: 32px; height: 32px; }
