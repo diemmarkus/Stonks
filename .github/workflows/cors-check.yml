@@ -1,0 +1,15 @@
+name: probe
+on: { push: { paths: [".github/workflows/cors-check.yml"] } }
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          OV=https://api.onvista.de/api/v1
+          curl -s "$OV/instruments/search/facet?searchValue=NVDA" | jq -c '[.facets[].results[]? | {isin,symbol,entityType,name}] | .[:4]'
+          curl -s "$OV/stocks/ISIN:US67066G1040/snapshot" > s.json
+          jq -c '.quoteList.list[] | {m:.market.name, n:.market.idNotation, c:.isoCurrency, p:.last, v:.volume, t:.datetimeLast}' s.json
+          jq -c '{chart:.chart.idNotation, quote:.quote.market}' s.json
+          for n in $(jq -r '.quoteList.list[] | select(.isoCurrency=="USD") | .market.idNotation' s.json); do
+            echo "== $n"; curl -s "$OV/instruments/STOCK/$(jq -r .instrument.entityValue s.json)/simple_chart_history?idNotation=$n&range=MAX&resolution=1D" | jq -c '{n:(.datetimeLast|length), first:.datetimeLast[0], firstp:.last[0], lastp:.last[-1]}'
+          done
