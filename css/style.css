@@ -711,3 +711,12 @@ body.has-tabbar #view-home .hero { display: none; }
 .pos.is-open { background: var(--open-bg); margin: 0 calc(-1 * var(--pf-pad)); padding: 0 var(--pf-pad); }
 .pos.is-open + li .holding, .pos.is-open .holding { border-top-color: transparent; }
 @media (prefers-reduced-motion: reduce) { .inline { animation: none; } }
+
+/* An open item at the very end of a card: its lighter block runs down to the card's bottom edge */
+.card { --card-pad-b: 8px; }
+.panel { --card-pad-b: 18px; }
+.card > :last-child > .inline:last-child {
+  margin-bottom: calc(-1 * var(--card-pad-b));
+  padding-bottom: calc(14px + var(--card-pad-b));
+  border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
+}
