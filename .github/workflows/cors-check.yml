@@ -7,18 +7,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - env:
-          K: ${{ secrets.FINNHUB_API_KEY }}
-        run: |
-          curl -sL -A "stonks-bot/1.0 (github.com/diemmarkus/Stonks)" -o /tmp/w "https://en.wikipedia.org/w/api.php?action=parse&page=Russell_1000_Index&prop=text&format=json&formatversion=2" -w "wiki http %{http_code}\n"
-          python3 - <<'PY'
-          import json,re,html
-          t=json.load(open('/tmp/w'))['parse']['text']
-          rows=re.findall(r'<tr>(.*?)</tr>',t,re.S)
-          out=[]
-          for r in rows:
-              cells=[re.sub(r'<.*?>','',c).strip() for c in re.findall(r'<td[^>]*>(.*?)</td>',r,re.S)]
-              if len(cells)>=2: out.append(cells[:3])
-          print("rows:",len(out)); print(out[:3]); print([c for c in out if 'SNAP' in c or 'Snap' in ' '.join(c)])
-          PY
-          printf "finnhub SNAP: "; curl -s "https://finnhub.io/api/v1/stock/recommendation?symbol=SNAP&token=$K" | head -c 160; echo
+      - run: |
+          for u in https://raw.githubusercontent.com/datasets/nasdaq-listings/main/data/nasdaq-listed-symbols.csv https://raw.githubusercontent.com/datasets/nasdaq-listings/main/data/nasdaq-listed.csv https://raw.githubusercontent.com/datasets/nyse-other-listings/main/data/nyse-listed.csv https://raw.githubusercontent.com/datasets/nyse-other-listings/main/data/other-listed.csv; do
+            curl -s -o /tmp/f -w "== %{http_code} $u\n" "$u"; head -2 /tmp/f | cut -c1-200; wc -l < /tmp/f; grep -i "^SNAP," /tmp/f | head -1
+          done
