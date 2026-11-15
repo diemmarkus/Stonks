@@ -704,13 +704,13 @@ body.has-tabbar #view-home .hero { display: none; }
 .inline__caption { margin: 0 0 10px; font: 400 12px/1.4 var(--mono); color: var(--ink-3); }
 .inline--total .inline__caption { margin: 6px 0 0; }
 .inline--alloc .donut { padding: 0; overflow: visible; max-height: none; }
-/* the open item and its chart share one lighter block */
-:root { --open-bg: color-mix(in srgb, var(--ink) 5%, transparent); }
-.row.is-expanded, .legend li.is-expanded { background: var(--open-bg); border-radius: 10px 10px 0 0; }
-.inline--row, .inline--alloc { background: var(--open-bg); border-radius: 0 0 10px 10px; padding: 6px 10px 14px; }
-.inline--row { margin: 0 -10px; }
-.legend li.is-expanded { margin: 0 -10px; padding: 6px 10px; }
-.inline--alloc { margin: -10px -10px 0; }
+/* the open item and its chart share one lighter block, edge to edge across the card */
+:root { --open-bg: color-mix(in srgb, var(--ink) 5%, transparent); --card-pad: 18px; }
+.row.is-expanded { background: var(--open-bg); border-radius: 0; margin: 0 calc(-1 * var(--card-pad)); padding-left: var(--card-pad); padding-right: var(--card-pad); }
+.inline--row { background: var(--open-bg); margin: 0 calc(-1 * var(--card-pad)); padding: 6px var(--card-pad) 14px; }
+.legend li.is-expanded { background: var(--open-bg); margin: 0 calc(-1 * var(--card-pad)); padding: 6px var(--card-pad); }
+.inline--alloc { background: var(--open-bg); margin: -10px calc(-1 * var(--card-pad)) 0; padding: 6px var(--card-pad) 14px; }
 .inline--total { background: var(--open-bg); border-radius: 14px; padding: 10px 10px 12px; margin-bottom: 12px; }
-.pos.is-open { background: var(--open-bg); border-radius: 12px; }
+.pos.is-open { background: var(--open-bg); margin: 0 calc(-1 * var(--pf-pad)); padding: 0 var(--pf-pad); }
+.pos.is-open + li .holding, .pos.is-open .holding { border-top-color: transparent; }
 @media (prefers-reduced-motion: reduce) { .inline { animation: none; } }
