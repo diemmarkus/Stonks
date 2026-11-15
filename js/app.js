@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=39";
-import { legalDoc } from "./legal.js?v=39";
-import { isCryptoCode } from "./crypto.js?v=39";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=41";
+import { legalDoc } from "./legal.js?v=41";
+import { isCryptoCode } from "./crypto.js?v=41";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -44,6 +44,10 @@ const state = {
   unsubHoldings: null,
   view: null,
 };
+
+// Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
+const loadStore = () => (state.demo ? import("./demo-store.js?v=41") : import("./store.js?v=41"));
+const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
 let toastTimer;
@@ -101,8 +105,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=39").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=39").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=41").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=41").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -269,8 +273,8 @@ function analystGroup(a) {
       <div class="group ${activeKind === "analysts" ? "is-active" : ""}" data-kind="analysts">
         <h2 class="group__title">Analyst ratings</h2>
         <div class="group__cards">
-          <article class="card card--up"><div class="card__head"><h3 class="card__title">Top buys</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body(a?.buys || [])}</ol></article>
-          <article class="card card--down"><div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body(a?.sells || [])}</ol></article>
+          <article class="card card--up"><div class="card__head"><h3 class="card__title">Top buys</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body((a?.buys || []).slice(0, 3))}</ol></article>
+          <article class="card card--down"><div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body((a?.sells || []).slice(0, 3))}</ol></article>
         </div>
         ${lookupHtml("markets")}
         <p class="note">${a ? `Consensus of Wall Street analysts' 12-month ratings for ${a.count} S&P 500 companies (Finnhub, ${esc(a.period || "")}). Their opinion, not advice from stonks — always do your own research.` : "Analyst ratings appear after the next daily update."}</p>
@@ -475,11 +479,11 @@ function renderOverview() {
       ${analysts ? `
       <article class="card panel card--up">
         <div class="card__head"><h3 class="card__title">Analysts' top buys</h3><span class="card__hint">12-month view</span></div>
-        <ol class="rows">${analystRows(analysts.buys)}</ol>
+        <ol class="rows">${analystRows(analysts.buys.slice(0, 3))}</ol>
       </article>
       <article class="card panel card--down">
         <div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div>
-        <ol class="rows">${analystRows(analysts.sells)}</ol>
+        <ol class="rows">${analystRows(analysts.sells.slice(0, 3))}</ol>
       </article>
       ${lookupHtml("overview")}` : ""}
     </div>
@@ -622,7 +626,7 @@ document.addEventListener("change", async (e) => {
   if (!el.value) delete state.venues[key];
   renderCurrent();
   try {
-    const { setVenue } = await import("./store.js?v=39");
+    const { setVenue } = await loadStore();
     await setVenue(state.user.uid, key, el.value);
     toast(el.value ? `Valued with ${el.value} prices` : "Back to automatic prices");
   } catch (err) {
@@ -642,7 +646,7 @@ document.addEventListener("focusout", async (e) => {
   const name = el.value.trim();
   if ((state.names[key] || "") === name) return;
   try {
-    const { setName } = await import("./store.js?v=39");
+    const { setName } = await loadStore();
     await setName(state.user.uid, key, name);
     toast(name ? `Renamed to ${name}` : "Back to the original name");
   } catch (err) {
@@ -782,13 +786,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=39");
+  const { CRYPTO } = await import("./crypto.js?v=41");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=39");
+    const { searchInstruments } = await import("./onvista.js?v=41");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -947,7 +951,7 @@ form.addEventListener("submit", async (ev) => {
   const btn = $("f-submit");
   btn.disabled = true;
   try {
-    const { saveHolding } = await import("./store.js?v=39");
+    const { saveHolding } = await loadStore();
     await saveHolding(state.user.uid, editingId, {
       isin, quantity, buyPrice, buyDate: f.date.value,
       type: q?.type || guessType(isin), name: q?.name || "",
@@ -973,7 +977,7 @@ $("f-delete").addEventListener("click", async () => {
   resetDelete();
   const label = state.isin[f.isin.value]?.name || f.isin.value || "holding";
   try {
-    const { deleteHolding } = await import("./store.js?v=39");
+    const { deleteHolding } = await loadStore();
     await deleteHolding(state.user.uid, editingId);
     toast(`Removed ${label}`);
     closeAdd();
@@ -1034,7 +1038,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=39").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=41").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1048,7 +1052,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=39");
+  const { mountPriceChart } = await import("./chart.js?v=41");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1203,6 +1207,7 @@ document.addEventListener("click", (e) => { if (!e.target.closest?.("#user")) se
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") setUserMenu(false); });
 $("signout").addEventListener("click", async () => {
   setUserMenu(false);
+  if (state.demo) { exitDemo(); return; }
   try { await signOutUser(); location.hash = "#/"; } catch (e) { console.error(e); }
 });
 
@@ -1211,7 +1216,7 @@ async function startHoldings(uid) {
   state.names = {};
   let store;
   try {
-    store = await import("./store.js?v=39");
+    store = await loadStore();
   } catch (e) {
     console.error("Couldn't load store.js", e);
     state.holdings = [];
@@ -1248,16 +1253,22 @@ async function startHoldings(uid) {
   }
 }
 
-onUser((user) => {
+function applyUser(user) {
   const signedIn = Boolean(user);
   state.user = user;
   state.authReady = true;
   $("signin").hidden = signedIn;
   $("user").hidden = !signedIn;
   $("cta-signin").hidden = signedIn;
+  $("cta-demo").hidden = signedIn;
   $("cta-portfolio").hidden = !signedIn;
   $("tabbar").hidden = !signedIn;
+  $("demo-badge").hidden = !state.demo;
+  $("you-demo").hidden = state.demo || !signedIn;
+  $("you-signout").textContent = state.demo ? (state.realUser ? "Back to my portfolio" : "Close demo") : "Sign out";
+  $("signout").textContent = state.demo ? "Close demo" : "Sign out";
   document.body.classList.toggle("has-tabbar", signedIn);
+  document.body.classList.toggle("is-demo", Boolean(state.demo));
 
   state.unsubHoldings?.();
   state.unsubHoldings = null;
@@ -1273,6 +1284,33 @@ onUser((user) => {
   }
   route();
   if (user && pendingRoute) { const [n, a] = pendingRoute; pendingRoute = null; openAdd(n === "edit" ? decodeURIComponent(a || "") : null); }
+}
+
+/* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
+async function enterDemo() {
+  const { resetDemo } = await import("./demo-store.js?v=41");
+  resetDemo();
+  state.demo = true;
+  state.names = {};
+  state.venues = {};
+  applyUser(DEMO_USER);
+  location.hash = "#/overview";
+  toast("Demo portfolio · sample data, nothing is saved");
+}
+function exitDemo() {
+  state.demo = false;
+  state.names = {};
+  state.venues = {};
+  applyUser(state.realUser || null);
+  location.hash = state.realUser ? "#/overview" : "#/";
+}
+$("cta-demo").addEventListener("click", enterDemo);
+$("you-demo").addEventListener("click", enterDemo);
+
+onUser((user) => {
+  state.realUser = user;
+  if (state.demo) return; // the demo stays on until it's closed
+  applyUser(user);
 }).catch((e) => {
   console.error("Auth init failed", e);
   state.authReady = true;

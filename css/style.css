@@ -92,7 +92,7 @@ button { font: inherit; color: inherit; }
   content: ""; width: 14px; height: 14px; background: var(--accent);
   -webkit-mask: url("../img/dollar.svg") center / contain no-repeat; mask: url("../img/dollar.svg") center / contain no-repeat;
 }
-h1 { margin: 0; font: 300 clamp(44px, 8.6vw, 92px)/1 var(--display); letter-spacing: -0.035em; }
+h1 { margin: 0; font: 300 clamp(38px, 8.6vw, 92px)/1 var(--display); letter-spacing: -0.035em; }
 h1 em { color: var(--accent); font-style: normal; }
 h1 em.down { color: var(--down); }
 .lede { margin: 22px 0 0; font-size: 18px; color: var(--ink-2); max-width: 52ch; }
@@ -549,3 +549,13 @@ body.has-tabbar #view-home .hero { display: none; }
 .lookup [data-lookup-results] { padding: 0 18px 10px; }
 .lookup__hint { margin: 6px 0 8px; font-size: 13px; color: var(--ink-3); }
 .group .lookup { margin-top: 14px; }
+
+/* ---------- demo portfolio ---------- */
+.hero__cta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn--demo { padding: 13px 20px; font-size: 15px; color: var(--ink); border-color: var(--line); }
+.btn--demo:hover { border-color: var(--accent-2); color: var(--accent-2); }
+.demo-badge {
+  margin-left: 4px; padding: 3px 8px; border-radius: 999px; font: 600 11px/1.2 var(--sans); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--on-accent); background: var(--accent-2);
+}
+#you-demo { justify-self: start; margin-bottom: 10px; }

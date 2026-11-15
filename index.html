@@ -13,13 +13,14 @@
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
   <link rel="preload" href="fonts/manrope.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=39" />
+  <link rel="stylesheet" href="css/style.css?v=41" />
 </head>
 <body>
   <header class="top">
     <a class="brand" href="#/markets" aria-label="stonks: market movers">
       <img class="brand__mark" src="img/logo.svg" alt="" width="36" height="36" />
       <span class="brand__word">stonks</span>
+      <span class="demo-badge" id="demo-badge" hidden>Demo</span>
     </a>
     <div class="auth" id="auth">
       <button class="btn btn--google" id="signin" type="button">
@@ -47,6 +48,7 @@
       <p class="lede">The day's biggest moves in popular stocks and ETFs — and, once you sign in, everything you own in one calm overview.</p>
       <div class="hero__cta">
         <button class="btn btn--primary" id="cta-signin" type="button">Track my portfolio</button>
+        <button class="btn btn--ghost btn--demo" id="cta-demo" type="button">Try the demo</button>
         <a class="btn btn--primary" id="cta-portfolio" href="#/overview" hidden>Open my overview →</a>
       </div>
     </section>
@@ -77,6 +79,7 @@
         <div><div class="you__name" id="you-name"></div><div class="you__mail" id="you-mail"></div></div>
       </div>
       <p class="you__note">Your holdings and names are stored in your own Firestore account; only you can read them. Prices for your holdings are fetched by this browser from onvista; nothing public shows what you own.</p>
+      <button class="btn btn--ghost" id="you-demo" type="button" hidden>Show demo portfolio</button>
       <button class="btn btn--ghost you__signout" id="you-signout" type="button">Sign out</button>
     </div>
     <p class="you__links"><a href="#/imprint">Imprint</a> · <a href="#/privacy">Privacy</a></p>
@@ -157,6 +160,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=40"></script>
+  <script type="module" src="js/app.js?v=41"></script>
 </body>
 </html>
