@@ -846,16 +846,26 @@ function posRatingHtml(key) {
   const score = r.score ?? (2 * r.strongBuy + r.buy - r.sell - 2 * r.strongSell) / total;
   const seg = (n, cls) => (n ? `<span class="rating__seg ${cls}" style="flex:${n}"></span>` : "");
   const month = r.period ? new Date(`${r.period.slice(0, 7)}-15T12:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : "";
+  const verdict = score >= 0.5 ? "Buy" : score <= -0.5 ? "Sell" : "Hold";
+  const open = ratingOpen.has(key);
   return `
-    <div class="pos__analysts">
-      <div class="pos__analysts-head">
-        <span>Analysts · ${total} ${total === 1 ? "rating" : "ratings"}${month ? ` · ${month}` : ""}</span>
-        <span class="pill ${score >= 0.5 ? "up" : score <= -0.5 ? "down" : ""}">${ratingLabel(score)}</span>
+    <div class="pos__analysts${open ? " is-open" : ""}">
+      <button class="pos__verdict pill ${verdict === "Buy" ? "up" : verdict === "Sell" ? "down" : ""}" type="button" data-pos-verdict="${esc(key)}" aria-expanded="${open}" aria-label="Analysts say ${verdict}: ${open ? "hide" : "show"} details">${verdict}</button>
+      <div class="pos__analysts-detail"${open ? "" : " hidden"}>
+        <div class="pos__analysts-head">Analysts · ${ratingLabel(score)} · ${total} ${total === 1 ? "rating" : "ratings"}${month ? ` · ${month}` : ""}</div>
+        <div class="rating" role="img" aria-label="${buy} buy, ${hold} hold, ${sell} sell">${seg(buy, "is-buy")}${seg(hold, "is-hold")}${seg(sell, "is-sell")}</div>
+        <div class="rating__counts">${buy} buy · ${hold} hold · ${sell} sell</div>
       </div>
-      <div class="rating" role="img" aria-label="${buy} buy, ${hold} hold, ${sell} sell">${seg(buy, "is-buy")}${seg(hold, "is-hold")}${seg(sell, "is-sell")}</div>
-      <div class="rating__counts">${buy} buy · ${hold} hold · ${sell} sell</div>
     </div>`;
 }
+const ratingOpen = new Set(); // positions whose analyst details are unfolded
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pos-verdict]");
+  if (!b) return;
+  const key = b.dataset.posVerdict;
+  if (ratingOpen.has(key)) ratingOpen.delete(key); else ratingOpen.add(key);
+  fillPosRating(key);
+});
 function fillPosRating(key) {
   const host = document.querySelector(`[data-pos-rating="${CSS.escape(key)}"]`);
   if (host) host.innerHTML = posRatingHtml(key);
