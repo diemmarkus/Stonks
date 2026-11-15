@@ -80,19 +80,43 @@ async function history(src, range) {
     const r = await fetch(`${OV}/instruments/${src.type}/${src.id}/simple_chart_history?${p}`);
     if (!r.ok) throw new Error(`onvista HTTP ${r.status}`);
     const d = await r.json();
-    const ts = d.datetimeTick || d.datetimeLast || [];
-    const vs = d.tick || d.last || [];
-    pts = ts.map((t, i) => ({ t: t < 1e12 ? t * 1000 : t, v: vs[i] })).filter((p) => typeof p.v === "number");
+    // keep timestamps and prices from the same pair of arrays (tick ↔ datetimeTick, last ↔ datetimeLast)
+    const [ts, vs] = Array.isArray(d.tick) && Array.isArray(d.datetimeTick) ? [d.datetimeTick, d.tick] : [d.datetimeLast || [], d.last || []];
+    pts = clean(ts.map((t, i) => ({ t: toMs(t), v: vs[i] })));
     if (range === "1D" && pts.length) {
       // only the last trading day
       const lastDay = new Date(pts[pts.length - 1].t).toDateString();
       pts = pts.filter((p) => new Date(p.t).toDateString() === lastDay);
     }
   }
-  pts.sort((a, b) => a.t - b.t);
+  pts = clean(pts);
   pts = thin(pts, 1500);
   histCache.set(key, pts);
   return pts;
+}
+
+// onvista timestamps come in seconds, sometimes in ms or µs: normalise to ms.
+function toMs(t) {
+  if (typeof t !== "number" || !isFinite(t)) return NaN;
+  if (t > 1e14) return t / 1000;  // microseconds
+  if (t < 1e11) return t * 1000;  // seconds
+  return t;
+}
+
+// Drop broken points: impossible dates, zero/negative prices, and one-off spikes
+// (a single tick far away from its neighbours, e.g. a bad print near 0).
+function clean(pts) {
+  const min = Date.UTC(1970, 0, 2), max = Date.now() + 2 * 864e5;
+  let out = pts.filter((p) => isFinite(p.t) && p.t >= min && p.t <= max && typeof p.v === "number" && isFinite(p.v) && p.v > 0);
+  out.sort((a, b) => a.t - b.t);
+  out = out.filter((p, i) => i === 0 || p.t !== out[i - 1].t);
+  if (out.length < 5) return out;
+  const med = (a) => a.slice().sort((x, y) => x - y)[a.length >> 1];
+  return out.filter((p, i) => {
+    const nb = out.slice(Math.max(0, i - 3), i).concat(out.slice(i + 1, i + 4)).map((q) => q.v);
+    const m = med(nb);
+    return p.v > m * 0.4 && p.v < m * 2.5;
+  });
 }
 
 // Keep long series light without losing their shape: per bucket keep the low and the high point.
