@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=49";
-import { legalDoc } from "./legal.js?v=49";
-import { isCryptoCode } from "./crypto.js?v=49";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=50";
+import { legalDoc } from "./legal.js?v=50";
+import { isCryptoCode } from "./crypto.js?v=50";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,7 +46,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=49") : import("./store.js?v=49"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=50") : import("./store.js?v=50"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -105,8 +105,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=49").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=49").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=50").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=50").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -387,7 +387,7 @@ function computeSells(holdings) {
       if (h.side === "sell") {
         const avg = qty > 0 ? cost / qty : px;
         const q = Math.min(h.quantity, qty);
-        sellInfo.set(h.id, { avg, realized: h.quantity * (px - avg) });
+        sellInfo.set(h.id, { avg, realized: q * (px - avg), soldCost: q * avg });
         qty -= q; cost -= q * avg;
       } else { qty += h.quantity; cost += h.quantity * px; }
     }
@@ -428,6 +428,7 @@ function valuate(h0) {
   const value = units * price;
   const cost = units * buy;
   const realized = si?.realized || 0;
+  const soldCost = si?.soldCost || 0;
   return {
     ...h,
     key,
@@ -443,6 +444,7 @@ function valuate(h0) {
     units,
     sellPrice: sell ? (h.isin ? h.buyPrice : h.buyPrice / (state.fx.USD || 1)) : null,
     realized,
+    soldCost,
     value,
     cost,
     gain: value - cost,
@@ -455,12 +457,14 @@ function valuate(h0) {
 
 function totals(rows) {
   const t = rows.reduce((a, r) => {
-    a.value += r.value; a.cost += r.cost; a.day += r.dayChange; a.prev += r.prevValue; a.realized += r.realized || 0;
+    a.value += r.value; a.cost += r.cost; a.day += r.dayChange; a.prev += r.prevValue; a.realized += r.realized || 0; a.soldCost += r.soldCost || 0;
     return a;
-  }, { value: 0, cost: 0, day: 0, prev: 0, realized: 0 });
+  }, { value: 0, cost: 0, day: 0, prev: 0, realized: 0, soldCost: 0 });
   t.unrealized = t.value - t.cost;
   t.gain = t.unrealized + t.realized; // like flatex "Gesamt": open gain + gains already taken
-  t.gainPct = t.cost ? (t.gain / t.cost) * 100 : 0;
+  // % of everything ever put in: what you still hold plus the cost of what you sold
+  const base = t.cost + t.soldCost;
+  t.gainPct = base ? (t.gain / base) * 100 : 0;
   t.dayPct = t.prev ? (t.day / t.prev) * 100 : 0;
   return t;
 }
@@ -548,7 +552,7 @@ function renderOverview() {
 
     <div class="tiles">
       <div class="tile"><div class="tile__label">Invested</div><div class="tile__value">${fmtEur(t.cost)}</div></div>
-      <div class="tile"><div class="tile__label">Total return</div><div class="tile__value ${dir(t.gain)}">${fmtEurSigned(t.gain)}</div><div class="tile__sub ${dir(t.gain)}">${fmtPct(t.gainPct)}${t.realized ? ` · incl. ${fmtEurSigned(t.realized)} realised` : ""}</div></div>
+      <div class="tile"><div class="tile__label">Total return</div><div class="tile__value ${dir(t.gain)}">${fmtEurSigned(t.gain)}</div><div class="tile__sub ${dir(t.gain)}">${fmtPct(t.gainPct)}</div>${t.realized ? `<div class="tile__note"><span class="${dir(t.realized)}">${fmtEurSigned(t.realized)}</span> realised</div>` : ""}</div>
     </div>
 
     <div class="panels">
@@ -917,13 +921,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=49");
+  const { CRYPTO } = await import("./crypto.js?v=50");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=49");
+    const { searchInstruments } = await import("./onvista.js?v=50");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1191,7 +1195,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=49").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=50").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1205,7 +1209,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=49");
+  const { mountPriceChart } = await import("./chart.js?v=50");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1442,7 +1446,7 @@ function applyUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=49");
+  const { resetDemo } = await import("./demo-store.js?v=50");
   resetDemo();
   state.demo = true;
   state.names = {};
