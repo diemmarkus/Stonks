@@ -198,7 +198,6 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tab[aria-current="page"] { color: var(--ink); }
 .tab[aria-current="page"] svg { stroke-width: 2.2; }
-.tab[aria-current="page"]::after { content: ""; position: absolute; top: 6px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: 12px; }
 .tab--add { overflow: visible; }
 .tab__plus {
@@ -210,7 +209,6 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .tab__plus svg { width: 28px; height: 28px; stroke-width: 2.6; }
 .tab--add:active .tab__plus { transform: scale(.93); }
 .tab--add[aria-current="page"] .tab__plus { box-shadow: 0 0 0 5px var(--bg), 0 0 0 7px var(--accent); }
-.tab--add[aria-current="page"]::after { display: none; }
 @media (min-width: 720px) {
   .tabbar { left: 50%; right: auto; bottom: 18px; transform: translateX(-50%); width: 360px; border: 1px solid var(--line); border-radius: 999px; height: var(--tabbar-h); padding-bottom: 0; }
 }
