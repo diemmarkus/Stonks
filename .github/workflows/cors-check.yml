@@ -6,11 +6,4 @@ jobs:
     steps:
       - run: |
           OV=https://api.onvista.de/api/v1
-          curl -s "$OV/instruments/search/facet?searchValue=NVDA" | jq -c '[.facets[].results[]? | {isin,symbol,entityType,name}] | .[:4]'
-          curl -s "$OV/stocks/ISIN:US67066G1040/snapshot" > s.json
-          jq -c '.quoteList.list[] | {m:.market.name, n:.market.idNotation, c:.isoCurrency, p:.last, v:.volume, t:.datetimeLast}' s.json
-          jq -c '{chart:.chart.idNotation, quote:.quote.market}' s.json
-          E=$(jq -r .instrument.entityValue s.json); echo "entity $E"
-          for n in 277381 120478602; do for iv in "MAX&resolution=1D&startDate=1986-11-15" "Y5&resolution=1D&startDate=2021-11-15" "Y1&resolution=1D&startDate=2025-11-15"; do
-            echo "== $n $iv"; curl -s "$OV/instruments/STOCK/$E/simple_chart_history?chartType=PRICE&interval=$iv&endDate=2026-11-16&withEarnings=false&idNotation=$n" | jq -c '{k:keys, nt:(.datetimeTick|length), nv:(.tick|length), ft:.datetimeTick[0], fv:.tick[0], lt:.datetimeTick[-1], lv:.tick[-1], mx:(.tick|max), mn:(.tick|min), v2020:[.datetimeTick as $d | .tick | to_entries[] | select($d[.key] >= 1585612800000 and $d[.key] < 1585785600000) | .value]}'
-          done; done
+          for q in NVDA AAPL SNAP TSLA; do echo "== $q"; curl -s "$OV/instruments/search/facet?searchValue=$q" | jq -c '.facets[] | {f:.type, r:[.results[]? | {isin,symbol,entityType,name}]}'; done
