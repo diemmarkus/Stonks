@@ -1,6 +1,6 @@
 // Firebase setup shared by every page.
 // To upgrade the SDK, change FIREBASE_VERSION (see https://firebase.google.com/support/release-notes/js).
-import { firebaseConfig } from "./firebase-config.js?v=43";
+import { firebaseConfig } from "./firebase-config.js?v=44";
 
 const FIREBASE_VERSION = "13.3.0";
 const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}`;
