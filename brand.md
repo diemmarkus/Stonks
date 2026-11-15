@@ -41,6 +41,12 @@ Type on the site: **Manrope** for titles and the wordmark (`--display`; Light 30
 
 Earlier palette (Sack: warm ink + rope gold) was tried and replaced on 2026-11-14.
 
+### Chart slices
+
+Categorical colours (allocation donut), in this order: pink `#FF2E88`, cyan `#3CCBF4`, violet `#9B7BFF`,
+gold `#F5B700`, blush `#FFA3CF`, deep blue `#2F6FE0`; "Other" in `--ink-3`. Gain mint and loss rose are
+never used for categories, so a slice never reads as up or down.
+
 ## Icons
 
 | File | Size | Purpose |
