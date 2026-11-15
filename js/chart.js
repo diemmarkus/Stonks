@@ -38,7 +38,13 @@ async function resolveUncached(id, currency, venue) {
   if (isCryptoCode(id)) return { kind: "crypto", cg: CRYPTO[id].cg, currency: "EUR", credit: "CoinGecko" };
   const s = await fetch(`${OV}/instruments/search/facet?searchValue=${encodeURIComponent(id)}`);
   const hits = s.ok ? ((await s.json()).facets || []).flatMap((f) => f.results || []) : [];
-  const hit = hits.find((h) => h.isin === id || h.symbol === id) || hits[0] || {};
+  // A ticker like "NVDA" also matches bonds, indices and leveraged products named after it:
+  // only shares and funds count, the company's own share first.
+  const tradable = hits.filter((h) => ["STOCK", "FUND", "ETF"].includes(h.entityType) && h.isin && !/\(CDR\)/.test(h.name || ""));
+  const hit = hits.find((h) => h.isin === id)
+    || tradable.find((h) => h.symbol === id)
+    || (/^[A-Z]{2}[A-Z0-9]{9}\d$/.test(id) ? null : tradable.find((h) => h.entityType === "STOCK") || tradable[0])
+    || hits[0] || {};
   const byType = { STOCK: "stocks", FUND: "funds", ETF: "funds", BOND: "bonds", DERIVATIVE: "derivatives" };
   const first = byType[hit.entityType] || "stocks";
   const isinOrId = hit.isin ? `ISIN:${hit.isin}` : `ISIN:${id}`;
@@ -50,7 +56,8 @@ async function resolveUncached(id, currency, venue) {
     if (!inst?.entityValue) continue;
     const quotes = (snap.quoteList?.list || []).filter((q) => q.market?.idNotation);
     // same exchange as the price list: gettex first (flatex values with it), then Xetra
-    const want = (q) => (currency === "USD" ? q.isoCurrency === "USD" : /gettex/i.test(q.market.name || ""));
+    const usHome = (q) => q.isoCurrency === "USD" && /nasdaq|nyse|new york|amex|arca|cboe|bats/i.test(q.market.name || "");
+    const want = (q) => (currency === "USD" ? usHome(q) : /gettex/i.test(q.market.name || ""));
     const want2 = (q) => currency !== "USD" && /xetra/i.test(q.market.name || "");
     const chosen = venue && quotes.find((q) => q.market.name === venue);
     const pick = chosen || quotes.find(want) || quotes.find(want2) || quotes.find((q) => q.isoCurrency === currency) || null;

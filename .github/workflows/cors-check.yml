@@ -6,4 +6,4 @@ jobs:
     steps:
       - run: |
           OV=https://api.onvista.de/api/v1
-          for q in NVDA AAPL SNAP TSLA; do echo "== $q"; curl -s "$OV/instruments/search/facet?searchValue=$q" | jq -c '.facets[] | {f:.type, r:[.results[]? | {isin,symbol,entityType,name}]}'; done
+          for q in XLE SPY IBIT BRK.B GOOGL SMH V; do echo "== $q"; curl -s "$OV/instruments/search/facet?searchValue=$q" | jq -c "[.facets[] | select(.type==\"STOCK\" or .type==\"FUND\" or .type==\"ETF\") | .results[]? | [.entityType,.isin,.symbol,.name]]"; done
