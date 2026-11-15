@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=60";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=61";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -190,7 +190,8 @@ function fmtWhen(t, range) {
   const d = new Date(t), rel = relDay(t);
   const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   if (range === "1D") return rel ? `${rel} ${time}` : time;
-  if (range === "1W") return `${rel || d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${time}`;
+  if (range === "1W") return rel || d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); // axis: day only
+  if (range === "1W+time") return `${rel || d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${time}`; // readout while scrubbing
   return rel || d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -257,9 +258,9 @@ function draw(plot, pts, range, currency, opts = {}) {
     hover.style.display = "";
     cross.setAttribute("x1", px); cross.setAttribute("x2", px);
     dot.setAttribute("cx", px); dot.setAttribute("cy", py);
-    if (opts.hover) { read.innerHTML = opts.hover(p, i, fmtWhen(p.t, range === "1D" ? "1W" : range)); return; }
+    if (opts.hover) { read.innerHTML = opts.hover(p, i, fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)); return; }
     const d = p.v - vals[0], dp = vals[0] ? (d / vals[0]) * 100 : 0;
-    read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" ? "1W" : range)}</span>`;
+    read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)}</span>`;
   };
   const hide = () => { hover.style.display = "none"; read.innerHTML = resting; };
   svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
