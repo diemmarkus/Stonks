@@ -20,7 +20,10 @@ if (!key) { console.error("FINNHUB_API_KEY is not set"); process.exit(1); }
 
 let previous = {};
 try { previous = JSON.parse(await readFile(OUT, "utf8")); } catch {}
-const knownIsin = Object.fromEntries((previous.list || []).filter((r) => r.isin).map((r) => [r.symbol, r.isin]));
+const ISIN_VERSION = 2; // bump to re-resolve all ISINs
+const knownIsin = previous.isinVersion === ISIN_VERSION
+  ? Object.fromEntries((previous.list || []).filter((r) => r.isin).map((r) => [r.symbol, r.isin]))
+  : {};
 
 // --- company list -----------------------------------------------------------
 function parseCsv(text) {
@@ -49,15 +52,40 @@ const companies = parseCsv(await csvRes.text())
 console.log(`Companies: ${companies.length}`);
 
 // --- ISIN via onvista ---------------------------------------------------------
+// onvista's search also matches German ticker symbols ("MO", "MA" find other companies),
+// so a hit only counts if its name matches the company's name.
+const STOP = new Set(["inc", "corp", "corporation", "co", "company", "companies", "ltd", "plc", "holdings", "holding", "group", "the", "class", "and", "of", "incorporated", "nv", "sa", "se", "ag", "lp", "trust", "international", "technologies"]);
+const words = (name) => name.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/\(.*?\)/g, " ")
+  .replace(/[^a-z0-9& ]+/g, " ").split(/\s+/).filter((w) => w && !STOP.has(w));
+const classOf = (name) => (name.match(/\(Class ([A-Z])\)/) || [])[1] || null;
+
+function bestHit(c, hits) {
+  const want = words(c.name);
+  if (!want.length) return null;
+  const cls = classOf(c.name);
+  let best = null, bestScore = 0;
+  for (const h of hits) {
+    if (!h.isin || /\b(CDR|ADR|GDR)\b/.test(h.name || "")) continue;
+    const got = words(h.name || "");
+    if (got[0] !== want[0]) continue; // first significant word must match
+    let score = 10 + want.filter((w) => got.includes(w)).length;
+    if (/^US/.test(h.isin)) score += 3;
+    if (cls) score += new RegExp(`(^|\\s)${cls}(\\s|$|\\))`).test(h.name) ? 5 : -2;
+    if (score > bestScore) { best = h; bestScore = score; }
+  }
+  return best;
+}
+
 async function onvistaIsin(c) {
-  for (const q of [c.symbol.replace(".", " "), c.name]) {
+  const plain = c.name.replace(/\(.*?\)/g, "").trim();
+  for (const q of [plain, c.symbol]) {
     try {
       const r = await fetch(`https://api.onvista.de/api/v1/instruments/search/facet?searchValue=${encodeURIComponent(q)}`);
-      if (!r.ok) continue;
-      const hits = ((await r.json()).facets || []).filter((f) => f.type === "STOCK").flatMap((f) => f.results || []);
-      const us = hits.find((h) => /^US/.test(h.isin || "") && !/\b(CDR|ADR)\b/.test(h.name || ""));
-      const any = us || hits.find((h) => h.isin && !/\b(CDR)\b/.test(h.name || ""));
-      if (any) return any.isin;
+      if (r.ok) {
+        const hits = ((await r.json()).facets || []).filter((f) => f.type === "STOCK").flatMap((f) => f.results || []);
+        const h = bestHit(c, hits);
+        if (h) return h.isin;
+      }
     } catch {}
     await sleep(200);
   }
@@ -99,7 +127,15 @@ for (const c of companies) {
 if (list.length < 100) { console.error(`Only ${list.length} ratings — keeping the previous file.`); process.exit(1); }
 
 const ranked = list.filter((r) => r.total >= MIN_ANALYSTS_TOP).sort((a, b) => b.score - a.score || b.total - a.total);
+// The same ISIN on two companies means one match is wrong: drop it from both rather than mislead.
+const byIsin = {};
+for (const r of list) if (r.isin) (byIsin[r.isin] ||= []).push(r);
+const shared = Object.entries(byIsin).filter(([, v]) => v.length > 1);
+for (const [, rows] of shared) for (const r of rows) r.isin = null;
+if (shared.length) console.log(`Shared ISINs dropped: ${shared.map(([i, v]) => `${i}=${v.map((r) => r.symbol).join("/")}`).join(", ")}`);
+
 const data = {
+  isinVersion: ISIN_VERSION,
   updatedAt: new Date().toISOString(),
   period: list.map((r) => r.period).sort().at(-1),
   count: list.length,
