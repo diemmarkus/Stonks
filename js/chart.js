@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=91";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=92";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -389,3 +389,40 @@ export function mountPortfolioChart(host, { positions }) {
     };
   });
 }
+
+// Year by year: net money put in and the gain made in each calendar year.
+// gain(Y) = value at the end of Y − value at the end of Y−1 − (buys − sale proceeds in Y)
+// positions: as for the portfolio chart, with lots: [{ qty, buyEur, date, cash }] (cash: + paid / − received)
+export async function portfolioYears(positions) {
+  const loaded = await Promise.allSettled(positions.map(async (p) => {
+    const src = await resolve(p.id, p.currency, p.venue);
+    return { p, pts: await history(src, isCryptoCode(p.id) ? "1Y" : "Max") };
+  }));
+  const series = loaded.filter((r) => r.status === "fulfilled" && r.value.pts.length).map((r) => r.value);
+  const dayStart = (d) => (d ? new Date(`${d}T00:00:00`).getTime() : NaN);
+  const dated = positions.flatMap((p) => p.lots.map((l) => dayStart(l.date))).filter((t) => isFinite(t));
+  if (!dated.length || !series.length) return { years: [], missing: positions.length - series.length };
+  const firstBuy = Math.min(...dated);
+  const priceAt = (pts, t) => {
+    let lo = 0, hi = pts.length - 1, best = 0;
+    while (lo <= hi) { const m = (lo + hi) >> 1; if (pts[m].t <= t) { best = m; lo = m + 1; } else hi = m - 1; }
+    return pts[best].v; // before the first point: the first price
+  };
+  const lots = series.map((s) => s.p.lots.map((l) => ({ ...l, from: isFinite(dayStart(l.date)) ? dayStart(l.date) : firstBuy })));
+  const valueAt = (t) => series.reduce((sum, s, k) => {
+    const units = lots[k].filter((l) => l.from <= t).reduce((n, l) => n + l.qty, 0);
+    return sum + (units > 1e-9 ? units * priceAt(s.pts, t) * s.p.toEur : 0);
+  }, 0);
+  const y0 = new Date(firstBuy).getFullYear(), yNow = new Date().getFullYear();
+  const years = [];
+  let prev = 0;
+  for (let y = y0; y <= yNow; y++) {
+    const from = new Date(y, 0, 1).getTime(), to = y === yNow ? Date.now() : new Date(y + 1, 0, 1).getTime() - 1;
+    const flow = lots.flat().filter((l) => l.from >= from && l.from <= to).reduce((n, l) => n + (l.cash || 0), 0);
+    const value = valueAt(to);
+    years.push({ year: y, value, gain: value - prev - flow });
+    prev = value;
+  }
+  return { years, missing: positions.length - series.length };
+}
+

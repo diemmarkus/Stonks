@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=91";
-import { legalDoc } from "./legal.js?v=91";
-import { isCryptoCode } from "./crypto.js?v=91";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=92";
+import { legalDoc } from "./legal.js?v=92";
+import { isCryptoCode } from "./crypto.js?v=92";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=91") : import("./store.js?v=91"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=92") : import("./store.js?v=92"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=91").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=91").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=92").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=92").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -702,6 +702,8 @@ function renderOverview() {
         <ul class="legend">${allocLegend}</ul>
       </article>
 
+      ${yearsCard(rows)}
+
       <article class="card panel">
         <div class="card__head"><h3 class="card__title">Largest positions</h3><span class="card__hint">share of total</span></div>
         <ol class="rows weights">${topRows}</ol>
@@ -1128,13 +1130,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=91");
+  const { CRYPTO } = await import("./crypto.js?v=92");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=91");
+    const { searchInstruments } = await import("./onvista.js?v=92");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1402,7 +1404,8 @@ function portfolioChartPositions() {
     const id = r.isin || r.symbol;
     if (!id) continue;
     const p = byKey.get(id) || { id, currency: r.isin ? "EUR" : "USD", venue: r.isin ? state.venues[r.isin] : undefined, toEur: r.isin ? 1 : 1 / usd, lots: [] };
-    p.lots.push({ qty: r.histUnits, buyEur: r.buyEur, date: r.buyDate || "" }); // sells: negative units at their FIFO cost
+    // sells: negative units at their FIFO cost; cash: money paid (+) or received (−)
+    p.lots.push({ qty: r.histUnits, buyEur: r.buyEur, date: r.buyDate || "", cash: r.sell ? -r.quantity * r.sellPrice : r.quantity * r.buyEur });
     byKey.set(id, p);
   }
   return [...byKey.values()];
@@ -1414,7 +1417,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=91").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=92").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1429,7 +1432,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=91").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=92").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1443,8 +1446,59 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=91");
+  const { mountPriceChart } = await import("./chart.js?v=92");
   mountPriceChart(host, { id, currency, venue, hint, credit });
+}
+
+/* ======================================================================
+   Year by year: money put in (buys − sales) and the gain made, per calendar year
+   ====================================================================== */
+const yearsState = { sig: null, data: null, loading: false };
+function yearsCard(rows) {
+  // money in, straight from your buys and sales (no prices needed)
+  const flows = {};
+  const years = rows.map((r) => r.buyDate?.slice(0, 4)).filter(Boolean);
+  const first = years.length ? Math.min(...years.map(Number)) : new Date().getFullYear();
+  for (const r of rows) {
+    const y = Number(r.buyDate?.slice(0, 4)) || first; // undated buys count in your first year
+    const f = (flows[y] ||= { buys: 0, sales: 0 });
+    if (r.sell) f.sales += r.quantity * r.sellPrice; else f.buys += r.quantity * r.buyEur;
+  }
+  // gains need price history: computed once in the background, then the card fills in
+  const sig = JSON.stringify([state.holdings.map((h) => [h.id, h.quantity, h.buyPrice, h.buyDate, h.side]), state.venues]);
+  if (yearsState.sig !== sig && !yearsState.loading) {
+    yearsState.loading = true;
+    const positions = portfolioChartPositions();
+    track(import("./chart.js?v=92").then(({ portfolioYears }) => portfolioYears(positions))
+      .then((d) => { yearsState.data = d; yearsState.sig = sig; })
+      .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
+      .finally(() => { yearsState.loading = false; renderCurrent(); }));
+  }
+  const gains = yearsState.sig === sig && yearsState.data ? Object.fromEntries(yearsState.data.years.map((y) => [y.year, y.gain])) : null;
+  const list = Object.keys(flows).map(Number);
+  const nowY = new Date().getFullYear();
+  for (let y = Math.min(...list); y <= nowY; y++) flows[y] ||= { buys: 0, sales: 0 };
+  const ys = Object.keys(flows).map(Number).sort((a, b) => b - a);
+  const max = Math.max(1, ...ys.map((y) => Math.abs(flows[y].buys - flows[y].sales)), ...(gains ? ys.map((y) => Math.abs(gains[y] || 0)) : []));
+  const whole = (v) => `${v < 0 ? "−" : ""}€${Math.round(Math.abs(v)).toLocaleString("en-US")}`;
+  const bar = (v, cls) => `<span class="yr__bar ${cls}" style="width:${Math.max(0.5, (Math.abs(v) / max) * 100)}%"></span>`;
+  const missing = yearsState.data?.missing || 0;
+  return `
+      <article class="card panel">
+        <div class="card__head"><h3 class="card__title">Year by year</h3><span class="card__hint">invested · gain</span></div>
+        <ol class="years">${ys.map((y) => {
+          const net = flows[y].buys - flows[y].sales, g = gains?.[y];
+          return `
+          <li class="yr">
+            <span class="yr__year">${y === nowY ? `${y}<small> so far</small>` : y}</span>
+            <div class="yr__bars">
+              <div class="yr__line"><span class="yr__lbl">Invested</span>${bar(net, net >= 0 ? "is-in" : "is-out")}<span class="yr__val">${whole(net)}</span></div>
+              <div class="yr__line"><span class="yr__lbl">Gain</span>${g == null ? (gains || yearsState.data ? `<span></span><span class="yr__val stale">—</span>` : `<span class="yr__bar is-wait"></span><span class="yr__val stale">…</span>`) : `${bar(g, g >= 0 ? "up" : "down")}<span class="yr__val ${dir(g)}">${g > 0 ? "+" : ""}${whole(g)}</span>`}</div>
+            </div>
+          </li>`; }).join("")}
+        </ol>
+        <p class="years__note">Invested: buys minus sales. Gain: how much your holdings grew or shrank that year, sales included.${missing ? ` ${missing} position${missing === 1 ? "" : "s"} without price history left out of the gain.` : ""}</p>
+      </article>`;
 }
 
 /* ======================================================================
@@ -1914,7 +1968,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=91");
+  const { resetDemo } = await import("./demo-store.js?v=92");
   resetDemo();
   state.demo = true;
   state.names = {};
