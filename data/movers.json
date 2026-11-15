@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-14T22:48:29.918Z",
+  "updatedAt": "2026-11-15T05:50:04.600Z",
   "marketTime": "2026-11-13T21:00:00.000Z",
   "source": "Finnhub",
   "sample": false,
@@ -575,7 +575,7 @@
   ],
   "tracked": [],
   "analysts": {
-    "updatedAt": "2026-11-14T22:48:29.918Z",
+    "updatedAt": "2026-11-15T05:50:04.599Z",
     "period": "2026-11-01",
     "buys": [
       {
@@ -613,6 +613,30 @@
         "strongSell": 0,
         "total": 37,
         "score": 1.27
+      },
+      {
+        "symbol": "AVGO",
+        "name": "Broadcom",
+        "period": "2026-11-01",
+        "strongBuy": 17,
+        "buy": 37,
+        "hold": 3,
+        "sell": 0,
+        "strongSell": 0,
+        "total": 57,
+        "score": 1.25
+      },
+      {
+        "symbol": "TSM",
+        "name": "Taiwan Semiconductor",
+        "period": "2026-11-01",
+        "strongBuy": 12,
+        "buy": 28,
+        "hold": 2,
+        "sell": 0,
+        "strongSell": 0,
+        "total": 42,
+        "score": 1.24
       }
     ],
     "sells": [
@@ -651,6 +675,30 @@
         "strongSell": 2,
         "total": 49,
         "score": 0.22
+      },
+      {
+        "symbol": "INTC",
+        "name": "Intel",
+        "period": "2026-11-01",
+        "strongBuy": 4,
+        "buy": 12,
+        "hold": 38,
+        "sell": 1,
+        "strongSell": 0,
+        "total": 55,
+        "score": 0.35
+      },
+      {
+        "symbol": "ADBE",
+        "name": "Adobe",
+        "period": "2026-11-01",
+        "strongBuy": 7,
+        "buy": 8,
+        "hold": 24,
+        "sell": 6,
+        "strongSell": 0,
+        "total": 45,
+        "score": 0.36
       }
     ],
     "count": 35
