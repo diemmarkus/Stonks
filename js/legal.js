@@ -13,7 +13,9 @@ export const CHARTS_KEY = "stonks-chart-range"; // the chart range you picked la
 
 // Browser storage. The first entries are strictly necessary (no consent needed, § 165 (3) TKG 2021).
 const STORAGE = [
-  ["Firebase (IndexedDB)", "keeps you signed in"],
+  ["Firebase (IndexedDB)", "keeps you signed in and keeps a copy of your holdings on this device so the app opens quickly; removed when you sign out"],
+  ["stonks-session-v1", "your holdings and position names from your last visit, shown right away while fresh data loads; removed when you sign out"],
+  ["stonks-prices-v1", "the last known prices of your positions, shown right away while fresh prices load; removed when you sign out"],
   [CHARTS_KEY, "remembers the chart range you picked last (1D, 1W, …)"],
   ["stonks-reloaded-…", "session only: makes sure a new app version is loaded once, not in a loop"],
 ];

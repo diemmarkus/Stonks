@@ -1,6 +1,6 @@
 // Firebase setup shared by every page.
 // To upgrade the SDK, change FIREBASE_VERSION (see https://firebase.google.com/support/release-notes/js).
-import { firebaseConfig } from "./firebase-config.js?v=50";
+import { firebaseConfig } from "./firebase-config.js?v=51";
 
 const FIREBASE_VERSION = "13.3.0";
 const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}`;
@@ -40,9 +40,35 @@ export async function onUser(callback) {
   return onAuthStateChanged(auth, callback);
 }
 
-// Firestore is loaded only on pages that need it (portfolio).
-export async function getDb() {
-  const { app } = await load();
-  const fs = await import(`${base}/firebase-firestore.js`);
-  return { db: fs.getFirestore(app), ...fs };
+// Firestore keeps a copy of your data on this device (IndexedDB), so the app opens instantly
+// and then syncs in the background.
+let dbApi = null;
+export function getDb() {
+  dbApi ||= (async () => {
+    const { app } = await load();
+    const fs = await import(`${base}/firebase-firestore.js`);
+    let db;
+    try {
+      db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) });
+    } catch (e) {
+      console.warn("Offline cache unavailable", e);
+      db = fs.getFirestore(app);
+    }
+    return { db, ...fs };
+  })();
+  dbApi.catch(() => { dbApi = null; });
+  return dbApi;
+}
+
+// On sign-out: remove the device copy of your data.
+export async function clearLocalData() {
+  if (!dbApi) return;
+  try {
+    const { db, terminate, clearIndexedDbPersistence } = await dbApi;
+    await terminate(db);
+    await clearIndexedDbPersistence(db);
+  } catch (e) {
+    console.warn("Couldn't clear the offline cache", e);
+  }
+  dbApi = null;
 }

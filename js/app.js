@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=50";
-import { legalDoc } from "./legal.js?v=50";
-import { isCryptoCode } from "./crypto.js?v=50";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=51";
+import { legalDoc } from "./legal.js?v=51";
+import { isCryptoCode } from "./crypto.js?v=51";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,7 +46,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=50") : import("./store.js?v=50"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=51") : import("./store.js?v=51"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -57,6 +57,74 @@ function toast(msg) {
   t.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (t.hidden = true), 3200);
+}
+
+/* ======================================================================
+   Loading bar: a thin line at the top that fills while numbers are fetched
+   ====================================================================== */
+const loading = { total: 0, done: 0, timer: 0 };
+function paintLoading() {
+  const bar = $("loadbar");
+  if (!bar) return;
+  clearTimeout(loading.timer);
+  if (loading.done >= loading.total) {
+    bar.style.setProperty("--p", "100%");
+    loading.timer = setTimeout(() => {
+      bar.classList.remove("is-on");
+      loading.total = loading.done = 0;
+      setTimeout(() => { if (!loading.total) bar.style.setProperty("--p", "0%"); }, 300);
+    }, 250);
+  } else {
+    bar.classList.add("is-on");
+    bar.style.setProperty("--p", `${8 + (92 * loading.done) / loading.total}%`);
+  }
+}
+// count a fetch until it settles (or 20 s, so the bar never hangs)
+function track(promise) {
+  loading.total++;
+  paintLoading();
+  let finish;
+  const stop = new Promise((r) => { finish = r; setTimeout(r, 20000); });
+  Promise.race([Promise.resolve(promise).catch(() => {}), stop]).then(() => { if (!finish.done) { finish.done = true; loading.done++; paintLoading(); } });
+  return promise;
+}
+
+/* ======================================================================
+   Device cache: last known prices and your portfolio, shown right away
+   and refreshed in the background
+   ====================================================================== */
+const PRICE_CACHE = "stonks-prices-v1";
+const SESSION_CACHE = "stonks-session-v1";
+const readJson = (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
+const writeJson = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+function restorePrices() {
+  const c = readJson(PRICE_CACHE);
+  if (!c?.isin) return;
+  for (const [k, q] of Object.entries(c.isin)) state.isin[k] = { ...q, liveLookup: true, stale: true };
+  state.pricesAt = c.at || null;
+}
+let savePricesTimer;
+function savePrices() {
+  clearTimeout(savePricesTimer);
+  savePricesTimer = setTimeout(() => {
+    const isin = {};
+    for (const [k, q] of Object.entries(state.isin)) if (q.liveLookup) { const { stale, liveLookup, ...rest } = q; isin[k] = rest; }
+    writeJson(PRICE_CACHE, { at: state.pricesAt, isin });
+  }, 500);
+}
+function saveSession() {
+  if (state.demo || !state.user || state.user.isDemo || !state.holdings) return;
+  const u = state.user;
+  writeJson(SESSION_CACHE, {
+    uid: u.uid,
+    user: { uid: u.uid, displayName: u.displayName || "", email: u.email || "", photoURL: u.photoURL || "" },
+    holdings: state.holdings.map(({ createdAt, updatedAt, ...h }) => h),
+    names: state.names,
+    venues: state.venues,
+  });
+}
+function clearDeviceCache() {
+  try { localStorage.removeItem(SESSION_CACHE); localStorage.removeItem(PRICE_CACHE); } catch {}
 }
 
 /* ======================================================================
@@ -102,28 +170,33 @@ async function loadPrices() {
 /* Instant prices for ISINs the hourly job hasn't priced yet: ask onvista straight from the browser. */
 const liveTried = new Map(); // isin → promise
 function lookupLive(isin) {
-  if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
-  if (!liveTried.has(isin)) {
+  if (liveTried.has(isin)) return liveTried.get(isin);
+  const known = state.isin[isin];
+  if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
+  {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=50").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=50").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=51").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=51").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
           state.isin[isin] = { ...q, liveLookup: true };
           state.pricesAt = new Date().toISOString();
+          savePrices();
           fillIsinList();
           renderCurrent();
         }
         return q;
       })
-      .catch((e) => { console.warn(`Live lookup for ${isin} failed`, e); liveTried.delete(isin); return null; }));
+      .catch((e) => { console.warn(`Live lookup for ${isin} failed`, e); liveTried.delete(isin); return state.isin[isin] || null; }));
+    track(liveTried.get(isin));
   }
   return liveTried.get(isin);
 }
+// prices for everything you hold: missing ones, and cached ones from your last visit (refreshed once per visit)
 function priceMissingHoldings() {
   if (!state.pricesLoaded || !state.holdings) return;
-  for (const h of state.holdings) if (h.isin && !state.isin[h.isin]) lookupLive(h.isin);
+  for (const h of state.holdings) if (h.isin && (!state.isin[h.isin] || state.isin[h.isin].stale)) lookupLive(h.isin);
 }
 
 /* ======================================================================
@@ -596,7 +669,7 @@ function lotGroups(rows) {
   const map = new Map();
   for (const r of rows) {
     const g = map.get(r.key) || { key: r.key, isin: r.isin, tv: r.tv, label: r.label, realName: r.realName, nicknamed: r.nicknamed, sub: r.sub, type: r.type, live: r.live, price: r.price, lots: [], qty: 0, value: 0, cost: 0 };
-    g.lots.push(r); g.qty += r.units; g.value += r.value; g.cost += r.cost; g.realized = (g.realized || 0) + r.realized;
+    g.lots.push(r); g.qty += r.units; g.value += r.value; g.cost += r.cost; g.realized = (g.realized || 0) + r.realized; g.soldCost = (g.soldCost || 0) + r.soldCost;
     if (!r.sell) g.bought = (g.bought || 0) + r.cost;
     map.set(r.key, g);
   }
@@ -607,7 +680,8 @@ function lotGroups(rows) {
     g.avgBuy = g.qty > 0 ? g.cost / g.qty : 0;
     g.realized ||= 0;
     g.gain = g.value - g.cost + g.realized;
-    const base = g.closed ? (g.bought || 0) : g.cost;
+    // % of everything put in (what you still hold plus the cost of what you sold), same as the Overview total
+    const base = g.cost + (g.soldCost || 0);
     g.gainPct = base ? (g.gain / base) * 100 : 0;
     return g;
   });
@@ -921,13 +995,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=50");
+  const { CRYPTO } = await import("./crypto.js?v=51");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=50");
+    const { searchInstruments } = await import("./onvista.js?v=51");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1195,7 +1269,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=50").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=51").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1209,7 +1283,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=50");
+  const { mountPriceChart } = await import("./chart.js?v=51");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1366,18 +1440,31 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") setUserMen
 $("signout").addEventListener("click", async () => {
   setUserMenu(false);
   if (state.demo) { exitDemo(); return; }
-  try { await signOutUser(); location.hash = "#/"; } catch (e) { console.error(e); }
+  try {
+    await signOutUser();
+    clearDeviceCache();
+    await clearLocalData();
+    location.hash = "#/";
+  } catch (e) { console.error(e); }
 });
 
 async function startHoldings(uid) {
-  state.holdings = null;
-  state.names = {};
+  // already showing this account's portfolio from the device cache? keep it until fresh data arrives
+  if (state.cachedUid !== uid) {
+    state.holdings = null;
+    state.names = {};
+    state.venues = {};
+  }
+  state.cachedUid = null;
+  let gotHoldings;
+  track(new Promise((r) => { gotHoldings = r; }));
   let store;
   try {
     store = await loadStore();
   } catch (e) {
     console.error("Couldn't load store.js", e);
-    state.holdings = [];
+    if (!state.holdings) state.holdings = [];
+    gotHoldings();
     renderCurrent();
     return;
   }
@@ -1385,24 +1472,29 @@ async function startHoldings(uid) {
   try {
     state.unsubHoldings = await store.watchHoldings(uid, (list) => {
       state.holdings = list;
+      gotHoldings();
+      saveSession();
       priceMissingHoldings();
       if (pendingEditId) openAdd(pendingEditId);
       renderCurrent();
     }, (e) => {
       console.error("Holdings listener failed", e);
       state.holdings = [];
+      gotHoldings();
       renderCurrent();
       toast(firestoreMessage(e));
     });
   } catch (e) {
     console.error(e);
     state.holdings = [];
+    gotHoldings();
     renderCurrent();
   }
   try {
     state.unsubNames = await store.watchNames?.(uid, (names, venues) => {
       state.names = names;
       state.venues = venues || {};
+      saveSession();
       // don't re-render under the user's fingers while they're typing a name
       if (!document.activeElement?.matches?.("[data-pos-name]")) renderCurrent();
     });
@@ -1444,9 +1536,23 @@ function applyUser(user) {
   if (user && pendingRoute) { const [n, a] = pendingRoute; pendingRoute = null; openAdd(n === "edit" ? decodeURIComponent(a || "") : null); }
 }
 
+function showCachedUser(user) {
+  state.user = user;
+  state.authReady = true;
+  $("signin").hidden = true;
+  $("user").hidden = false;
+  $("cta-signin").hidden = true;
+  $("cta-demo").hidden = true;
+  $("cta-portfolio").hidden = false;
+  $("tabbar").hidden = false;
+  document.body.classList.add("has-tabbar");
+  $("user-name").textContent = user.displayName || user.email || "";
+  if (user.photoURL) $("user-avatar").src = user.photoURL;
+}
+
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=50");
+  const { resetDemo } = await import("./demo-store.js?v=51");
   resetDemo();
   state.demo = true;
   state.names = {};
@@ -1465,12 +1571,17 @@ function exitDemo() {
 $("cta-demo").addEventListener("click", enterDemo);
 $("you-demo").addEventListener("click", enterDemo);
 
+let authSettled;
+track(new Promise((r) => { authSettled = r; }));
 onUser((user) => {
+  authSettled();
   state.realUser = user;
+  if (!user || (state.cachedUid && state.cachedUid !== user.uid)) { clearDeviceCache(); state.cachedUid = null; }
   if (state.demo) return; // the demo stays on until it's closed
   applyUser(user);
 }).catch((e) => {
   console.error("Auth init failed", e);
+  authSettled();
   state.authReady = true;
   route();
 });
@@ -1495,8 +1606,18 @@ async function checkForUpdate() {
 checkForUpdate();
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkForUpdate(); });
 
+// open with what this device remembers: last prices and, if you were signed in, your portfolio
+restorePrices();
+const session = isConfigured ? readJson(SESSION_CACHE) : null;
+if (session?.uid && Array.isArray(session.holdings)) {
+  state.cachedUid = session.uid;
+  state.holdings = session.holdings;
+  state.names = session.names || {};
+  state.venues = session.venues || {};
+  showCachedUser(session.user);
+}
 renderHome();
 route();
-loadMarket();
-loadAnalysts();
-loadPrices();
+track(loadMarket());
+track(loadAnalysts());
+track(loadPrices());
