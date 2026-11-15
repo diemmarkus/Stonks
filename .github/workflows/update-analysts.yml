@@ -1,0 +1,47 @@
+name: Update analyst ratings
+
+on:
+  schedule:
+    - cron: "23 4 * * *" # daily, early morning Vienna time
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/update-analysts.mjs"
+      - ".github/workflows/update-analysts.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-prices # never push at the same time as the price job
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Analyst ratings for the S&P 500 (Finnhub)
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: node scripts/update-analysts.mjs
+
+      - name: Commit if changed
+        run: |
+          git config user.name "stonks-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/analysts.json
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Update analyst ratings"
+            git pull --rebase --quiet
+            git push
+          fi
