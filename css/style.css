@@ -282,7 +282,7 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .empty p { margin: 0 0 22px; color: var(--ink-2); }
 
 /* portfolio list */
-.holdings { list-style: none; margin: 0; padding: 0 18px; }
+.holdings { --pf-pad: 18px; list-style: none; margin: 0; padding: 0 var(--pf-pad); }
 .holding { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 15px 0; border-top: 1px solid var(--line); text-decoration: none; color: inherit; }
 .holdings li:first-child .holding { border-top: 0; }
 @media (hover: hover) { .holding:hover .row__sym { color: var(--accent); } }
@@ -623,6 +623,10 @@ body.has-tabbar #view-home .hero { display: none; }
 /* Portfolio on phones: the list uses more of the width (≈22px to the text instead of 39px) */
 @media (max-width: 600px) {
   #pf-body > .card { margin-inline: -10px; }
-  #pf-body .holdings { padding: 0 12px; }
+  #pf-body .holdings { --pf-pad: 12px; }
   #pf-body .pf-total, #pf-body .closed summary { padding-left: 12px; padding-right: 12px; }
 }
+
+/* Position chart: the line runs to the card's edges; labels, readout and buttons keep the margin */
+.pos__chart .pchart__plot { margin-inline: calc(-1 * var(--pf-pad, 18px)); --chart-inset: var(--pf-pad, 18px); }
+.pos__chart .pchart__read { left: var(--pf-pad, 18px); }

@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=58";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=59";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -197,7 +197,10 @@ function fmtWhen(t, range) {
 function draw(plot, pts, range, currency, opts = {}) {
   const ref = opts.ref || null; // e.g. invested amount, drawn dashed
   const W = plot.clientWidth || 320, H = plot.clientHeight || 220;
-  const padT = 26, padB = 22, padR = 4;
+  // --chart-inset (CSS): the line runs edge to edge, while labels keep this margin
+  const inset = parseFloat(getComputedStyle(plot).getPropertyValue("--chart-inset")) || 0;
+  const padT = 26, padB = 22, padR = inset ? 0 : 4;
+  const labR = W - padR - inset;
   const vals = pts.map((p) => p.v);
   const all = ref ? vals.concat(ref) : vals;
   let lo = Math.min(...all), hi = Math.max(...all);
@@ -227,10 +230,10 @@ function draw(plot, pts, range, currency, opts = {}) {
       <path d="${area}" fill="url(#${gid})"/>
       ${ref ? `<path d="${refLine}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/>` : ""}
       <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-      <text x="${W - padR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
-      <text x="${W - padR}" y="${y(lo) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(lo, currency)}</text>
-      <text x="0" y="${H - 4}" class="pchart__axis">${fmtWhen(t0, range)}</text>
-      <text x="${W - padR}" y="${H - 4}" text-anchor="end" class="pchart__axis">${fmtWhen(t1, range)}</text>
+      <text x="${labR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
+      <text x="${labR}" y="${y(lo) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(lo, currency)}</text>
+      <text x="${inset}" y="${H - 4}" class="pchart__axis">${fmtWhen(t0, range)}</text>
+      <text x="${labR}" y="${H - 4}" text-anchor="end" class="pchart__axis">${fmtWhen(t1, range)}</text>
       <g class="pchart__hover" style="display:none">
         <line class="pchart__cross" y1="${padT - 6}" y2="${H - padB}"/>
         <circle r="4.5" class="pchart__dot" fill="${color}"/>
