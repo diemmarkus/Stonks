@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=46";
-import { legalDoc } from "./legal.js?v=46";
-import { isCryptoCode } from "./crypto.js?v=46";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=47";
+import { legalDoc } from "./legal.js?v=47";
+import { isCryptoCode } from "./crypto.js?v=47";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,7 +46,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=46") : import("./store.js?v=46"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=47") : import("./store.js?v=47"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -105,8 +105,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=46").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=46").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=47").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=47").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -204,9 +204,33 @@ async function loadAnalysts() {
   } catch (e) { console.warn("No analyst file yet", e); }
 }
 
+// Everything (NYSE + Nasdaq) lives in a bigger file, loaded only when you search.
+let allLoading = null;
+function loadAllAnalysts() {
+  if (state.analystsAll || allLoading) return allLoading;
+  allLoading = fetch(`data/analysts-all.json?t=${Date.now()}`, { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (!d) return;
+      const rows = d.rows.map((r) => Object.fromEntries(d.fields.map((f, i) => [f, r[i]])));
+      for (const r of rows) {
+        r.total = r.strongBuy + r.buy + r.hold + r.sell + r.strongSell;
+        r.score = r.total ? Math.round(((2 * r.strongBuy + r.buy - r.sell - 2 * r.strongSell) / r.total) * 100) / 100 : null;
+      }
+      state.analystsAll = rows.filter((r) => r.total > 0);
+      document.querySelectorAll("[data-lookup-input]").forEach((el) => {
+        const out = document.querySelector(`[data-lookup-results="${el.dataset.lookupInput}"]`);
+        if (out) out.innerHTML = lookupResultsHtml(el.value);
+      });
+    })
+    .catch((e) => console.warn("No full analyst list", e))
+    .finally(() => { allLoading = null; });
+  return allLoading;
+}
+
 function lookupMatches(q) {
   const a = getAnalysts();
-  const list = a?.list || [];
+  const list = state.analystsAll || a?.list || [];
   const t = q.trim().toLowerCase();
   if (!t) return [];
   const score = (r) => {
@@ -222,13 +246,13 @@ function lookupMatches(q) {
 }
 
 function lookupResultsHtml(q) {
-  const a = getAnalysts();
-  if (!a?.list) return `<p class="lookup__hint">Search becomes available after the next daily rating update.</p>`;
-  if (!q.trim()) return `<p class="lookup__hint">Type a name, ticker or ISIN of one of the ${a.list.length} S&P 500 companies.</p>`;
+  const list = state.analystsAll || getAnalysts()?.list;
+  if (!list) { loadAllAnalysts(); return `<p class="lookup__hint">Loading analyst ratings…</p>`; }
+  if (!q.trim()) return `<p class="lookup__hint">Type a name, ticker or ISIN of a US-listed company (${list.length.toLocaleString("en-US")} with ratings).</p>`;
   const hits = lookupMatches(q);
   return hits.length
     ? `<ol class="rows">${analystRows(hits)}</ol>`
-    : `<p class="lookup__hint">No analyst ratings for “${esc(q.trim())}”. Only S&P 500 companies are covered; ETFs have no analyst ratings.</p>`;
+    : `<p class="lookup__hint">No analyst ratings for “${esc(q.trim())}”. Only US-listed companies are covered (new ones are added over the week); ETFs have no analyst ratings.</p>`;
 }
 
 function lookupHtml(scope) {
@@ -264,7 +288,7 @@ document.addEventListener("toggle", (e) => {
   const scope = e.target.dataset?.lookup;
   if (!scope) return;
   lookupState[scope] = { ...(lookupState[scope] || { q: "" }), open: e.target.open };
-  if (e.target.open) e.target.querySelector("input")?.focus();
+  if (e.target.open) { loadAllAnalysts(); e.target.querySelector("input")?.focus(); }
 }, true);
 
 // Small (i) button that unfolds an explanation inside its card.
@@ -482,10 +506,11 @@ function renderOverview() {
   const [whole, cents] = fmt2.format(t.value).split(".");
 
   // allocation by type
+  // lowest to highest risk: broad funds, commodities, single companies, crypto
   const byType = [
-    { key: "stock", label: "Stocks", value: rows.filter((r) => r.type === "stock").reduce((s, r) => s + r.value, 0) },
     { key: "etf", label: "ETFs", value: rows.filter((r) => r.type === "etf").reduce((s, r) => s + r.value, 0) },
     { key: "certificate", label: "Certificates", value: rows.filter((r) => r.type === "certificate").reduce((s, r) => s + r.value, 0) },
+    { key: "stock", label: "Stocks", value: rows.filter((r) => r.type === "stock").reduce((s, r) => s + r.value, 0) },
     { key: "crypto", label: "Crypto", value: rows.filter((r) => r.type === "crypto").reduce((s, r) => s + r.value, 0) },
   ].filter((x) => x.value > 0);
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
@@ -876,13 +901,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=46");
+  const { CRYPTO } = await import("./crypto.js?v=47");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=46");
+    const { searchInstruments } = await import("./onvista.js?v=47");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1150,7 +1175,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=46").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=47").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1164,7 +1189,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=46");
+  const { mountPriceChart } = await import("./chart.js?v=47");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1401,7 +1426,7 @@ function applyUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=46");
+  const { resetDemo } = await import("./demo-store.js?v=47");
   resetDemo();
   state.demo = true;
   state.names = {};

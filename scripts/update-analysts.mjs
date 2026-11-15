@@ -1,16 +1,23 @@
-// Analyst consensus for all S&P 500 companies → data/analysts.json (runs once a day).
+// Analyst consensus for US-listed companies → data/analysts.json (top lists, small) and
+// data/analysts-all.json (everything, loaded by the app only for "Look up a stock").
 //
-// 1. Company list: datasets/s-and-p-500-companies (GitHub, public CSV).
-// 2. ISIN per company: onvista search by ticker (then by name); cached in the output file.
-// 3. Ratings: Finnhub /stock/recommendation (newest month), 60 requests/minute on the free plan.
-// The app searches this file by name, ticker or ISIN, and shows the strongest/weakest 5.
+// 1. Companies: all NYSE and Nasdaq listings (datasets/nyse-other-listings, datasets/nasdaq-listings),
+//    without ETFs, warrants, units, rights and preferred shares (~5,000).
+// 2. Each run refreshes ~2,200 of them (never fetched first, then the oldest), so all are
+//    covered within ~2 days; analyst ratings change monthly.
+// 3. ISIN per company: onvista search, matched by name and share class; cached.
+// 4. Ratings: Finnhub /stock/recommendation (newest month), 60 requests/minute on the free plan.
 //
 //   FINNHUB_API_KEY=xxx node scripts/update-analysts.mjs
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 
 const OUT = new URL("../data/analysts.json", import.meta.url);
-const CSV = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv";
+const OUT_ALL = new URL("../data/analysts-all.json", import.meta.url);
+const NASDAQ = "https://raw.githubusercontent.com/datasets/nasdaq-listings/main/data/nasdaq-listed-symbols.csv";
+const OTHER = "https://raw.githubusercontent.com/datasets/nyse-other-listings/main/data/other-listed.csv";
+const PER_RUN = 2200;     // ratings per run (Finnhub: 60/min → ~40 min)
+const ISIN_PER_RUN = 500; // onvista ISIN lookups per run (the rest follow on later runs)
 const TOP = 5;
 const MIN_ANALYSTS_TOP = 15; // top/bottom lists only consider well-covered stocks
 const key = process.env.FINNHUB_API_KEY;
@@ -18,8 +25,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 if (!key) { console.error("FINNHUB_API_KEY is not set"); process.exit(1); }
 
-let previous = {};
-try { previous = JSON.parse(await readFile(OUT, "utf8")); } catch {}
+// compact rows in analysts-all.json: [symbol, name, isin, strongBuy, buy, hold, sell, strongSell, period, fetchedAt]
+const FIELDS = ["symbol", "name", "isin", "strongBuy", "buy", "hold", "sell", "strongSell", "period", "fetchedAt"];
+let previous = { list: [] };
+try {
+  const all = JSON.parse(await readFile(OUT_ALL, "utf8"));
+  previous = { isinVersion: all.isinVersion, list: all.rows.map((r) => Object.fromEntries(FIELDS.map((f, i) => [f, r[i]]))) };
+} catch {
+  try { const old = JSON.parse(await readFile(OUT, "utf8")); previous = { isinVersion: old.isinVersion, list: old.list || [] }; } catch {}
+}
 const ISIN_VERSION = 2; // bump to re-resolve all ISINs
 const knownIsin = previous.isinVersion === ISIN_VERSION
   ? Object.fromEntries((previous.list || []).filter((r) => r.isin).map((r) => [r.symbol, r.isin]))
@@ -44,11 +58,30 @@ function parseCsv(text) {
   return body.map((r) => Object.fromEntries(head.map((h, i) => [h, r[i]])));
 }
 
-const csvRes = await fetch(CSV);
-if (!csvRes.ok) { console.error(`Company list: HTTP ${csvRes.status}`); process.exit(1); }
-const companies = parseCsv(await csvRes.text())
-  .map((r) => ({ symbol: r.Symbol, name: r.Security, sector: r["GICS Sector"] }))
-  .filter((c) => c.symbol && c.name);
+async function listing(url, symbolCol) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+  return parseCsv(await r.text()).map((x) => ({ ...x, symbol: x[symbolCol] }));
+}
+const SKIP = /\b(warrants?|units?|rights?|preferred|depositary shares? each representing a fraction|notes due|debentures|subordinated|trust preferred|% )/i;
+const cleanName = (n) => {
+  const cls = (n.match(/\bClass ([A-Z])\b/i) || [])[1];
+  const base = n
+    .replace(/\s+-\s+.*$/, "")                                   // "Apple Inc. - Common Stock"
+    .replace(/\bClass [A-Z]\b.*$/i, "")
+    .replace(/\b(Common Stock|Ordinary Shares?|Common Shares?|Capital Stock|American Depositary Shares?|ADS|Shares of Beneficial Interest)\b.*$/i, "")
+    .replace(/\s{2,}/g, " ").trim().replace(/,$/, "");
+  return cls ? `${base} (Class ${cls.toUpperCase()})` : base;
+};
+const companies = [];
+const seenSym = new Set();
+for (const x of [...await listing(NASDAQ, "Symbol"), ...await listing(OTHER, "ACT Symbol")]) {
+  const sym = (x.symbol || "").trim();
+  const name = x["Security Name"] || x["Company Name"] || "";
+  if (!sym || seenSym.has(sym) || x.ETF === "Y" || x["Test Issue"] === "Y" || /[\^$~=]/.test(sym) || SKIP.test(name)) continue;
+  seenSym.add(sym);
+  companies.push({ symbol: sym.replace("$", "."), name: cleanName(name) || name });
+}
 console.log(`Companies: ${companies.length}`);
 
 // --- ISIN via onvista ---------------------------------------------------------
@@ -63,6 +96,9 @@ function bestHit(c, hits) {
   const want = words(c.name);
   if (!want.length) return null;
   const cls = classOf(c.name);
+  // only insist on the class letter if some hit actually carries one ("Alphabet A"/"Alphabet C");
+  // single-listing companies like "Snap" have none
+  const anyClass = cls && hits.some((h) => new RegExp(`(^|\\s)[A-C](\\s|$|\\))`).test(h.name || "") && words(h.name || "")[0] === want[0]);
   let best = null, bestScore = 0;
   for (const h of hits) {
     if (!h.isin || /\b(CDR|ADR|GDR)\b/.test(h.name || "")) continue;
@@ -72,7 +108,7 @@ function bestHit(c, hits) {
     const sameStart = got[0] === want[0] || joinedG.startsWith(joinedW) || joinedW.startsWith(joinedG) || joinedG.startsWith(want[0]);
     if (!got.length || !sameStart) continue;
     const hasClass = cls && new RegExp(`(^|\\s)${cls}(\\s|$|\\))`).test(h.name);
-    if (cls && !hasClass) continue; // share classes must match (GOOG = Alphabet C)
+    if (cls && anyClass && !hasClass) continue; // share classes must match (GOOG = Alphabet C)
     let score = 10 + want.filter((w) => got.includes(w)).length;
     if (/^US/.test(h.isin)) score += 3;
     if (hasClass) score += 5;
@@ -107,32 +143,52 @@ async function recommendation(symbol, attempt = 1) {
   return Array.isArray(list) && list.length ? list[0] : null;
 }
 
+const prevBySym = new Map((previous.list || []).map((r) => [r.symbol, r]));
+// refresh: never fetched first, then the oldest
+const order = [...companies].sort((x, y) => (prevBySym.get(x.symbol)?.fetchedAt || "").localeCompare(prevBySym.get(y.symbol)?.fetchedAt || ""));
+const batch = new Set(order.slice(0, PER_RUN).map((c) => c.symbol));
+const today = new Date().toISOString().slice(0, 10);
+
 const list = [];
-let newIsins = 0, noRating = 0;
+let newIsins = 0, noRating = 0, fetched = 0, isinTries = 0;
 for (const c of companies) {
+  const old = prevBySym.get(c.symbol);
+  if (!batch.has(c.symbol)) {
+    if (old) {
+      // not due yet: keep the rating, but still try to fill a missing ISIN
+      let isin = old.isin || knownIsin[c.symbol] || null;
+      if (!isin && isinTries < ISIN_PER_RUN && old.period) { isinTries++; isin = await onvistaIsin(c); if (isin) newIsins++; }
+      list.push({ ...old, name: c.name, isin });
+    }
+    continue;
+  }
   let isin = knownIsin[c.symbol] || null;
-  if (!isin) { isin = await onvistaIsin(c); if (isin) newIsins++; }
+  if (!isin && isinTries < ISIN_PER_RUN) { isinTries++; isin = await onvistaIsin(c); if (isin) newIsins++; }
   try {
     const r = await recommendation(c.symbol);
-    if (r) {
-      const sb = r.strongBuy || 0, b = r.buy || 0, h = r.hold || 0, se = r.sell || 0, ss = r.strongSell || 0;
-      const total = sb + b + h + se + ss;
-      if (total) {
-        list.push({ symbol: c.symbol, name: c.name, isin, sector: c.sector, period: r.period, strongBuy: sb, buy: b, hold: h, sell: se, strongSell: ss, total,
-          score: Math.round(((2 * sb + b - se - 2 * ss) / total) * 100) / 100 });
-      } else noRating++;
-    } else noRating++;
+    fetched++;
+    const sb = r?.strongBuy || 0, b = r?.buy || 0, h = r?.hold || 0, se = r?.sell || 0, ss = r?.strongSell || 0;
+    if (r && sb + b + h + se + ss) {
+      list.push({ symbol: c.symbol, name: c.name, isin, strongBuy: sb, buy: b, hold: h, sell: se, strongSell: ss, period: r.period, fetchedAt: today });
+    } else {
+      noRating++;
+      list.push({ symbol: c.symbol, name: c.name, isin, strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0, period: null, fetchedAt: today }); // remember we checked
+    }
   } catch (e) {
     console.warn(`${c.symbol}: ${e.message}`);
-    const old = (previous.list || []).find((x) => x.symbol === c.symbol);
-    if (old) list.push(old); // keep yesterday's rating
+    if (old) list.push(old);
   }
   await sleep(1100);
 }
+for (const r of list) {
+  r.total = r.strongBuy + r.buy + r.hold + r.sell + r.strongSell;
+  r.score = r.total ? Math.round(((2 * r.strongBuy + r.buy - r.sell - 2 * r.strongSell) / r.total) * 100) / 100 : null;
+}
 
-if (list.length < 100) { console.error(`Only ${list.length} ratings — keeping the previous file.`); process.exit(1); }
+if (fetched < 50 && !previous.list.length) { console.error(`Only ${fetched} ratings fetched — keeping the previous file.`); process.exit(1); }
 
-const ranked = list.filter((r) => r.total >= MIN_ANALYSTS_TOP).sort((a, b) => b.score - a.score || b.total - a.total);
+const rated = list.filter((r) => r.total > 0);
+const ranked = rated.filter((r) => r.total >= MIN_ANALYSTS_TOP).sort((a, b) => b.score - a.score || b.total - a.total);
 // The same ISIN on two companies means one match is wrong: drop it from both rather than mislead.
 const byIsin = {};
 for (const r of list) if (r.isin) (byIsin[r.isin] ||= []).push(r);
@@ -140,16 +196,23 @@ const shared = Object.entries(byIsin).filter(([, v]) => v.length > 1);
 for (const [, rows] of shared) for (const r of rows) r.isin = null;
 if (shared.length) console.log(`Shared ISINs dropped: ${shared.map(([i, v]) => `${i}=${v.map((r) => r.symbol).join("/")}`).join(", ")}`);
 
+const strip = ({ fetchedAt, ...r }) => r;
 const data = {
   isinVersion: ISIN_VERSION,
   updatedAt: new Date().toISOString(),
-  period: list.map((r) => r.period).sort().at(-1),
-  count: list.length,
-  buys: ranked.slice(0, TOP),
-  sells: ranked.slice(-TOP).reverse(),
-  list: list.sort((a, b) => a.name.localeCompare(b.name)),
+  period: rated.map((r) => r.period).filter(Boolean).sort().at(-1),
+  count: rated.length,
+  buys: ranked.slice(0, TOP).map(strip),
+  sells: ranked.slice(-TOP).reverse().map(strip),
+};
+const all = {
+  isinVersion: ISIN_VERSION,
+  updatedAt: data.updatedAt,
+  fields: FIELDS,
+  rows: list.sort((a, b) => a.name.localeCompare(b.name)).map((r) => FIELDS.map((f) => r[f] ?? null)),
 };
 await mkdir(new URL("../data/", import.meta.url), { recursive: true });
 await writeFile(OUT, JSON.stringify(data) + "\n");
-console.log(`Wrote ${list.length} ratings (${newIsins} new ISINs, ${list.filter((r) => !r.isin).length} without ISIN, ${noRating} without rating)`);
+await writeFile(OUT_ALL, JSON.stringify(all) + "\n");
+console.log(`Fetched ${fetched} (${newIsins} new ISINs, ${noRating} without rating); ${rated.length} rated of ${list.length} known; files ${JSON.stringify(data).length >> 10} KB + ${JSON.stringify(all).length >> 10} KB`);
 console.log(`Top: ${data.buys.map((r) => `${r.symbol} ${r.score}`)} · weakest: ${data.sells.map((r) => `${r.symbol} ${r.score}`)}`);

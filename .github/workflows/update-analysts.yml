@@ -20,7 +20,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Analyst ratings for the S&P 500 (Finnhub)
+      - name: Analyst ratings for NYSE + Nasdaq companies (Finnhub, ~2,200 per run)
         env:
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
         run: node scripts/update-analysts.mjs
@@ -37,7 +37,7 @@ jobs:
         run: |
           git config user.name "stonks-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/analysts.json
+          git add data/analysts.json data/analysts-all.json
           if git diff --cached --quiet; then
             echo "No changes"
           else
