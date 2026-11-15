@@ -2,7 +2,7 @@ name: Update analyst ratings
 
 on:
   schedule:
-    - cron: "23 4 * * *" # daily, early morning Vienna time
+    - cron: "23 */2 * * *" # every 2 hours; exits quickly when nothing is due
   workflow_dispatch:
   push:
     branches: [main]
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Analyst ratings for NYSE + Nasdaq companies (Finnhub, ~2,200 per run)
+      - name: Analyst ratings for NYSE + Nasdaq companies (Finnhub, up to 400 per run, ~7 min)
         env:
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
         run: node scripts/update-analysts.mjs

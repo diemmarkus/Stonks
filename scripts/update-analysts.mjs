@@ -3,8 +3,9 @@
 //
 // 1. Companies: all NYSE and Nasdaq listings (datasets/nyse-other-listings, datasets/nasdaq-listings),
 //    without ETFs, warrants, units, rights and preferred shares (~5,000).
-// 2. Each run refreshes ~2,200 of them (never fetched first, then the oldest), so all are
-//    covered within ~2 days; analyst ratings change monthly.
+// 2. Runs every 2 hours and refreshes up to 400 that are due (never fetched, or older than a
+//    week), within a 9-minute budget. The first fill takes about a day; after that most runs
+//    find nothing due and exit without changing anything.
 // 3. ISIN per company: onvista search, matched by name and share class; cached.
 // 4. Ratings: Finnhub /stock/recommendation (newest month), 60 requests/minute on the free plan.
 //
@@ -16,8 +17,11 @@ const OUT = new URL("../data/analysts.json", import.meta.url);
 const OUT_ALL = new URL("../data/analysts-all.json", import.meta.url);
 const NASDAQ = "https://raw.githubusercontent.com/datasets/nasdaq-listings/main/data/nasdaq-listed-symbols.csv";
 const OTHER = "https://raw.githubusercontent.com/datasets/nyse-other-listings/main/data/other-listed.csv";
-const PER_RUN = 2200;     // ratings per run (Finnhub: 60/min → ~40 min)
-const ISIN_PER_RUN = 500; // onvista ISIN lookups per run (the rest follow on later runs)
+const PER_RUN = 400;       // ratings per run (Finnhub: 60/min → ~7 min)
+const ISIN_PER_RUN = 150;  // onvista ISIN lookups per run (the rest follow on later runs)
+const STALE_DAYS = 7;      // ratings change monthly; refresh each company about weekly
+const BUDGET_MS = 9 * 60e3; // hard stop: whatever is left waits for the next run
+const started = Date.now();
 const TOP = 5;
 const MIN_ANALYSTS_TOP = 15; // top/bottom lists only consider well-covered stocks
 const key = process.env.FINNHUB_API_KEY;
@@ -144,25 +148,25 @@ async function recommendation(symbol, attempt = 1) {
 }
 
 const prevBySym = new Map((previous.list || []).map((r) => [r.symbol, r]));
-// refresh: never fetched first, then the oldest
-const order = [...companies].sort((x, y) => (prevBySym.get(x.symbol)?.fetchedAt || "").localeCompare(prevBySym.get(y.symbol)?.fetchedAt || ""));
-const batch = new Set(order.slice(0, PER_RUN).map((c) => c.symbol));
+// due: never fetched, or older than a week; never fetched first, then the oldest
 const today = new Date().toISOString().slice(0, 10);
+const staleBefore = new Date(Date.now() - STALE_DAYS * 864e5).toISOString().slice(0, 10);
+const due = companies.filter((c) => (prevBySym.get(c.symbol)?.fetchedAt || "") < staleBefore)
+  .sort((x, y) => (prevBySym.get(x.symbol)?.fetchedAt || "").localeCompare(prevBySym.get(y.symbol)?.fetchedAt || ""));
+if (!due.length) { console.log("Nothing due — all ratings are less than a week old."); process.exit(0); }
+const batch = new Set(due.slice(0, PER_RUN).map((c) => c.symbol));
+console.log(`Due: ${due.length}, this run: ${batch.size}`);
 
 const list = [];
 let newIsins = 0, noRating = 0, fetched = 0, isinTries = 0;
 for (const c of companies) {
   const old = prevBySym.get(c.symbol);
   if (!batch.has(c.symbol)) {
-    if (old) {
-      // not due yet: keep the rating, but still try to fill a missing ISIN
-      let isin = old.isin || knownIsin[c.symbol] || null;
-      if (!isin && isinTries < ISIN_PER_RUN && old.period) { isinTries++; isin = await onvistaIsin(c); if (isin) newIsins++; }
-      list.push({ ...old, name: c.name, isin });
-    }
+    if (old) list.push({ ...old, name: c.name, isin: old.isin || knownIsin[c.symbol] || null });
     continue;
   }
-  let isin = knownIsin[c.symbol] || null;
+  if (Date.now() - started > BUDGET_MS) { if (old) list.push(old); continue; } // out of time: next run
+  let isin = knownIsin[c.symbol] || old?.isin || null;
   if (!isin && isinTries < ISIN_PER_RUN) { isinTries++; isin = await onvistaIsin(c); if (isin) newIsins++; }
   try {
     const r = await recommendation(c.symbol);
