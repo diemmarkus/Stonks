@@ -721,3 +721,4 @@ body.has-tabbar #view-home .hero { display: none; }
   padding-bottom: calc(14px + var(--card-pad-b));
   border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
 }
+.donut__legend li[data-slice] { cursor: pointer; }
