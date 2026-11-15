@@ -652,3 +652,15 @@ body.has-tabbar #view-home .hero { display: none; }
 .pos__facts { display: grid; gap: 4px; min-width: 0; flex: 1; }
 .pos__realrow { align-items: center; }
 .pos__realrow .pos__editbtn { width: 32px; height: 32px; }
+
+/* ---------- add dialog: cleaner ---------- */
+/* headline left in the display font (like page titles), Add + close on the right; no divider */
+.addsheet__head { grid-template-columns: 1fr auto 36px; gap: 10px; border-bottom: 0; padding-bottom: 6px; }
+.addsheet__head h2 { order: -1; text-align: left; font: 300 30px/1.25 var(--display); padding-bottom: 2px; letter-spacing: -0.035em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.addsheet__save { order: 1; }
+.addsheet__head .sheet__close { order: 2; }
+/* name/ISIN and the sentence sit closer; the hint line only takes space when it says something */
+.addsheet { gap: 10px; }
+.addsheet__found { margin: -2px 2px 0; min-height: 0; }
+.addsheet__found:empty { display: none; }
+.sentence { margin-top: 0; }
