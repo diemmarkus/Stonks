@@ -700,7 +700,6 @@ body.has-tabbar #view-home .hero { display: none; }
 .inline .pos__chart { height: 280px; margin: 0; background: none; overflow: visible; }
 .legend li.inline { display: block; }
 .inline__caption { margin: 0 0 10px; font: 400 12px/1.4 var(--mono); color: var(--ink-3); }
-.inline--total .inline__caption { margin: 6px 0 0; }
 .inline--alloc .donut { padding: 0; overflow: visible; max-height: none; }
 /* the open item and its chart share one lighter block, edge to edge across the card */
 :root { --open-bg: color-mix(in srgb, var(--ink) 5%, transparent); --card-pad: 18px; }
