@@ -12,5 +12,5 @@ jobs:
           jq -c '{chart:.chart.idNotation, quote:.quote.market}' s.json
           E=$(jq -r .instrument.entityValue s.json); echo "entity $E"
           for n in 277381 120478602; do for iv in "MAX&resolution=1D&startDate=1986-11-15" "Y5&resolution=1D&startDate=2021-11-15" "Y1&resolution=1D&startDate=2025-11-15"; do
-            echo "== $n $iv"; curl -s "$OV/instruments/STOCK/$E/simple_chart_history?chartType=PRICE&interval=$iv&endDate=2026-11-16&withEarnings=false&idNotation=$n" | jq -c '{keys:keys, nl:(.datetimeLast|length), nt:(.datetimeTick|length), fl:.datetimeLast[0], fp:.last[0], lp:.last[-1], ll:.datetimeLast[-1], ft:.tick[0], lt:.tick[-1], mx:(.last|max), mn:(.last|min)}'
+            echo "== $n $iv"; curl -s "$OV/instruments/STOCK/$E/simple_chart_history?chartType=PRICE&interval=$iv&endDate=2026-11-16&withEarnings=false&idNotation=$n" | head -c 600; echo
           done; done
