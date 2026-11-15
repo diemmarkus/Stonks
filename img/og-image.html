@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+<!-- Source of og-image.png (the link preview in WhatsApp & co.). Render at 1200×630, e.g.
+     google-chrome --headless=new --window-size=1200,630 --screenshot=og-image.png --allow-file-access-from-files img/og-image.html -->
+@font-face{font-family:Manrope;src:url(../fonts/manrope.woff) format("woff");font-weight:200 800}
+@font-face{font-family:"Inter Tight";src:url(../fonts/inter-tight.woff) format("woff");font-weight:400 600}
+html,body{margin:0}
+body{width:1200px;height:630px;overflow:hidden;background:
+ radial-gradient(700px 420px at 92% -10%, rgba(255,46,136,.22), transparent 65%),
+ radial-gradient(600px 380px at -5% 110%, rgba(60,203,244,.10), transparent 60%), #151117;
+ color:#FFF4F8;font-family:"Inter Tight",sans-serif;position:relative}
+.wrap{position:absolute;inset:0;padding:64px 80px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+.brand{display:flex;align-items:center;gap:18px;margin-bottom:34px}
+.brand img{width:84px;height:84px}
+.brand span{font:400 60px/1 Manrope;letter-spacing:-.035em}
+h1{margin:0;font:300 92px/1.02 Manrope;letter-spacing:-.04em}
+.up{color:#2EE6A6}.down{color:#FF4D6A}
+p{margin:30px 0 0;font:400 29px/1.35 "Inter Tight";color:#CDB7C5;max-width:1080px;white-space:nowrap}
+svg.spark{position:absolute;left:0;right:0;bottom:0;width:1200px;height:120px;opacity:.55}
+</style></head><body>
+<svg class="spark" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
+ <defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2EE6A6" stop-opacity=".28"/><stop offset="1" stop-color="#2EE6A6" stop-opacity="0"/></linearGradient></defs>
+ <path d="M0 100 L80 92 L150 98 L230 80 L300 86 L380 70 L450 76 L520 58 L590 66 L660 50 L720 62 L790 44 L860 52 L930 36 L1000 46 L1070 28 L1140 34 L1200 18 L1200 120 L0 120Z" fill="url(#f)"/>
+ <path d="M0 100 L80 92 L150 98 L230 80 L300 86 L380 70 L450 76 L520 58 L590 66 L660 50 L720 62 L790 44 L860 52 L930 36 L1000 46 L1070 28 L1140 34 L1200 18" fill="none" stroke="#2EE6A6" stroke-width="3"/>
+</svg>
+<div class="wrap">
+ <div class="brand"><img src="logo.svg" alt=""><span>stonks</span></div>
+ <h1>Sometimes <span class="up">up.</span><br>A number of <span class="down">downs.</span></h1>
+ <p>See what moved today and what your stocks, ETFs and crypto are worth.</p>
+</div>
+</body></html>
