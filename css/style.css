@@ -559,3 +559,17 @@ body.has-tabbar #view-home .hero { display: none; }
   color: var(--on-accent); background: var(--accent-2);
 }
 #you-demo { justify-self: start; margin-bottom: 10px; }
+
+/* ---------- (i) info button ---------- */
+.card__side { display: inline-flex; align-items: center; gap: 8px; }
+.info {
+  flex: none; width: 28px; height: 28px; margin: -6px -6px -6px 0; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink-3); display: grid; place-items: center; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.info svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.info:hover, .info[aria-expanded="true"] { color: var(--accent-2); }
+.info:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.info__text {
+  margin: 4px 0 10px; padding: 10px 12px; border-radius: 10px; background: rgba(60, 203, 244, .08);
+  border: 1px solid rgba(60, 203, 244, .22); color: var(--ink-2); font-size: 13px; line-height: 1.5;
+}

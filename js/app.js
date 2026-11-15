@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=41";
-import { legalDoc } from "./legal.js?v=41";
-import { isCryptoCode } from "./crypto.js?v=41";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=42";
+import { legalDoc } from "./legal.js?v=42";
+import { isCryptoCode } from "./crypto.js?v=42";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,7 +46,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=41") : import("./store.js?v=41"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=42") : import("./store.js?v=42"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -105,8 +105,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=41").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=41").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=42").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=42").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -267,17 +267,36 @@ document.addEventListener("toggle", (e) => {
   if (e.target.open) e.target.querySelector("input")?.focus();
 }, true);
 
+// Small (i) button that unfolds an explanation inside its card.
+let infoSeq = 0;
+function infoButton(label) {
+  const id = `info-${++infoSeq}`;
+  return { id, btn: `<button class="info" type="button" data-info="${id}" aria-expanded="false" aria-controls="${id}" aria-label="${esc(label)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg></button>` };
+}
+const analystInfo = (a) => `Wall Street analysts' 12-month consensus for ${a.count || ""} S&P 500 companies (Finnhub, ${esc(a.period || "")}). Their opinion, not advice from stonks — always do your own research.`;
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-info]");
+  if (!b) return;
+  const box = document.getElementById(b.dataset.info);
+  if (!box) return;
+  const open = box.hidden;
+  box.hidden = !open;
+  b.setAttribute("aria-expanded", String(open));
+});
+
 function analystGroup(a) {
   const body = (items) => (a ? analystRows(items) : skeletonRows());
+  const info = infoButton("About analyst ratings");
   return `
       <div class="group ${activeKind === "analysts" ? "is-active" : ""}" data-kind="analysts">
         <h2 class="group__title">Analyst ratings</h2>
         <div class="group__cards">
-          <article class="card card--up"><div class="card__head"><h3 class="card__title">Top buys</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body((a?.buys || []).slice(0, 3))}</ol></article>
+          <article class="card card--up"><div class="card__head"><h3 class="card__title">Top buys</h3><span class="card__side"><span class="card__hint">12-month view</span>${a ? info.btn : ""}</span></div>${a ? `<p class="info__text" id="${info.id}" hidden>${analystInfo(a)}</p>` : ""}<ol class="rows">${body((a?.buys || []).slice(0, 3))}</ol></article>
           <article class="card card--down"><div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body((a?.sells || []).slice(0, 3))}</ol></article>
         </div>
         ${lookupHtml("markets")}
-        <p class="note">${a ? `Consensus of Wall Street analysts' 12-month ratings for ${a.count} S&P 500 companies (Finnhub, ${esc(a.period || "")}). Their opinion, not advice from stonks — always do your own research.` : "Analyst ratings appear after the next daily update."}</p>
+        ${a ? "" : `<p class="note">Analyst ratings appear after the next daily update.</p>`}
       </div>`;
 }
 
@@ -449,6 +468,7 @@ function renderOverview() {
     </li>`).join("");
 
   const analysts = getAnalysts();
+  const aInfo = infoButton("About analyst ratings");
 
   body.innerHTML = `
     <section class="hero-num" id="hero-num" role="button" tabindex="0" aria-label="Show a chart of your whole portfolio">
@@ -478,7 +498,8 @@ function renderOverview() {
 
       ${analysts ? `
       <article class="card panel card--up">
-        <div class="card__head"><h3 class="card__title">Analysts' top buys</h3><span class="card__hint">12-month view</span></div>
+        <div class="card__head"><h3 class="card__title">Analysts' top buys</h3><span class="card__side"><span class="card__hint">12-month view</span>${aInfo.btn}</span></div>
+        <p class="info__text" id="${aInfo.id}" hidden>${analystInfo(analysts)}</p>
         <ol class="rows">${analystRows(analysts.buys.slice(0, 3))}</ol>
       </article>
       <article class="card panel card--down">
@@ -488,7 +509,6 @@ function renderOverview() {
       ${lookupHtml("overview")}` : ""}
     </div>
 
-    ${analysts ? `<p class="note">Wall Street analysts' 12-month consensus for ${analysts.count || ""} S&P 500 companies (Finnhub, ${esc(analysts.period || "")}). Their opinion, not advice from stonks.</p>` : ""}
     <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>
     ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. Prices are fetched from onvista when the app opens; try again in a moment.</p>` : ""}`;
 }
@@ -786,13 +806,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=41");
+  const { CRYPTO } = await import("./crypto.js?v=42");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=41");
+    const { searchInstruments } = await import("./onvista.js?v=42");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1038,7 +1058,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=41").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=42").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1052,7 +1072,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=41");
+  const { mountPriceChart } = await import("./chart.js?v=42");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1288,7 +1308,7 @@ function applyUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=41");
+  const { resetDemo } = await import("./demo-store.js?v=42");
   resetDemo();
   state.demo = true;
   state.names = {};
