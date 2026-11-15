@@ -17,7 +17,7 @@ recurring Stonks glyph: section markers (the hero eyebrow), list icons, buttons.
 
 ## Pink palette
 
-Hot pink is the main highlight, electric cyan the second. Gains are neon mint, losses vermilion: punchy like the brand colours, and the vermilion never reads as the pink.
+Hot pink is the main highlight, electric cyan the second. Gains are neon mint, losses rose red: a red from the pink family that still reads as a loss. The hero headline uses them too: "up." in mint, "downs." in rose.
 
 | Token | Hex | CSS var | Use |
 |---|---|---|---|
@@ -27,10 +27,10 @@ Hot pink is the main highlight, electric cyan the second. Gains are neon mint, l
 | Text | `#FFF4F8` | `--ink` | Main text |
 | Muted | `#CDB7C5` | `--ink-2` | Secondary text |
 | Faint | `#A894A3` | `--ink-3` | Tertiary text |
-| Hot pink | `#FF2E88` | `--accent` | Primary buttons, "+" tab, focus rings, active tab, dollar glyph, headline highlight |
+| Hot pink | `#FF2E88` | `--accent` | Primary buttons, "+" tab, focus rings, active tab, dollar glyph |
 | Pink hover | `#FF5CA3` | `--accent-hi` | Hover state of pink buttons |
 | Gain | `#2EE6A6` | `--up` | Up moves, always with a + sign or ▲ |
-| Loss | `#FF6A3D` | `--down` | Down moves, always with a − sign or ▼ |
+| Loss | `#FF4D6A` | `--down` | Down moves, always with a − sign or ▼ |
 | Warning | `#FFC861` | – | Stale prices, notes |
 | Electric cyan | `#3CCBF4` | `--accent-2`, `--stocks` | Second highlight: text selection, logo neck band, stock tag and allocation, buy list rule |
 | (ETFs) | `#FF2E88` | `--etfs` | ETF tag and allocation use the pink |

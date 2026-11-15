@@ -16,8 +16,8 @@
   --accent-2: #3CCBF4;  /* electric cyan: second highlight */
   --up: #2EE6A6;
   --up-dim: rgba(46, 230, 166, 0.13);
-  --down: #FF6A3D;
-  --down-dim: rgba(255, 106, 61, 0.13);
+  --down: #FF4D6A;
+  --down-dim: rgba(255, 77, 106, 0.13);
   --display: "Manrope", "Inter Tight", system-ui, sans-serif;  /* titles: Light when big, Regular when small */
   --sans: "Inter Tight", system-ui, -apple-system, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
@@ -93,7 +93,7 @@ button { font: inherit; color: inherit; }
   -webkit-mask: url("../img/dollar.svg") center / contain no-repeat; mask: url("../img/dollar.svg") center / contain no-repeat;
 }
 h1 { margin: 0; font: 300 clamp(38px, 8.6vw, 92px)/1 var(--display); letter-spacing: -0.035em; }
-h1 em { color: var(--accent); font-style: normal; }
+h1 em { color: var(--up); font-style: normal; }
 h1 em.down { color: var(--down); }
 .lede { margin: 22px 0 0; font-size: 18px; color: var(--ink-2); max-width: 52ch; }
 .hero__cta { margin-top: 28px; }
@@ -233,7 +233,7 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
 .form__error { margin: 0; color: var(--down); font-size: 14px; }
 .form__actions { display: grid; gap: 10px; margin-top: 4px; }
 .btn--block { width: 100%; }
-.btn--danger { background: transparent; border-color: rgba(255, 106, 61, .35); color: var(--down); padding: 12px 22px; }
+.btn--danger { background: transparent; border-color: rgba(255, 77, 106, .35); color: var(--down); padding: 12px 22px; }
 .btn--danger:hover { border-color: var(--down); }
 .btn[disabled] { opacity: .55; pointer-events: none; }
 
