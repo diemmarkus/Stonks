@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=76";
-import { legalDoc } from "./legal.js?v=76";
-import { isCryptoCode } from "./crypto.js?v=76";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=77";
+import { legalDoc } from "./legal.js?v=77";
+import { isCryptoCode } from "./crypto.js?v=77";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=76") : import("./store.js?v=76"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=77") : import("./store.js?v=77"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=76").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=76").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=77").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=77").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -266,7 +266,7 @@ function analystRows(items) {
     const buy = r.strongBuy + r.buy, hold = r.hold, sell = r.sell + r.strongSell;
     const seg = (n, cls) => (n ? `<span class="rating__seg ${cls}" style="flex:${n}"></span>` : "");
     return `
-    <li class="row row--link" data-chart="${esc(r.symbol)}" tabindex="0" role="button" aria-label="Show chart for ${esc(r.symbol)}">
+    <li class="row row--link" data-chart="${esc(r.symbol)}" data-name="${esc(r.name || "")}"${r.isin ? ` data-other-isin="${esc(r.isin)}"` : ""} tabindex="0" role="button" aria-label="Show chart for ${esc(r.name || r.symbol)}">
       <span class="row__rank">${idx + 1}</span>
       <div class="row__id">
         <div class="row__sym">${esc(r.symbol)}</div>
@@ -1126,13 +1126,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=76");
+  const { CRYPTO } = await import("./crypto.js?v=77");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=76");
+    const { searchInstruments } = await import("./onvista.js?v=77");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1263,6 +1263,7 @@ function closeAdd() {
   setTimeout(() => { addSheet.hidden = true; }, 220);
   addLastFocus?.focus?.({ preventScroll: true });
 }
+swipeToClose($("add-form"), closeAdd);
 // Keep the sheet above the on-screen keyboard: size it to the visible part of the screen.
 const vv = window.visualViewport;
 function syncViewport() {
@@ -1363,7 +1364,9 @@ $("f-delete").addEventListener("click", async () => {
 const sheet = $("sheet");
 let lastFocus = null;
 
-function openChart(symbol, isin) {
+// symbol: US ticker; isin: a position of yours; extra: { name, isin } for other companies (Buy/Sell lists)
+function openChart(symbol, isin, extra = {}) {
+  if (!isin && !state.prices.get(symbol) && (extra.name || extra.isin)) return openOtherChart(symbol, extra);
   const q = isin ? quoteFor(isin) : state.prices.get(symbol);
   const money = isin ? fmtEur : fmtUsd;
   const moneySigned = isin ? fmtEurSigned : fmtUsdSigned;
@@ -1409,7 +1412,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=76").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=77").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1423,7 +1426,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=76");
+  const { mountPriceChart } = await import("./chart.js?v=77");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1508,6 +1511,35 @@ document.addEventListener("keydown", (e) => {
   if ((e.key === "Enter" || e.key === " ") && e.target.matches?.("[data-alloc]")) { e.preventDefault(); openAllocation(e.target.dataset.alloc); }
 });
 
+// A company you don't hold (from the analyst lists): its name as the title, EUR price from onvista.
+function openOtherChart(symbol, { name, isin }) {
+  $("sheet-sym").textContent = name || symbol;
+  $("sheet-sym").classList.add("sheet__sym--name");
+  $("sheet-name").textContent = [symbol, isin].filter(Boolean).join(" · ");
+  $("sheet-price").textContent = "";
+  $("sheet-pill").hidden = true;
+  const id = isin || symbol;
+  sheet.dataset.for = id;
+  if (isin) {
+    lookupLive(isin).then((q) => {
+      if (!q || sheet.hidden || sheet.dataset.for !== id) return;
+      $("sheet-price").textContent = fmtEur(q.price);
+      const pill = $("sheet-pill");
+      pill.hidden = false;
+      pill.className = `pill ${dir(q.changePct)}`;
+      pill.textContent = `${fmtEurSigned(q.change)} · ${fmtPct(q.changePct)}`;
+    });
+    mountChart($("sheet-chart"), isin, "EUR");
+  } else {
+    mountChart($("sheet-chart"), symbol, "USD", undefined, { name });
+  }
+  lastFocus = document.activeElement;
+  sheet.hidden = false;
+  document.body.classList.add("sheet-open");
+  requestAnimationFrame(() => sheet.classList.add("is-open"));
+  $("sheet-close").focus();
+}
+
 function closeChart() {
   if (sheet.hidden) return;
   sheet.classList.remove("is-open");
@@ -1518,23 +1550,22 @@ function closeChart() {
 
 document.addEventListener("click", (e) => {
   const row = e.target.closest("[data-chart]");
-  if (row) openChart(row.dataset.chart, row.dataset.isin);
+  if (row) openChart(row.dataset.chart, row.dataset.isin, { name: row.dataset.name, isin: row.dataset.otherIsin });
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeChart();
   const row = e.target.closest?.("[data-chart]");
-  if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openChart(row.dataset.chart, row.dataset.isin); }
+  if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openChart(row.dataset.chart, row.dataset.isin, { name: row.dataset.name, isin: row.dataset.otherIsin }); }
 });
-// Swipe the chart sheet down to close it. The price chart keeps its own drag (reading prices),
-// and a scrolled list inside the sheet scrolls first.
-(() => {
-  const panel = sheet.querySelector(".sheet__panel");
+// Swipe a sheet (chart pop-up, add/edit) down to close it. The price chart keeps its own drag
+// (reading prices), fields and buttons keep theirs, and a scrolled sheet scrolls back up first.
+function swipeToClose(panel, close) {
   let drag = null;
   panel.addEventListener("touchstart", (e) => {
     drag = null;
-    if (e.touches.length !== 1 || e.target.closest(".pchart__plot, .pchart svg, button, select, input")) return;
+    if (e.touches.length !== 1 || e.target.closest(".pchart svg, button, select, input, textarea, [role=listbox]")) return;
     const scroller = e.target.closest(".donut");
-    if (scroller && scroller.scrollTop > 0) return;
+    if ((scroller && scroller.scrollTop > 0) || panel.scrollTop > 0) return;
     drag = { y: e.touches[0].clientY, t: Date.now(), dy: 0 };
   }, { passive: true });
   panel.addEventListener("touchmove", (e) => {
@@ -1549,12 +1580,12 @@ document.addEventListener("keydown", (e) => {
     drag = null;
     panel.style.transition = "";
     panel.style.transform = "";
-    const fast = dy > 40 && dy / Math.max(1, Date.now() - t) > 0.5;
-    if (dy > 110 || fast) closeChart();
+    if (dy > 110 || (dy > 40 && dy / Math.max(1, Date.now() - t) > 0.5)) close();
   };
   panel.addEventListener("touchend", end);
   panel.addEventListener("touchcancel", end);
-})();
+}
+swipeToClose(sheet.querySelector(".sheet__panel"), closeChart);
 $("sheet-close").addEventListener("click", closeChart);
 $("sheet-backdrop").addEventListener("click", closeChart);
 window.addEventListener("hashchange", closeChart);
@@ -1802,7 +1833,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=76");
+  const { resetDemo } = await import("./demo-store.js?v=77");
   resetDemo();
   state.demo = true;
   state.names = {};

@@ -689,3 +689,9 @@ body.has-tabbar #view-home .hero { display: none; }
 .donut__legend { margin-top: 0; }
 .donut__legend li { transition: opacity .15s; }
 @media (hover: hover) { .legend__link:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); } }
+
+/* chart pop-up: as tall as its content (pie + list), price charts get a fixed plot height */
+#sheet .sheet__panel { height: auto; max-height: min(92dvh, 820px); }
+#sheet .sheet__chart { flex: none; height: min(56dvh, 440px); }
+#sheet .sheet__chart:has(.donut) { flex: 0 1 auto; height: auto; min-height: 0; display: flex; }
+#sheet .sheet__chart:has(.donut) .donut { flex: 1; }
