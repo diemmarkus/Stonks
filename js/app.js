@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=37";
-import { legalDoc } from "./legal.js?v=37";
-import { isCryptoCode } from "./crypto.js?v=37";
+import { isConfigured, signIn, signOutUser, onUser } from "./firebase.js?v=39";
+import { legalDoc } from "./legal.js?v=39";
+import { isCryptoCode } from "./crypto.js?v=39";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -101,8 +101,8 @@ function lookupLive(isin) {
   if (state.isin[isin] || !isValidId(isin)) return Promise.resolve(state.isin[isin] || null);
   if (!liveTried.has(isin)) {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=37").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=37").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=39").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=39").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -186,6 +186,83 @@ function analystRows(items) {
     </li>`; }).join("");
 }
 
+/* Analyst ratings for all S&P 500 companies (data/analysts.json, daily) + "Look up a stock" */
+const getAnalysts = () => state.analysts || state.market?.analysts || null;
+const lookupState = {}; // scope → { open, q }
+
+async function loadAnalysts() {
+  try {
+    const res = await fetch(`data/analysts.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) return;
+    state.analysts = await res.json();
+    renderHome();
+    renderCurrent();
+  } catch (e) { console.warn("No analyst file yet", e); }
+}
+
+function lookupMatches(q) {
+  const a = getAnalysts();
+  const list = a?.list || [];
+  const t = q.trim().toLowerCase();
+  if (!t) return [];
+  const score = (r) => {
+    const sym = r.symbol.toLowerCase(), name = r.name.toLowerCase(), isin = (r.isin || "").toLowerCase();
+    if (sym === t || isin === t) return 0;
+    if (name.startsWith(t)) return 1;
+    if (sym.startsWith(t)) return 2;
+    if (name.includes(t)) return 3;
+    if (isin.startsWith(t)) return 4;
+    return 9;
+  };
+  return list.map((r) => [score(r), r]).filter(([sc]) => sc < 9).sort((x, y) => x[0] - y[0] || y[1].total - x[1].total).slice(0, 5).map(([, r]) => r);
+}
+
+function lookupResultsHtml(q) {
+  const a = getAnalysts();
+  if (!a?.list) return `<p class="lookup__hint">Search becomes available after the next daily rating update.</p>`;
+  if (!q.trim()) return `<p class="lookup__hint">Type a name, ticker or ISIN of one of the ${a.list.length} S&P 500 companies.</p>`;
+  const hits = lookupMatches(q);
+  return hits.length
+    ? `<ol class="rows">${analystRows(hits)}</ol>`
+    : `<p class="lookup__hint">No analyst ratings for “${esc(q.trim())}”. Only S&P 500 companies are covered; ETFs have no analyst ratings.</p>`;
+}
+
+function lookupHtml(scope) {
+  const st = lookupState[scope] || { open: false, q: "" };
+  return `
+    <details class="card lookup" data-lookup="${scope}"${st.open ? " open" : ""}>
+      <summary><span>Look up a stock</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <input class="input" data-lookup-input="${scope}" value="${esc(st.q)}" placeholder="Name, ticker or ISIN" autocomplete="off" spellcheck="false" enterkeyhint="search" />
+      <div data-lookup-results="${scope}">${lookupResultsHtml(st.q)}</div>
+    </details>`;
+}
+
+// Re-renders replace the markup; keep focus and caret in the lookup field.
+function withLookupFocus(fn) {
+  const el = document.activeElement;
+  const scope = el?.dataset?.lookupInput;
+  const pos = scope ? el.selectionStart : null;
+  fn();
+  if (scope) {
+    const again = document.querySelector(`[data-lookup-input="${scope}"]`);
+    if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch {} }
+  }
+}
+
+document.addEventListener("input", (e) => {
+  const scope = e.target.dataset?.lookupInput;
+  if (!scope) return;
+  lookupState[scope] = { open: true, q: e.target.value };
+  const out = document.querySelector(`[data-lookup-results="${scope}"]`);
+  if (out) out.innerHTML = lookupResultsHtml(e.target.value);
+});
+document.addEventListener("toggle", (e) => {
+  const scope = e.target.dataset?.lookup;
+  if (!scope) return;
+  lookupState[scope] = { ...(lookupState[scope] || { q: "" }), open: e.target.open };
+  if (e.target.open) e.target.querySelector("input")?.focus();
+}, true);
+
 function analystGroup(a) {
   const body = (items) => (a ? analystRows(items) : skeletonRows());
   return `
@@ -195,7 +272,8 @@ function analystGroup(a) {
           <article class="card card--up"><div class="card__head"><h3 class="card__title">Top buys</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body(a?.buys || [])}</ol></article>
           <article class="card card--down"><div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body(a?.sells || [])}</ol></article>
         </div>
-        <p class="note">${a ? `Consensus of Wall Street analysts' 12-month ratings for ${a.count} large US stocks (Finnhub, ${esc(a.period || "")}). Their opinion, not advice from stonks — always do your own research.` : "Analyst ratings appear after the next price update."}</p>
+        ${lookupHtml("markets")}
+        <p class="note">${a ? `Consensus of Wall Street analysts' 12-month ratings for ${a.count} S&P 500 companies (Finnhub, ${esc(a.period || "")}). Their opinion, not advice from stonks — always do your own research.` : "Analyst ratings appear after the next daily update."}</p>
       </div>`;
 }
 
@@ -211,7 +289,7 @@ function renderHome() {
           ${moverCard("down", "Top losers", g ? moverRows(g.losers, "down") : skeletonRows())}
         </div>
       </div>`;
-  }).join("") + analystGroup(data?.analysts);
+  }).join("") + analystGroup(getAnalysts());
   if (!data) return;
   const stamp = stampOf(data.updatedAt);
   $("asof").textContent = `Movers · ${stamp}`;
@@ -366,7 +444,7 @@ function renderOverview() {
       </div>
     </li>`).join("");
 
-  const analysts = state.market?.analysts;
+  const analysts = getAnalysts();
 
   body.innerHTML = `
     <section class="hero-num" id="hero-num" role="button" tabindex="0" aria-label="Show a chart of your whole portfolio">
@@ -402,10 +480,11 @@ function renderOverview() {
       <article class="card panel card--down">
         <div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div>
         <ol class="rows">${analystRows(analysts.sells)}</ol>
-      </article>` : ""}
+      </article>
+      ${lookupHtml("overview")}` : ""}
     </div>
 
-    ${analysts ? `<p class="note">Wall Street analysts' 12-month consensus for large US stocks (Finnhub, ${esc(analysts.period || "")}). Their opinion, not advice from stonks.</p>` : ""}
+    ${analysts ? `<p class="note">Wall Street analysts' 12-month consensus for ${analysts.count || ""} S&P 500 companies (Finnhub, ${esc(analysts.period || "")}). Their opinion, not advice from stonks.</p>` : ""}
     <a class="card linkcard" href="#/movers"><span><b>Market movers</b><span>Today's top gainers and losers in stocks and ETFs</span></span><span aria-hidden="true">→</span></a>
     ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. Prices are fetched from onvista when the app opens; try again in a moment.</p>` : ""}`;
 }
@@ -543,7 +622,7 @@ document.addEventListener("change", async (e) => {
   if (!el.value) delete state.venues[key];
   renderCurrent();
   try {
-    const { setVenue } = await import("./store.js?v=37");
+    const { setVenue } = await import("./store.js?v=39");
     await setVenue(state.user.uid, key, el.value);
     toast(el.value ? `Valued with ${el.value} prices` : "Back to automatic prices");
   } catch (err) {
@@ -563,7 +642,7 @@ document.addEventListener("focusout", async (e) => {
   const name = el.value.trim();
   if ((state.names[key] || "") === name) return;
   try {
-    const { setName } = await import("./store.js?v=37");
+    const { setName } = await import("./store.js?v=39");
     await setName(state.user.uid, key, name);
     toast(name ? `Renamed to ${name}` : "Back to the original name");
   } catch (err) {
@@ -703,13 +782,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=37");
+  const { CRYPTO } = await import("./crypto.js?v=39");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=37");
+    const { searchInstruments } = await import("./onvista.js?v=39");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -868,7 +947,7 @@ form.addEventListener("submit", async (ev) => {
   const btn = $("f-submit");
   btn.disabled = true;
   try {
-    const { saveHolding } = await import("./store.js?v=37");
+    const { saveHolding } = await import("./store.js?v=39");
     await saveHolding(state.user.uid, editingId, {
       isin, quantity, buyPrice, buyDate: f.date.value,
       type: q?.type || guessType(isin), name: q?.name || "",
@@ -894,7 +973,7 @@ $("f-delete").addEventListener("click", async () => {
   resetDelete();
   const label = state.isin[f.isin.value]?.name || f.isin.value || "holding";
   try {
-    const { deleteHolding } = await import("./store.js?v=37");
+    const { deleteHolding } = await import("./store.js?v=39");
     await deleteHolding(state.user.uid, editingId);
     toast(`Removed ${label}`);
     closeAdd();
@@ -955,7 +1034,7 @@ function openPortfolioChart() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=38").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=39").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -969,7 +1048,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue) {
-  const { mountPriceChart } = await import("./chart.js?v=38");
+  const { mountPriceChart } = await import("./chart.js?v=39");
   mountPriceChart(host, { id, currency, venue });
 }
 
@@ -1009,8 +1088,10 @@ function renderLegal(kind) {
 }
 
 function renderCurrent() {
-  if (state.view === "overview") renderOverview();
-  else if (state.view === "portfolio") renderPortfolio();
+  withLookupFocus(() => {
+    if (state.view === "overview") renderOverview();
+    else if (state.view === "portfolio") renderPortfolio();
+  });
 }
 
 function route() {
@@ -1130,7 +1211,7 @@ async function startHoldings(uid) {
   state.names = {};
   let store;
   try {
-    store = await import("./store.js?v=37");
+    store = await import("./store.js?v=39");
   } catch (e) {
     console.error("Couldn't load store.js", e);
     state.holdings = [];
@@ -1221,4 +1302,5 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 renderHome();
 route();
 loadMarket();
+loadAnalysts();
 loadPrices();
