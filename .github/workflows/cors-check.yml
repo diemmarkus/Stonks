@@ -1,0 +1,17 @@
+name: CORS check (temporary)
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/cors-check.yml"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B="https://api.onvista.de/api/v1/stocks/ISIN:US0378331005"
+          S=$(curl -s "$B/snapshot")
+          echo "paths with analyst/rating/recommend:"; echo "$S" | jq -c '[paths | map(tostring) | join(".") | select(test("analy|rating|recommend|consensus|target";"i"))] | .[:25]'
+          for e in analyses analyst_ratings analyst_recommendations analysts ratings consensus recommendations snapshot_analyses; do
+            printf "%s: " $e; curl -s -o /tmp/b -w "%{http_code} " "$B/$e"; head -c 220 /tmp/b; echo
+          done
+          printf "OMV snapshot rating paths: "; curl -s "https://api.onvista.de/api/v1/stocks/ISIN:AT0000743059/snapshot" | jq -c '[paths | map(tostring) | join(".") | select(test("analy|rating|recommend|consensus|target";"i"))] | .[:15]'
