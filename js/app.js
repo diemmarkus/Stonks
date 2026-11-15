@@ -1252,7 +1252,7 @@ function openChart(symbol, isin) {
   pill.hidden = !q;
   if (q) { pill.className = `pill ${dir(q.changePct)}`; pill.textContent = `${moneySigned(q.change)} · ${fmtPct(q.changePct)}`; }
 
-  mountChart($("sheet-chart"), isin || symbol, isin ? "EUR" : "USD", isin ? state.venues[isin] : undefined);
+  mountChart($("sheet-chart"), isin || symbol, isin ? "EUR" : "USD", isin ? state.venues[isin] : undefined, isin ? undefined : { name: q?.name, price: q?.price });
 
   lastFocus = document.activeElement;
   sheet.hidden = false;
@@ -1297,9 +1297,9 @@ document.addEventListener("keydown", (e) => {
 });
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
-async function mountChart(host, id, currency, venue) {
+async function mountChart(host, id, currency, venue, hint) {
   const { mountPriceChart } = await import("./chart.js?v=52");
-  mountPriceChart(host, { id, currency, venue });
+  mountPriceChart(host, { id, currency, venue, hint });
 }
 
 function closeChart() {

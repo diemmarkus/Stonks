@@ -28,10 +28,40 @@ function startDate(back) {
 const sourceCache = new Map();
 
 // `id` is an ISIN, a flatex crypto code or a US ticker (movers). `currency` picks the listing.
-function resolve(id, currency, venue) {
+// `hint` ({ name, price }) is used for US tickers: onvista's search can't be trusted with a bare
+// ticker ("V" finds Nvidia, "NVDA" a Nvidia bond), so we search by name and keep only a listing
+// whose current US price matches the one we already show.
+function resolve(id, currency, venue, hint) {
   const key = `${id}|${currency}|${venue || ""}`;
-  if (!sourceCache.has(key)) sourceCache.set(key, resolveUncached(id, currency, venue).catch((e) => { sourceCache.delete(key); throw e; }));
+  if (!sourceCache.has(key)) {
+    const run = hint?.name && !isIsin(id) && !isCryptoCode(id) ? resolveTicker(id, hint) : resolveUncached(id, currency, venue);
+    sourceCache.set(key, run.catch((e) => { sourceCache.delete(key); throw e; }));
+  }
   return sourceCache.get(key);
+}
+const isIsin = (v) => /^[A-Z]{2}[A-Z0-9]{9}\d$/.test(v);
+const US_HOME = /nasdaq|nyse|new york|amex|arca|cboe|bats/i;
+const SNAP_PATH = { STOCK: "stocks", FUND: "funds", ETF: "funds" };
+
+async function resolveTicker(id, { name, price }) {
+  const search = async (q) => {
+    const r = await fetch(`${OV}/instruments/search/facet?searchValue=${encodeURIComponent(q)}`);
+    return r.ok ? ((await r.json()).facets || []).flatMap((f) => f.results || []) : [];
+  };
+  const [byName, byTicker] = await Promise.all([search(name), search(id)]);
+  const seen = new Set();
+  const candidates = [...byName, ...byTicker].filter((h) => SNAP_PATH[h.entityType] && h.isin && !/\(CDR\)/.test(h.name || "") && !seen.has(h.isin) && seen.add(h.isin));
+  for (const h of candidates.slice(0, 6)) {
+    const r = await fetch(`${OV}/${SNAP_PATH[h.entityType]}/ISIN:${h.isin}/snapshot`);
+    if (!r.ok) continue;
+    const snap = await r.json();
+    const inst = snap.instrument;
+    if (!inst?.entityValue) continue;
+    const us = (snap.quoteList?.list || []).filter((q) => q.market?.idNotation && q.isoCurrency === "USD" && US_HOME.test(q.market.name || ""));
+    const ok = us.find((q) => !price || (q.last > price * 0.8 && q.last < price * 1.25));
+    if (ok) return { kind: "onvista", type: inst.entityType, id: inst.entityValue, notation: ok.market.idNotation, currency: "USD", credit: "onvista" };
+  }
+  throw new Error(`No onvista listing for ${id}`);
 }
 
 async function resolveUncached(id, currency, venue) {
@@ -278,10 +308,10 @@ function mountRanged(host, ranges, loader) {
 }
 
 // One security. opts: { id: ISIN / crypto code / US ticker, currency: "EUR" | "USD", venue }
-export function mountPriceChart(host, { id, currency = "EUR", venue }) {
+export function mountPriceChart(host, { id, currency = "EUR", venue, hint }) {
   const ranges = Object.keys(RANGES).filter((r) => !isCryptoCode(id) || RANGES[r].cg);
   mountRanged(host, ranges, async (range) => {
-    const src = await resolve(id, currency, venue);
+    const src = await resolve(id, currency, venue, hint);
     const pts = await history(src, range);
     return { pts, currency: src.currency || currency, credit: `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` };
   });

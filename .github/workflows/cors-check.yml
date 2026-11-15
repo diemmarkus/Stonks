@@ -4,6 +4,20 @@ jobs:
   p:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
       - run: |
-          OV=https://api.onvista.de/api/v1
-          for q in XLE SPY IBIT BRK.B GOOGL SMH V; do echo "== $q"; curl -s "$OV/instruments/search/facet?searchValue=$q" | jq -c "[.facets[] | select(.type==\"STOCK\" or .type==\"FUND\" or .type==\"ETF\") | .results[]? | [.entityType,.isin,.symbol,.name]]"; done
+          echo 'export { resolve };' >> js/chart.js
+          cat > t.mjs <<'JS'
+          import fs from "node:fs";
+          const { resolve } = await import("./js/chart.js");
+          const d = JSON.parse(fs.readFileSync("data/movers.json"));
+          for (const q of d.quotes) {
+            try { const s = await resolve(q.symbol, "USD", undefined, { name: q.name, price: q.price });
+              const h = await (await fetch(`https://api.onvista.de/api/v1/instruments/${s.type}/${s.id}/simple_chart_history?chartType=PRICE&interval=Y1&resolution=1D&idNotation=${s.notation}`)).json();
+              console.log("OK", q.symbol, q.price, s.type, s.id, s.notation, "last", h.tick?.at(-1) ?? h.last?.at(-1), "n", (h.tick||h.last||[]).length);
+            } catch (e) { console.log("NO", q.symbol, q.name, e.message); }
+          }
+          JS
+          node t.mjs
