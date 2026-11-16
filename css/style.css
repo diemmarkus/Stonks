@@ -782,4 +782,8 @@ body.has-tabbar #view-home .hero { display: none; }
   background: var(--down); color: #fff; font: 600 14px/1 var(--sans);
 }
 .lot__del:disabled { opacity: .6; }
+/* the red button only exists while you swipe or once it's revealed: no red peeking through rounded corners */
+.lot-row .lot { border-radius: 0; }
+.lot-row .lot__del { visibility: hidden; }
+.lot-row.is-swiping .lot__del, .lot-row.is-open .lot__del { visibility: visible; }
 @media (prefers-reduced-motion: reduce) { .lot-row .lot { transition: none; } }

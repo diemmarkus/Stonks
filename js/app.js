@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=105";
-import { legalDoc } from "./legal.js?v=105";
-import { isCryptoCode } from "./crypto.js?v=105";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=106";
+import { legalDoc } from "./legal.js?v=106";
+import { isCryptoCode } from "./crypto.js?v=106";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=105") : import("./store.js?v=105"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=106") : import("./store.js?v=106"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=105").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=105").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=106").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=106").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1131,13 +1131,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=105");
+  const { CRYPTO } = await import("./crypto.js?v=106");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=105");
+    const { searchInstruments } = await import("./onvista.js?v=106");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1317,7 +1317,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=105");
+    const { decode, parseTrades } = await import("./import-csv.js?v=106");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1415,6 +1415,7 @@ document.addEventListener("touchmove", (e) => {
   if (lotSwipe.locked == null && Math.hypot(dx, dy) > 8) lotSwipe.locked = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
   if (lotSwipe.locked !== "x") return;
   lotSwipe.dx = dx;
+  lotSwipe.li.classList.add("is-swiping");
   const x = Math.min(0, Math.max(-LOT_DEL_W - 24, lotSwipe.base + dx));
   lotSwipe.a.style.transition = "none";
   lotSwipe.a.style.transform = `translateX(${x}px)`;
@@ -1424,6 +1425,7 @@ document.addEventListener("touchend", () => {
   const { li, a, base, dx, locked } = lotSwipe;
   lotSwipe = null;
   if (locked !== "x") return;
+  li.classList.remove("is-swiping");
   a.style.transition = "";
   const open = base + dx < -LOT_DEL_W / 2;
   li.classList.toggle("is-open", open);
@@ -1575,7 +1577,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=105").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=106").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1590,7 +1592,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=105").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=106").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1604,7 +1606,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=105");
+  const { mountPriceChart } = await import("./chart.js?v=106");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1658,7 +1660,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=105").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=106").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2189,7 +2191,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=105");
+  const { resetDemo } = await import("./demo-store.js?v=106");
   resetDemo();
   state.demo = true;
   state.names = {};
