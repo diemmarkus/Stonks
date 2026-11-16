@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=117";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=119";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -331,7 +331,7 @@ export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credi
 // Your whole portfolio: Σ units held at each moment × that position's price, in EUR,
 // with the amount invested so far as a dashed line.
 // positions: [{ id, currency, venue, toEur, lots: [{ qty, buyEur, date: "YYYY-MM-DD" | "" }] }]
-export function mountPortfolioChart(host, { positions }) {
+export function mountPortfolioChart(host, { positions, vsInvested = true }) {
   const fmt = (v) => fmtMoney(v, "EUR");
   mountRanged(host, Object.keys(RANGES), async (range) => {
     const loaded = await Promise.allSettled(positions.map(async (p) => {
@@ -380,7 +380,9 @@ export function mountPortfolioChart(host, { positions }) {
       credit: `Price data: onvista, CoinGecko${missing ? ` · ${missing} position${missing === 1 ? "" : "s"} without history left out` : ""}`,
       opts: {
         ref: refThin,
-        rest: ({ change, pct, sign }) => `<b class="${change >= 0 ? "up" : "down"}">${sign}${fmt(Math.abs(change)).replace(/^-/, "")}</b> <span class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</span> <span>vs invested</span>`,
+        rest: vsInvested
+          ? ({ change, pct, sign }) => `<b class="${change >= 0 ? "up" : "down"}">${sign}${fmt(Math.abs(change)).replace(/^-/, "")}</b> <span class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</span> <span>vs invested</span>`
+          : () => "",
         hover: (q, i, when) => {
           const inv = refThin[i], g = q.v - inv;
           return `<b>${fmt(q.v)}</b> <span class="${g >= 0 ? "up" : "down"}">${g >= 0 ? "+" : "−"}${fmt(Math.abs(g))}</span> <span>${when}</span>`;

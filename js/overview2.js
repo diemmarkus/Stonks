@@ -54,7 +54,7 @@ function moveColor(pct, live) {
 }
 
 export function renderOverview2(body, ctx) {
-  const { rows, t, pos, returns, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel } = ctx;
+  const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel } = ctx;
   const live = pos.filter((p) => p.live);
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
   const [whole, cents] = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(t.value).split(".");
@@ -82,8 +82,6 @@ export function renderOverview2(body, ctx) {
   }).join("");
 
   /* 3 · setup: classes + concentration */
-  const types = ["etf", "stock", "crypto", "certificate"];
-  const byType = types.map((k) => ({ k, v: pos.filter((p) => p.type === k).reduce((n, p) => n + p.value, 0) })).filter((x) => x.v > 0);
   const top3 = mapItems.slice(0, 3).reduce((n, p) => n + p.value, 0);
   const conc = mapItems.map((p, i) => `<span class="ov2-conc__seg${i < 3 ? ` is-top is-top${i}` : ""}" style="flex:${p.value}" title="${esc(p.label)} · ${share(p.value).toFixed(1)}%"></span>`).join("");
   const topList = mapItems.slice(0, 3).map((p, i) => `<li><span class="ov2-sw is-top${i}"></span><span>${esc(p.label)}</span><b>${share(p.value).toFixed(1)}%</b></li>`).join("");
@@ -111,7 +109,6 @@ export function renderOverview2(body, ctx) {
 
   body.innerHTML = `
     <section class="ov2-hero">
-      <div class="ov2-hero__top"><span class="ov2-live" aria-hidden="true"></span><span>Now${stamp ? ` · prices ${esc(stamp)}` : ""}</span></div>
       <div class="ov2-hero__value"><small>€</small>${whole}<small>.${cents}</small></div>
       <div class="ov2-hero__chips">
         <span class="pill ${dir(t.day)}">${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)} today</span>
@@ -133,11 +130,9 @@ export function renderOverview2(body, ctx) {
     </article>` : ""}
 
     <article class="card panel ov2-card">
-      <div class="card__head"><h3 class="card__title">Your setup</h3><span class="card__hint">${mapItems.length} ${mapItems.length === 1 ? "position" : "positions"}</span></div>
-      <div class="alloc ov2-alloc" role="img" aria-label="${byType.map((x) => `${typeLabel(x.k)} ${share(x.v).toFixed(0)}%`).join(", ")}">
-        ${byType.map((x) => `<div class="alloc__seg alloc__seg--${x.k}" style="flex:${x.v}"></div>`).join("")}
-      </div>
-      <ul class="ov2-types">${byType.map((x) => `<li><span class="legend__sw" style="background:var(--${{ stock: "stocks", etf: "etfs", certificate: "certs", crypto: "crypto" }[x.k]})"></span>${typeLabel(x.k)} <b>${share(x.v).toFixed(0)}%</b></li>`).join("")}</ul>
+      <div class="card__head"><h3 class="card__title">Your setup</h3><span class="card__hint">by value</span></div>
+      <div class="alloc" role="img" aria-label="${alloc.byType.map((x) => `${x.label} ${alloc.share(x.value).toFixed(1)}%`).join(", ")}">${alloc.allocBar}</div>
+      <ul class="legend">${alloc.allocLegend}</ul>
       <div class="ov2-conc">
         <div class="ov2-conc__head"><span>Concentration</span><b>Top 3 = ${share(top3).toFixed(0)}%</b></div>
         <div class="ov2-conc__bar" role="img" aria-label="Top 3 positions are ${share(top3).toFixed(0)}% of your portfolio">${conc}</div>
@@ -155,7 +150,9 @@ export function renderOverview2(body, ctx) {
     <article class="card panel ov2-card">
       <div class="card__head"><h3 class="card__title">Latest</h3><span class="card__hint">moves · buys · ratings</span></div>
       <ol class="ov2-events">${evRows}</ol>
-    </article>` : ""}`;
+    </article>` : ""}
+
+    ${stamp ? `<p class="note ov2-asof"><span class="ov2-live" aria-hidden="true"></span>Prices · ${esc(stamp)}</p>` : ""}`;
 
   // treemap needs the real width
   const host = body.querySelector("#ov2-map");

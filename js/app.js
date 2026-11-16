@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=117";
-import { legalDoc } from "./legal.js?v=117";
-import { isCryptoCode } from "./crypto.js?v=117";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=119";
+import { legalDoc } from "./legal.js?v=119";
+import { isCryptoCode } from "./crypto.js?v=119";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=117") : import("./store.js?v=117"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=119") : import("./store.js?v=119"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -195,8 +195,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=117").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=117").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=119").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=119").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -644,18 +644,8 @@ function loadingState() {
   return `<p class="note">Loading your holdings…</p>`;
 }
 
-function renderOverview() {
-  const body = $("ov-body");
-  if (state.holdings === null) { body.innerHTML = loadingState(); return; }
-  if (!state.holdings.length) { body.innerHTML = emptyState(); return; }
-
-  const rows = state.holdings.map(valuate);
-  const t = totals(rows);
-  const sold = t.soldCost > 0; // anything sold → show the in/out and open/realised split
-  const pos = positions(rows).sort((a, b) => b.value - a.value);
-  const stale = rows.filter((r) => !r.live).length;
-  const [whole, cents] = fmt2.format(t.value).split(".");
-
+// Allocation bar + legend (tap a class to unfold its split); shared by Overview and Overview 2
+function allocationParts(rows, t) {
   // allocation by type
   // lowest to highest risk: broad funds, commodities, single companies, crypto
   const byType = [
@@ -671,6 +661,23 @@ function renderOverview() {
   const allocLegend = byType.map((x) => `
     <li class="legend__link" data-alloc="${x.key}" tabindex="0" role="button" aria-label="${x.label}: show the split"><span class="legend__sw" style="background:var(--${{ stock: "stocks", etf: "etfs", certificate: "certs", crypto: "crypto" }[x.key]})"></span>
       <span>${x.label}</span><span class="legend__val">${fmtEur(x.value)}</span><span class="legend__pct">${share(x.value).toFixed(1)}%</span></li>`).join("");
+
+  return { byType, share, allocBar, allocLegend };
+}
+
+function renderOverview() {
+  const body = $("ov-body");
+  if (state.holdings === null) { body.innerHTML = loadingState(); return; }
+  if (!state.holdings.length) { body.innerHTML = emptyState(); return; }
+
+  const rows = state.holdings.map(valuate);
+  const t = totals(rows);
+  const sold = t.soldCost > 0; // anything sold → show the in/out and open/realised split
+  const pos = positions(rows).sort((a, b) => b.value - a.value);
+  const stale = rows.filter((r) => !r.live).length;
+  const [whole, cents] = fmt2.format(t.value).split(".");
+
+  const { byType, share, allocBar, allocLegend } = allocationParts(rows, t);
 
   const top = pos.slice(0, 3);
   const topRows = top.map((p) => `
@@ -1142,13 +1149,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=117");
+  const { CRYPTO } = await import("./crypto.js?v=119");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=117");
+    const { searchInstruments } = await import("./onvista.js?v=119");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1328,7 +1335,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=117");
+    const { decode, parseTrades } = await import("./import-csv.js?v=119");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1622,7 +1629,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=117").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=119").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1637,7 +1644,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=117").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=119").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1651,7 +1658,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=117");
+  const { mountPriceChart } = await import("./chart.js?v=119");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1714,11 +1721,12 @@ function renderOverview2Now() {
     const g = (closed ? 0 : k.value - k.cost) + k.realized;
     return { ...k, closed, base, g, gp: base > 0.005 ? (g / base) * 100 : 0 };
   }).filter((k) => k.base > 0.005 && (k.live || k.closed));
-  import("./overview2.js?v=117").then(({ renderOverview2 }) => {
-    ov2 = renderOverview2(body, { rows, t, pos, returns, esc, fmtEur, fmtEurSigned, fmtPct, dir, typeLabel,
+  import("./overview2.js?v=119").then(({ renderOverview2 }) => {
+    const alloc = allocationParts(rows, t);
+    ov2 = renderOverview2(body, { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, typeLabel,
       stamp: state.pricesAt ? stampOf(state.pricesAt) : "", events: ov2Events(pos) });
     const chart = $("ov2-chart");
-    if (chart) { const positions = portfolioChartPositions(); import("./chart.js?v=117").then(({ mountPortfolioChart }) => mountPortfolioChart(chart, { positions })); }
+    if (chart) { const positions = portfolioChartPositions(); import("./chart.js?v=119").then(({ mountPortfolioChart }) => mountPortfolioChart(chart, { positions, vsInvested: false })); }
   });
 }
 window.addEventListener("resize", () => { if (state.view === "overview2") ov2?.relayout(); });
@@ -1781,7 +1789,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=117").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=119").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -1918,7 +1926,7 @@ function fillAllocation(host, type) {
   });
 }
 function toggleAllocation(type) {
-  toggleExpand(`alloc|${type}`, () => document.querySelector(`#view-overview li[data-alloc="${type}"]`), () => {
+  toggleExpand(`alloc|${type}`, () => document.querySelector(`#view-${state.view} li[data-alloc="${type}"]`), () => {
     const node = document.createElement("li");
     node.className = "inline inline--alloc";
     fillAllocation(node, type);
@@ -2313,7 +2321,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=117");
+  const { resetDemo } = await import("./demo-store.js?v=119");
   resetDemo();
   state.demo = true;
   state.names = {};
