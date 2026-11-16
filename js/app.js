@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=130";
-import { legalDoc } from "./legal.js?v=130";
-import { isCryptoCode } from "./crypto.js?v=130";
-import { renderOverview2 } from "./overview2.js?v=130";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=131";
+import { legalDoc } from "./legal.js?v=131";
+import { isCryptoCode } from "./crypto.js?v=131";
+import { renderOverview2 } from "./overview2.js?v=131";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -58,7 +58,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=130") : import("./store.js?v=130"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=131") : import("./store.js?v=131"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -196,8 +196,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=130").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=130").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=131").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=131").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -732,8 +732,9 @@ function lotGroups(rows) {
 
 function renderPortfolio() {
   const body = $("pf-body");
+  $("pf-edit").hidden = !state.holdings?.length;
   if (state.holdings === null) { $("pf-count").textContent = ""; body.innerHTML = loadingState(); return; }
-  if (!state.holdings.length) { $("pf-count").textContent = ""; body.innerHTML = emptyState(); return; }
+  if (!state.holdings.length) { $("pf-count").textContent = ""; setPfEdit(false); body.innerHTML = emptyState(); return; }
 
   const rows = state.holdings.map(valuate);
   // biggest gain first, biggest loss last; positions without a live price at the end
@@ -748,6 +749,7 @@ function renderPortfolio() {
           return `
         <li class="pos${open ? " is-open" : ""}">
           <div class="pos__swipe" data-pos-key="${esc(g.key)}"><div class="lot-bg lot-bg--del" aria-hidden="true">Delete position</div>
+          <button class="del-x" type="button" data-del-pos="${esc(g.key)}" aria-label="Delete ${esc(g.label)} (all buys and sales)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg></button>
           <button class="holding pos__head" type="button" data-pos="${esc(g.key)}" aria-expanded="${open}" aria-controls="pos-${i}">
             <div class="row__id">
               <div class="row__title">${esc(g.label)}<span class="holding__tag holding__tag--${g.type}">${{ etf: "ETF", certificate: "Certificate", crypto: "Crypto" }[g.type] || "Stock"}</span></div>
@@ -782,7 +784,7 @@ function renderPortfolio() {
 
             <ol class="lots" aria-label="Buys of ${esc(g.label)}">
               ${g.lots.map((r) => `
-              <li class="lot-row" data-lot-id="${esc(r.id)}"><div class="lot-bg lot-bg--del" aria-hidden="true">Delete</div><div class="lot-bg lot-bg--edit" aria-hidden="true">Edit</div><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` ${fmtDate(r.buyDate, true)}` : ""}">
+              <li class="lot-row" data-lot-id="${esc(r.id)}"><div class="lot-bg lot-bg--del" aria-hidden="true">Delete</div><div class="lot-bg lot-bg--edit" aria-hidden="true">Edit</div><button class="del-x" type="button" data-del-lot="${esc(r.id)}" aria-label="Delete this ${r.sell ? "sale" : "buy"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg></button><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` ${fmtDate(r.buyDate, true)}` : ""}">
                 <span class="lot__date">${r.sell ? "Sold · " : ""}${r.buyDate ? fmtDate(r.buyDate) : "No date"}</span>
                 <span class="lot__qty">${r.sell ? `${fmtQty.format(r.quantity)} × ${fmtEur(r.sellPrice)} (cost ${fmtEur(r.buyEur)})` : `${r.left < r.quantity ? `${fmtQty.format(r.left)} of ` : ""}${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)}`}</span>
                 <span class="lot__val">${r.sell
@@ -1100,13 +1102,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=130");
+  const { CRYPTO } = await import("./crypto.js?v=131");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=130");
+    const { searchInstruments } = await import("./onvista.js?v=131");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1286,7 +1288,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=130");
+    const { decode, parseTrades } = await import("./import-csv.js?v=131");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1386,6 +1388,8 @@ document.addEventListener("touchmove", (e) => {
   if (lotSwipe.lock !== "x") return;
   const { li, a } = lotSwipe;
   if (lotSwipe.pos && mx > 0) { lotSwipe.dx = 0; a.style.transform = ""; li.dataset.dir = ""; return; }
+  // ← deletes only in edit mode (Edit at the top of Portfolio); otherwise it just resists a little
+  if (mx < 0 && !state.pfEdit) { lotSwipe.dx = 0; li.dataset.dir = ""; li.classList.remove("armed"); a.style.transform = `translateX(${-Math.min(16, -mx / 6)}px)`; return; }
   lotSwipe.dx = mx;
   li.dataset.dir = mx < 0 ? "left" : "right";
   li.classList.toggle("armed", Math.abs(mx) >= lotThreshold(li));
@@ -1397,7 +1401,7 @@ function endLotSwipe() {
   lotSwipe = null;
   a.classList.remove("dragging");
   if (lock !== "x") return;
-  if (pos && dx === 0) return;
+  if (pos && dx === 0) { a.style.transform = ""; li.dataset.dir = ""; return; }
   li.dataset.swiped = String(Date.now()); // the click that ends a swipe doesn't open the edit sheet
   const th = lotThreshold(li);
   li.classList.remove("armed");
@@ -1441,6 +1445,24 @@ async function deletePosition(key, li) {
     if (li) li.querySelector(".pos__head").style.transform = "";
   }
 }
+// Edit mode: the − buttons and swipe-to-delete only work while it's on
+function setPfEdit(on) {
+  state.pfEdit = Boolean(on);
+  document.body.classList.toggle("pf-editing", state.pfEdit);
+  const b = $("pf-edit");
+  b.textContent = state.pfEdit ? "Done" : "Edit";
+  b.setAttribute("aria-pressed", String(state.pfEdit));
+}
+$("pf-edit").addEventListener("click", () => setPfEdit(!state.pfEdit));
+window.addEventListener("hashchange", () => { if (!location.hash.startsWith("#/portfolio") && !location.hash.startsWith("#/edit")) setPfEdit(false); });
+document.addEventListener("click", (e) => {
+  const p = e.target.closest?.("[data-del-pos]"), l = e.target.closest?.("[data-del-lot]");
+  if (!state.pfEdit || (!p && !l)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (p) deletePosition(p.dataset.delPos, null);
+  else deleteLot(l.dataset.delLot, null);
+}, true);
 async function deleteLot(id, li) {
   const h = state.holdings?.find((x) => x.id === id);
   if (!h || !state.user) return;
@@ -1580,7 +1602,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=130").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=131").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1595,7 +1617,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=130").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=131").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1609,7 +1631,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=130");
+  const { mountPriceChart } = await import("./chart.js?v=131");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1698,7 +1720,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=130").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=131").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2230,7 +2252,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=130");
+  const { resetDemo } = await import("./demo-store.js?v=131");
   resetDemo();
   state.demo = true;
   state.names = {};
