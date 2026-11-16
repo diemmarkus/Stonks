@@ -2056,7 +2056,7 @@ let pendingRoute = null;
 window.addEventListener("hashchange", route);
 
 /* Swipe left/right to switch between Overview and Portfolio (like the tabs in Snapchat). */
-const SWIPE_TABS = ["overview", "portfolio"];
+const SWIPE_TABS = ["home", "overview", "portfolio"];
 const TAB_HASH = { home: "#/markets", overview: "#/overview", portfolio: "#/portfolio", you: "#/you" };
 let swipe = null;
 document.addEventListener("touchstart", (e) => {

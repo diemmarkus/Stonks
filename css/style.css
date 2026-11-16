@@ -185,7 +185,7 @@ body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-in
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  display: grid; grid-template-columns: 1fr 96px 1fr; align-items: center;
+  display: grid; grid-template-columns: 1fr 1fr 96px 2fr; align-items: center;
   background: rgba(21, 17, 23, 0.85);
   -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
   border-top: 1px solid var(--line);
@@ -499,7 +499,8 @@ body.has-tabbar .markets-head { display: flex; }
 body.has-tabbar #view-home .hero { display: none; }
 
 /* five slots: Markets · Overview · + · Portfolio · You */
-.tabbar { grid-template-columns: 1fr 96px 1fr; }
+/* Markets · Overview | + | Portfolio: the + stays in the middle */
+.tabbar { grid-template-columns: 1fr 1fr 96px 2fr; }
 
 /* analyst ratings */
 .rating { display: flex; gap: 2px; height: 6px; margin-top: 8px; max-width: 200px; }
