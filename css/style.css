@@ -788,3 +788,12 @@ body.has-tabbar #view-home .hero { display: none; }
 .toast { display: flex; align-items: center; gap: 14px; }
 .toast__act { background: none; border: 0; color: inherit; font: 700 14px/1 var(--sans); text-decoration: underline; text-underline-offset: 3px; padding: 4px 6px; cursor: pointer; }
 .toast[hidden] { display: none; }
+
+/* a whole position: swipe its header left to delete it (with Undo) */
+.pos__swipe { position: relative; overflow: hidden; }
+.pos__swipe .pos__head { position: relative; z-index: 1; background: var(--bg-2); touch-action: pan-y; user-select: none; -webkit-user-select: none; transition: transform .2s ease; }
+.pos__swipe .pos__head.dragging { transition: none; }
+.pos.is-open .pos__swipe .pos__head { background: color-mix(in srgb, var(--ink) 5%, var(--bg-2)); }
+.pos__swipe[data-dir="left"] .lot-bg--del { opacity: .55; }
+.pos__swipe.armed[data-dir="left"] .lot-bg--del, .pos__swipe.leaving .lot-bg--del { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .pos__swipe .pos__head { transition: none; } }

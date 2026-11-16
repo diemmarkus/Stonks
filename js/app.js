@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=107";
-import { legalDoc } from "./legal.js?v=107";
-import { isCryptoCode } from "./crypto.js?v=107";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=108";
+import { legalDoc } from "./legal.js?v=108";
+import { isCryptoCode } from "./crypto.js?v=108";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=107") : import("./store.js?v=107"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=108") : import("./store.js?v=108"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -195,8 +195,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=107").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=107").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=108").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=108").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -789,6 +789,7 @@ function renderPortfolio() {
           const buys = g.lots.filter((r) => !r.sell).length, sells = g.lots.length - buys;
           return `
         <li class="pos${open ? " is-open" : ""}">
+          <div class="pos__swipe" data-pos-key="${esc(g.key)}"><div class="lot-bg lot-bg--del" aria-hidden="true">Delete position</div>
           <button class="holding pos__head" type="button" data-pos="${esc(g.key)}" aria-expanded="${open}" aria-controls="pos-${i}">
             <div class="row__id">
               <div class="row__title">${esc(g.label)}<span class="holding__tag holding__tag--${g.type}">${{ etf: "ETF", certificate: "Certificate", crypto: "Crypto" }[g.type] || "Stock"}</span></div>
@@ -798,7 +799,7 @@ function renderPortfolio() {
               ${g.live || g.closed ? `<div class="row__price ${dir(g.gain)}">${fmtEurSigned(g.gain)}</div>
               <span class="pill ${dir(g.gain)}">${fmtPct(g.gainPct)}</span>` : `<span class="holding__sub">—</span>`}
             </div>
-          </button>
+          </button></div>
           <div class="pos__body" id="pos-${i}"${open ? "" : " hidden"}>
             <div class="pos__namebox">
               <div class="pos__realrow">
@@ -949,6 +950,7 @@ function fillPosChart(key) {
 document.addEventListener("click", (e) => {
   const head = e.target.closest("[data-pos]");
   if (!head) return;
+  if (Date.now() - Number(head.closest(".pos__swipe")?.dataset.swiped || 0) < 400) return; // that was a swipe
   const key = head.dataset.pos;
   const li = head.closest(".pos");
   const wasOpen = openPos === key;
@@ -1140,13 +1142,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=107");
+  const { CRYPTO } = await import("./crypto.js?v=108");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=107");
+    const { searchInstruments } = await import("./onvista.js?v=108");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1326,7 +1328,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=107");
+    const { decode, parseTrades } = await import("./import-csv.js?v=108");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1406,10 +1408,11 @@ let lotSwipe = null;
 const lotThreshold = (li) => Math.min(110, li.offsetWidth * 0.33);
 document.addEventListener("touchstart", (e) => {
   lotSwipe = null;
-  const li = e.target.closest?.(".lot-row");
+  const li = e.target.closest?.(".lot-row, .pos__swipe");
   if (!li || e.touches.length !== 1) return;
   const t = e.touches[0];
-  lotSwipe = { li, a: li.querySelector(".lot"), x: t.clientX, y: t.clientY, dx: 0, lock: null };
+  const pos = li.classList.contains("pos__swipe"); // a whole position: ← delete only (→ still switches tabs)
+  lotSwipe = { li, pos, a: li.querySelector(pos ? ".pos__head" : ".lot"), x: t.clientX, y: t.clientY, dx: 0, lock: null };
 }, { passive: true });
 document.addEventListener("touchmove", (e) => {
   if (!lotSwipe) return;
@@ -1421,6 +1424,7 @@ document.addEventListener("touchmove", (e) => {
   }
   if (lotSwipe.lock !== "x") return;
   const { li, a } = lotSwipe;
+  if (lotSwipe.pos && mx > 0) { lotSwipe.dx = 0; a.style.transform = ""; li.dataset.dir = ""; return; }
   lotSwipe.dx = mx;
   li.dataset.dir = mx < 0 ? "left" : "right";
   li.classList.toggle("armed", Math.abs(mx) >= lotThreshold(li));
@@ -1428,10 +1432,11 @@ document.addEventListener("touchmove", (e) => {
 }, { passive: true });
 function endLotSwipe() {
   if (!lotSwipe) return;
-  const { li, a, dx, lock } = lotSwipe;
+  const { li, a, dx, lock, pos } = lotSwipe;
   lotSwipe = null;
   a.classList.remove("dragging");
   if (lock !== "x") return;
+  if (pos && dx === 0) return;
   li.dataset.swiped = String(Date.now()); // the click that ends a swipe doesn't open the edit sheet
   const th = lotThreshold(li);
   li.classList.remove("armed");
@@ -1439,7 +1444,7 @@ function endLotSwipe() {
   if (dx <= -th) {
     a.style.transform = `translateX(${-li.offsetWidth}px)`;
     li.classList.add("leaving");
-    setTimeout(() => deleteLot(li.dataset.lotId, li), 160);
+    setTimeout(() => (pos ? deletePosition(li.dataset.posKey, li) : deleteLot(li.dataset.lotId, li)), 160);
   } else if (dx >= th) {
     reset();
     location.hash = `#/edit/${encodeURIComponent(li.dataset.lotId)}`;
@@ -1451,6 +1456,30 @@ document.addEventListener("click", (e) => {
   const li = e.target.closest?.(".lot-row");
   if (li && Date.now() - Number(li.dataset.swiped || 0) < 400) e.preventDefault();
 });
+// every buy and sale of a position; Undo puts them all back
+async function deletePosition(key, li) {
+  const list = (state.holdings || []).filter((h) => (h.isin || h.symbol) === key);
+  if (!list.length || !state.user) return;
+  const label = state.names[key] || state.isin[key]?.name || list[0].name || key;
+  const copies = list.map(({ id, createdAt, updatedAt, ...data }) => data);
+  try {
+    const store = await loadStore();
+    for (const h of list) await store.deleteHolding(state.user.uid, h.id);
+    if (openPos === key) openPos = null;
+    toast(`${label} deleted`, {
+      label: "Undo",
+      run: async () => {
+        try { for (const d of copies) await store.saveHolding(state.user.uid, null, d); toast("Restored"); }
+        catch { toast("Couldn't restore it."); }
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    toast(firestoreMessage(err));
+    li?.classList.remove("leaving");
+    if (li) li.querySelector(".pos__head").style.transform = "";
+  }
+}
 async function deleteLot(id, li) {
   const h = state.holdings?.find((x) => x.id === id);
   if (!h || !state.user) return;
@@ -1590,7 +1619,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=107").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=108").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1605,7 +1634,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=107").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=108").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1619,7 +1648,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=107");
+  const { mountPriceChart } = await import("./chart.js?v=108");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1673,7 +1702,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=107").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=108").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2204,7 +2233,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=107");
+  const { resetDemo } = await import("./demo-store.js?v=108");
   resetDemo();
   state.demo = true;
   state.names = {};
