@@ -27,7 +27,7 @@
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
   <link rel="preload" href="fonts/manrope.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=141" />
+  <link rel="stylesheet" href="css/style.css?v=142" />
   <!-- signed in last time? hide the sign-in button until the app knows (no flash of the start page) -->
   <script>try { if (localStorage.getItem("stonks-session-v1")) document.documentElement.classList.add("has-session"); } catch (e) {}</script>
 </head>
@@ -102,7 +102,7 @@
    </div>
 
    <div class="view" id="view-portfolio" hidden>
-    <div class="page-head"><h2 class="page-title">Portfolio</h2><span class="page-meta" id="pf-count"></span><button class="page-edit" id="pf-edit" type="button" aria-pressed="false" aria-label="Edit (delete positions and entries)" title="Edit" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 8.5l2 2"/></svg></button></div>
+    <div class="page-head"><h2 class="page-title">Portfolio</h2><span class="page-meta" id="pf-count"></span><button class="page-edit" id="pf-edit" type="button" aria-pressed="false" aria-label="Edit (delete positions and entries)" title="Edit" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.5H6.5A2.5 2.5 0 0 0 4 7v10.5A2.5 2.5 0 0 0 6.5 20H17a2.5 2.5 0 0 0 2.5-2.5V13"/><path d="M17.6 3.9a1.9 1.9 0 0 1 2.7 2.7l-8.1 8.1-3.2.6.6-3.2z"/><path d="M16.1 5.4l2.7 2.7"/></svg></button></div>
     <div id="pf-body"></div>
    </div>
   </main>
@@ -184,6 +184,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=141"></script>
+  <script type="module" src="js/app.js?v=142"></script>
 </body>
 </html>
