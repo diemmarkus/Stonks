@@ -751,3 +751,8 @@ body.has-tabbar #view-home .hero { display: none; }
 @media (hover: hover) { .yr:hover { background: color-mix(in srgb, var(--ink) 3%, transparent); } }
 .inline--year .lot__val { display: grid; gap: 2px; }
 .inline--year .lot__val > span:last-child:not(:first-child) { font-size: 12px; }
+
+/* winner & loser */
+.winners .row { grid-template-columns: 1fr auto; }
+.row__kicker { font: 600 11px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+.row__kicker.up { color: var(--up); } .row__kicker.down { color: var(--down); }
