@@ -773,17 +773,18 @@ body.has-tabbar #view-home .hero { display: none; }
 .import__actions { display: flex; gap: 10px; justify-content: flex-end; }
 .import__warn { color: var(--down); }
 
-/* portfolio: swipe a buy or sale left to reveal Delete */
+/* portfolio: swipe a buy or sale — ← delete (with Undo), → edit (like MoneTrip) */
 .lot-row { position: relative; overflow: hidden; }
-.lot-row .lot { position: relative; z-index: 1; background: var(--bg-2); transition: transform .2s cubic-bezier(.2, .8, .2, 1); touch-action: pan-y; }
+.lot-row .lot { position: relative; z-index: 1; border-radius: 0; background: var(--bg-2); touch-action: pan-y; user-select: none; -webkit-user-select: none; transition: transform .2s ease; }
+.lot-row .lot.dragging { transition: none; }
 .pos.is-open .lot-row .lot { background: color-mix(in srgb, var(--ink) 5%, var(--bg-2)); }
-.lot__del {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; cursor: pointer;
-  background: var(--down); color: #fff; font: 600 14px/1 var(--sans);
-}
-.lot__del:disabled { opacity: .6; }
-/* the red button only exists while you swipe or once it's revealed: no red peeking through rounded corners */
-.lot-row .lot { border-radius: 0; }
-.lot-row .lot__del { visibility: hidden; }
-.lot-row.is-swiping .lot__del, .lot-row.is-open .lot__del { visibility: visible; }
-@media (prefers-reduced-motion: reduce) { .lot-row .lot { transition: none; } }
+.lot-bg { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 18px; font: 600 14px/1 var(--sans); opacity: 0; transition: opacity .15s; }
+.lot-bg--del { background: var(--down); color: #fff; justify-content: flex-end; }
+.lot-bg--edit { background: var(--accent-2); color: var(--bg); justify-content: flex-start; }
+.lot-row[data-dir="left"] .lot-bg--del, .lot-row[data-dir="right"] .lot-bg--edit { opacity: .55; }
+.lot-row.armed[data-dir="left"] .lot-bg--del, .lot-row.armed[data-dir="right"] .lot-bg--edit, .lot-row.leaving .lot-bg--del { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .lot-row .lot, .lot-bg { transition: none; } }
+/* toast with an action (Undo) */
+.toast { display: flex; align-items: center; gap: 14px; }
+.toast__act { background: none; border: 0; color: inherit; font: 700 14px/1 var(--sans); text-decoration: underline; text-underline-offset: 3px; padding: 4px 6px; cursor: pointer; }
+.toast[hidden] { display: none; }

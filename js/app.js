@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=106";
-import { legalDoc } from "./legal.js?v=106";
-import { isCryptoCode } from "./crypto.js?v=106";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=107";
+import { legalDoc } from "./legal.js?v=107";
+import { isCryptoCode } from "./crypto.js?v=107";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,17 +57,26 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=106") : import("./store.js?v=106"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=107") : import("./store.js?v=107"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
 let toastTimer;
-function toast(msg) {
+// toast(msg) or toast(msg, { label: "Undo", run }) — with an action it stays a little longer
+function toast(msg, action) {
   const t = $("toast");
-  t.textContent = msg;
+  t.replaceChildren(document.createTextNode(msg));
+  if (action) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "toast__act";
+    b.textContent = action.label;
+    b.addEventListener("click", () => { t.hidden = true; action.run(); });
+    t.append(b);
+  }
   t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.hidden = true), 3200);
+  toastTimer = setTimeout(() => (t.hidden = true), action ? 5000 : 3200);
 }
 
 /* ======================================================================
@@ -186,8 +195,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=106").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=106").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=107").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=107").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -814,7 +823,7 @@ function renderPortfolio() {
 
             <ol class="lots" aria-label="Buys of ${esc(g.label)}">
               ${g.lots.map((r) => `
-              <li class="lot-row"><button class="lot__del" type="button" data-lot-del="${esc(r.id)}" tabindex="-1">Delete</button><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` ${fmtDate(r.buyDate, true)}` : ""}">
+              <li class="lot-row" data-lot-id="${esc(r.id)}"><div class="lot-bg lot-bg--del" aria-hidden="true">Delete</div><div class="lot-bg lot-bg--edit" aria-hidden="true">Edit</div><a class="lot${r.sell ? " lot--sell" : ""}" href="#/edit/${encodeURIComponent(r.id)}" aria-label="Edit ${r.sell ? "sale" : "buy"} of ${esc(r.label)}${r.buyDate ? ` ${fmtDate(r.buyDate, true)}` : ""}">
                 <span class="lot__date">${r.sell ? "Sold · " : ""}${r.buyDate ? fmtDate(r.buyDate) : "No date"}</span>
                 <span class="lot__qty">${r.sell ? `${fmtQty.format(r.quantity)} × ${fmtEur(r.sellPrice)} (cost ${fmtEur(r.buyEur)})` : `${r.left < r.quantity ? `${fmtQty.format(r.left)} of ` : ""}${fmtQty.format(r.quantity)} × ${fmtEur(r.buyEur)}`}</span>
                 <span class="lot__val">${r.sell
@@ -1131,13 +1140,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=106");
+  const { CRYPTO } = await import("./crypto.js?v=107");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=106");
+    const { searchInstruments } = await import("./onvista.js?v=107");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1317,7 +1326,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=106");
+    const { decode, parseTrades } = await import("./import-csv.js?v=107");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1391,72 +1400,76 @@ async function runImport() {
   }
 }
 
-/* ---------- Portfolio: swipe a buy or sale to the left to reveal Delete ---------- */
-const LOT_DEL_W = 88;
+/* ---------- Portfolio: swipe a buy or sale (like MoneTrip) ----------
+   ← past the threshold deletes it right away (with Undo in the toast), → opens it for editing. */
 let lotSwipe = null;
-function closeLotRows(except) {
-  document.querySelectorAll(".lot-row.is-open").forEach((li) => {
-    if (li === except) return;
-    li.classList.remove("is-open");
-    li.querySelector(".lot").style.transform = "";
-  });
-}
+const lotThreshold = (li) => Math.min(110, li.offsetWidth * 0.33);
 document.addEventListener("touchstart", (e) => {
   lotSwipe = null;
   const li = e.target.closest?.(".lot-row");
-  if (!li || e.touches.length !== 1 || e.target.closest(".lot__del")) { if (!li) closeLotRows(); return; }
-  closeLotRows(li);
+  if (!li || e.touches.length !== 1) return;
   const t = e.touches[0];
-  lotSwipe = { li, a: li.querySelector(".lot"), x: t.clientX, y: t.clientY, base: li.classList.contains("is-open") ? -LOT_DEL_W : 0, dx: 0, locked: null };
+  lotSwipe = { li, a: li.querySelector(".lot"), x: t.clientX, y: t.clientY, dx: 0, lock: null };
 }, { passive: true });
 document.addEventListener("touchmove", (e) => {
   if (!lotSwipe) return;
-  const t = e.touches[0], dx = t.clientX - lotSwipe.x, dy = t.clientY - lotSwipe.y;
-  if (lotSwipe.locked == null && Math.hypot(dx, dy) > 8) lotSwipe.locked = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
-  if (lotSwipe.locked !== "x") return;
-  lotSwipe.dx = dx;
-  lotSwipe.li.classList.add("is-swiping");
-  const x = Math.min(0, Math.max(-LOT_DEL_W - 24, lotSwipe.base + dx));
-  lotSwipe.a.style.transition = "none";
-  lotSwipe.a.style.transform = `translateX(${x}px)`;
-}, { passive: true });
-document.addEventListener("touchend", () => {
-  if (!lotSwipe) return;
-  const { li, a, base, dx, locked } = lotSwipe;
-  lotSwipe = null;
-  if (locked !== "x") return;
-  li.classList.remove("is-swiping");
-  a.style.transition = "";
-  const open = base + dx < -LOT_DEL_W / 2;
-  li.classList.toggle("is-open", open);
-  a.style.transform = open ? `translateX(-${LOT_DEL_W}px)` : "";
-  li.dataset.swiped = String(Date.now()); // the click that ends a swipe doesn't open the edit sheet
-});
-document.addEventListener("click", async (e) => {
-  const lot = e.target.closest?.(".lot-row .lot");
-  if (lot) {
-    const li = lot.closest(".lot-row");
-    if (li.classList.contains("is-open") || Date.now() - Number(li.dataset.swiped || 0) < 400) {
-      e.preventDefault();
-      if (li.classList.contains("is-open") && Date.now() - Number(li.dataset.swiped || 0) >= 400) closeLotRows();
-    }
-    return;
+  const t = e.touches[0], mx = t.clientX - lotSwipe.x, my = t.clientY - lotSwipe.y;
+  if (!lotSwipe.lock) {
+    if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+    lotSwipe.lock = Math.abs(mx) > Math.abs(my) ? "x" : "y";
+    if (lotSwipe.lock === "x") lotSwipe.a.classList.add("dragging");
   }
-  const del = e.target.closest?.("[data-lot-del]");
-  if (!del || !state.user) return;
-  const id = del.dataset.lotDel;
+  if (lotSwipe.lock !== "x") return;
+  const { li, a } = lotSwipe;
+  lotSwipe.dx = mx;
+  li.dataset.dir = mx < 0 ? "left" : "right";
+  li.classList.toggle("armed", Math.abs(mx) >= lotThreshold(li));
+  a.style.transform = `translateX(${mx}px)`;
+}, { passive: true });
+function endLotSwipe() {
+  if (!lotSwipe) return;
+  const { li, a, dx, lock } = lotSwipe;
+  lotSwipe = null;
+  a.classList.remove("dragging");
+  if (lock !== "x") return;
+  li.dataset.swiped = String(Date.now()); // the click that ends a swipe doesn't open the edit sheet
+  const th = lotThreshold(li);
+  li.classList.remove("armed");
+  const reset = () => { a.style.transform = ""; li.dataset.dir = ""; };
+  if (dx <= -th) {
+    a.style.transform = `translateX(${-li.offsetWidth}px)`;
+    li.classList.add("leaving");
+    setTimeout(() => deleteLot(li.dataset.lotId, li), 160);
+  } else if (dx >= th) {
+    reset();
+    location.hash = `#/edit/${encodeURIComponent(li.dataset.lotId)}`;
+  } else reset();
+}
+document.addEventListener("touchend", endLotSwipe);
+document.addEventListener("touchcancel", endLotSwipe);
+document.addEventListener("click", (e) => {
+  const li = e.target.closest?.(".lot-row");
+  if (li && Date.now() - Number(li.dataset.swiped || 0) < 400) e.preventDefault();
+});
+async function deleteLot(id, li) {
   const h = state.holdings?.find((x) => x.id === id);
-  del.disabled = true;
+  if (!h || !state.user) return;
+  const label = state.names[h.isin] || state.isin[h.isin]?.name || h.name || h.isin;
+  const { id: _id, createdAt, updatedAt, ...data } = h;
   try {
-    const { deleteHolding } = await loadStore();
-    await deleteHolding(state.user.uid, id);
-    toast(`Removed ${h?.side === "sell" ? "sale" : "buy"}${h ? ` of ${state.names[h.isin] || state.isin[h.isin]?.name || h.name || h.isin}` : ""}`);
+    const store = await loadStore();
+    await store.deleteHolding(state.user.uid, id);
+    toast(`${h.side === "sell" ? "Sale" : "Buy"} of ${label} deleted`, {
+      label: "Undo",
+      run: () => store.saveHolding(state.user.uid, null, data).then(() => toast("Restored")).catch(() => toast("Couldn't restore it.")),
+    });
   } catch (err) {
     console.error(err);
     toast(firestoreMessage(err));
-    del.disabled = false;
+    li?.classList.remove("leaving");
+    if (li) li.querySelector(".lot").style.transform = "";
   }
-});
+}
 
 function firestoreMessage(e) {
   if (e?.code === "permission-denied") return "Firestore blocked this. Check the security rules (see README).";
@@ -1577,7 +1590,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=106").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=107").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1592,7 +1605,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=106").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=107").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1606,7 +1619,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=106");
+  const { mountPriceChart } = await import("./chart.js?v=107");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1660,7 +1673,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=106").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=107").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2191,7 +2204,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=106");
+  const { resetDemo } = await import("./demo-store.js?v=107");
   resetDemo();
   state.demo = true;
   state.names = {};
