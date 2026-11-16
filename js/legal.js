@@ -15,6 +15,7 @@ export const CHARTS_KEY = "stonks-chart-range"; // the chart range you picked la
 const STORAGE = [
   ["Firebase (IndexedDB)", "keeps you signed in and keeps a copy of your holdings on this device so the app opens quickly; removed when you sign out"],
   ["stonks-session-v1", "your holdings and position names from your last visit, shown right away while fresh data loads; removed when you sign out"],
+  ["stonks-winners-by", "remembers whether Winner & loser ranks by % or by €"],
   ["stonks-prices-v1", "the last known prices of your positions, shown right away while fresh prices load; removed when you sign out"],
   [CHARTS_KEY, "remembers the chart range you picked last (1D, 1W, …)"],
   ["stonks-movers-range", "remembers the period you picked for the top movers on the start page (1D, 1W, 1M, 1Y or 5Y)"],
