@@ -917,9 +917,11 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 .ov2-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* Portfolio edit mode: Edit at the top shows − buttons; only then can entries be deleted */
-.page-edit { margin-left: auto; align-self: center; flex: none; border: 1px solid var(--line); background: transparent; color: var(--ink-2); font: 500 14px/1 var(--sans); padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.page-edit { -webkit-tap-highlight-color: transparent; margin-left: auto; align-self: center; flex: none; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); background: transparent; color: var(--ink-2); border-radius: 50%; cursor: pointer; }
+.page-edit svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .page-edit[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .page-edit[hidden] { display: none; }
+.page-edit[aria-pressed="true"] svg { stroke-width: 2.4; }
 .page-head:has(.page-edit:not([hidden])) .page-meta { margin-left: auto; }
 .del-x { display: none; }
 body.pf-editing .del-x {

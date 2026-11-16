@@ -797,7 +797,7 @@ function renderPortfolio() {
         </li>`; };
   const t = totals(rows);
   if (openPos && !groups.some((g) => g.key === openPos)) openPos = null;
-  $("pf-count").textContent = `${groups.length} ${groups.length === 1 ? "position" : "positions"}`;
+  $("pf-count").textContent = ""; // no count: the list speaks for itself
 
   body.innerHTML = `
     <div class="card" style="padding:0">
@@ -1450,7 +1450,12 @@ function setPfEdit(on) {
   state.pfEdit = Boolean(on);
   document.body.classList.toggle("pf-editing", state.pfEdit);
   const b = $("pf-edit");
-  b.textContent = state.pfEdit ? "Done" : "Edit";
+  // pencil to start, check mark to finish
+  b.innerHTML = state.pfEdit
+    ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`
+    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 8.5l2 2"/></svg>`;
+  b.setAttribute("aria-label", state.pfEdit ? "Done editing" : "Edit (delete positions and entries)");
+  b.title = state.pfEdit ? "Done" : "Edit";
   b.setAttribute("aria-pressed", String(state.pfEdit));
 }
 $("pf-edit").addEventListener("click", () => setPfEdit(!state.pfEdit));
