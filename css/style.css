@@ -800,3 +800,17 @@ body.has-tabbar #view-home .hero { display: none; }
 .pos__swipe[data-dir="left"] .lot-bg--del { opacity: .55; }
 .pos__swipe.armed[data-dir="left"] .lot-bg--del, .pos__swipe.leaving .lot-bg--del { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .pos__swipe .pos__head { transition: none; } }
+
+/* swipe rows: no clipping, so the red runs to the screen edges (set on touch), and the position's
+   header keeps its side padding as it slides (full-bleed row, padded content, inset divider) */
+.lot-row, .pos__swipe { overflow: visible; }
+.lot-bg { z-index: 0; }
+.pos__swipe { margin: 0 calc(-1 * var(--pf-pad)); }
+.pos__swipe .pos__head {
+  padding-left: var(--pf-pad); padding-right: var(--pf-pad); border-top: 0;
+  background: linear-gradient(var(--line), var(--line)) var(--pf-pad) 0 / calc(100% - 2 * var(--pf-pad)) 1px no-repeat, var(--bg-2);
+}
+.holdings > li:first-child .pos__swipe .pos__head { background: var(--bg-2); }
+.pos.is-open .pos__swipe .pos__head { background: color-mix(in srgb, var(--ink) 5%, var(--bg-2)); }
+.pos.is-open .pos__swipe { margin: 0 calc(-1 * var(--pf-pad)); }
+.lot-row .lot { padding-right: 10px; }
