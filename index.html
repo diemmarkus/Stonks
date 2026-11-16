@@ -27,7 +27,7 @@
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
   <link rel="preload" href="fonts/manrope.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=144" />
+  <link rel="stylesheet" href="css/style.css?v=145" />
   <!-- signed in last time? hide the sign-in button until the app knows (no flash of the start page) -->
   <script>try { if (localStorage.getItem("stonks-session-v1")) document.documentElement.classList.add("has-session"); } catch (e) {}</script>
 </head>
@@ -174,12 +174,13 @@
         </button>
       </div>
       <div class="sheet__quote"><span class="sheet__price" id="sheet-price"></span><span class="pill" id="sheet-pill"></span></div>
+      <p class="sheet__held" id="sheet-held" hidden></p>
       <div class="sheet__chart" id="sheet-chart"></div>
     </div>
   </div>
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=144"></script>
+  <script type="module" src="js/app.js?v=145"></script>
 </body>
 </html>
