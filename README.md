@@ -45,3 +45,11 @@ GitHub Pages lets browsers cache files for ~10 minutes. Before committing change
 run `sh scripts/bump-version.sh`: it bumps the `?v=` on the page **and on every module import**, so
 browsers never mix a new page with old cached scripts. The app also reloads itself once when it notices
 a newer version.
+
+## Tests
+
+`node tests/smoke.mjs` loads the page offline in headless Chromium (needs Playwright) and checks that every
+element the scripts use still exists, that Imprint and Privacy show their full text (signed out and in the
+demo), that their links are on the start page and the You page, and that nothing throws. It runs on every
+push in GitHub Actions (*Actions → Test*); screenshots of a failed run are attached to the run.
+Run it before committing layout changes.

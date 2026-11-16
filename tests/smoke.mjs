@@ -1,0 +1,129 @@
+// Smoke test: loads the real page in headless Chromium with every outside request blocked
+// (Firebase, onvista, CoinGecko), so it needs no network and touches no real data.
+//
+//   node tests/smoke.mjs          (needs Playwright with Chromium: npm i -g playwright && npx playwright install chromium)
+//
+// It guards the things a layout change can silently break:
+//   • every element the scripts look up by id still exists in the page
+//   • Imprint and Privacy show their full text, signed out and inside the demo
+//   • the Imprint / Privacy links are on the start page and on the "You" page
+//   • start page and demo portfolio render without script errors
+// Screenshots of each step go to tests/out/ (ignored by git).
+
+import { createRequire } from "node:module";
+import { readFileSync, readdirSync, mkdirSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const require = createRequire(import.meta.url);
+const { chromium } = require("playwright");
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const OUT = path.join(ROOT, "tests", "out");
+mkdirSync(OUT, { recursive: true });
+
+let failed = 0;
+const ok = (name, cond, detail = "") => {
+  console.log(`${cond ? "ok  " : "FAIL"} ${name}${!cond && detail ? ` — ${detail}` : ""}`);
+  if (!cond) failed++;
+};
+
+/* ---------- 1. ids the scripts need must exist ---------- */
+// Every $("id") / getElementById("id") in js/ must be in index.html, or be created by a script
+// (an id="…" inside a template string). Catches a removed container like #view-legal.
+{
+  const html = readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const js = readdirSync(path.join(ROOT, "js")).filter((f) => f.endsWith(".js"))
+    .map((f) => readFileSync(path.join(ROOT, "js", f), "utf8")).join("\n");
+  const have = new Set([...(html + js).matchAll(/\bid=\\?["']([\w-]+)\\?["']/g)].map((m) => m[1]));
+  const used = new Set([...js.matchAll(/(?:\$|getElementById)\(\s*["']([\w-]+)["']\s*\)/g)].map((m) => m[1]));
+  const missing = [...used].filter((id) => !have.has(id));
+  ok(`all ${used.size} ids used by the scripts exist`, missing.length === 0, `missing: ${missing.join(", ")}`);
+}
+
+/* ---------- 2. the page itself ---------- */
+const LEGAL = {
+  imprint: {
+    title: "Imprint",
+    must: ["Markus Diem", "Leitgebgasse 7/25", "1050 Wien", "diemmarkus@gmail.com", "§ 5 ECG", "§ 25 MedienG", "No investment advice"],
+  },
+  privacy: {
+    title: "Privacy policy",
+    must: ["Markus Diem", "diemmarkus@gmail.com", "Art. 6", "Firebase", "GitHub Pages", "onvista", "CoinGecko", "Your rights", "Datenschutzbehörde"],
+  },
+};
+
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+const errors = [];
+page.on("pageerror", (e) => errors.push(e.message));
+
+// Serve the repo from a fake origin; block everything else so the test is offline and deterministic.
+await page.route("**/*", (route) => {
+  const url = new URL(route.request().url());
+  if (url.host !== "stonks.test") return route.abort();
+  const rel = decodeURIComponent(url.pathname).replace(/^\//, "") || "index.html";
+  const file = path.join(ROOT, rel);
+  if (!file.startsWith(ROOT) || !existsSync(file)) return route.fulfill({ status: 404, body: "" });
+  route.fulfill({ path: file });
+});
+
+const BASE = "http://stonks.test/index.html";
+const shot = (name) => page.screenshot({ path: path.join(OUT, `${name}.png`), fullPage: true });
+const go = async (hash) => { await page.evaluate((h) => { location.hash = h; }, hash); await page.waitForTimeout(400); };
+
+async function checkLegal(kind, where) {
+  await go(`#/${kind}`);
+  const { title, must } = LEGAL[kind];
+  const view = page.locator("#view-legal");
+  ok(`${kind} (${where}): legal view is visible`, await view.isVisible());
+  const text = (await view.innerText().catch(() => "")) || "";
+  ok(`${kind} (${where}): title "${title}"`, text.includes(title));
+  const absent = must.filter((s) => !text.includes(s));
+  ok(`${kind} (${where}): all required details present`, absent.length === 0, `missing: ${absent.join(", ")}`);
+  const box = await view.boundingBox();
+  ok(`${kind} (${where}): text takes up real space on screen`, (box?.height || 0) > 400, `height ${box?.height}`);
+  const others = await page.locator(".view:not(#view-legal)").evaluateAll((els) => els.filter((e) => !e.hidden).map((e) => e.id));
+  ok(`${kind} (${where}): no other view showing`, others.length === 0, others.join(", "));
+  await shot(`${kind}-${where}`);
+}
+
+// Start page, signed out (Firebase can't load, so the app settles as signed out).
+await page.goto(`${BASE}#/`);
+await page.waitForTimeout(1500);
+ok("start page is visible", await page.locator("#view-home").isVisible());
+ok("start page links to the Imprint", await page.locator('a[href="#/imprint"]:visible').count() > 0);
+ok("start page links to the Privacy policy", await page.locator('a[href="#/privacy"]:visible').count() > 0);
+await shot("home");
+
+// Opened directly by link (fresh load), and by navigating inside the app.
+for (const kind of ["imprint", "privacy"]) {
+  await page.goto(`${BASE}#/${kind}`);
+  await page.waitForTimeout(1200);
+  await checkLegal(kind, "signed-out");
+}
+
+// Inside the demo portfolio (signed-in layout with the tab bar).
+await go("#/");
+const demo = page.locator("#cta-demo");
+if (await demo.isVisible()) {
+  await demo.click();
+  await page.waitForTimeout(1500);
+  ok("demo: overview renders", await page.locator("#view-overview").isVisible());
+  await shot("demo-overview");
+  await go("#/portfolio");
+  ok("demo: portfolio renders", await page.locator("#view-portfolio").isVisible());
+  await shot("demo-portfolio");
+  await go("#/you");
+  ok("demo: You page links to the Imprint", await page.locator('#view-you a[href="#/imprint"]').isVisible());
+  ok("demo: You page links to the Privacy policy", await page.locator('#view-you a[href="#/privacy"]').isVisible());
+  for (const kind of ["imprint", "privacy"]) await checkLegal(kind, "demo");
+} else {
+  ok("demo button is on the start page", false);
+}
+
+ok("no script errors", errors.length === 0, errors.join(" | "));
+await browser.close();
+
+console.log(failed ? `\n${failed} check(s) failed` : "\nall checks passed");
+process.exit(failed ? 1 : 0);
