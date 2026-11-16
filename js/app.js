@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=95";
-import { legalDoc } from "./legal.js?v=95";
-import { isCryptoCode } from "./crypto.js?v=95";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=96";
+import { legalDoc } from "./legal.js?v=96";
+import { isCryptoCode } from "./crypto.js?v=96";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=95") : import("./store.js?v=95"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=96") : import("./store.js?v=96"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=95").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=95").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=96").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=96").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1132,13 +1132,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=95");
+  const { CRYPTO } = await import("./crypto.js?v=96");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=95");
+    const { searchInstruments } = await import("./onvista.js?v=96");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1419,7 +1419,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=95").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=96").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1434,7 +1434,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=95").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=96").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1448,36 +1448,39 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=95");
+  const { mountPriceChart } = await import("./chart.js?v=96");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
 /* ======================================================================
-   Biggest winner and loser: total gain in € (open and realised) of the positions you hold
+   Biggest winner and loser of the day (by %) among the positions you hold
    ====================================================================== */
 function winnersCard(rows) {
-  const groups = lotGroups(rows).filter((g) => !g.closed && g.live);
-  if (groups.length < 2) return "";
-  const sorted = [...groups].sort((a, b) => b.gain - a.gain);
+  // today's move in € of each position you hold
+  const list = positions(rows).filter((p) => p.live && p.value > 0.005 && p.prevValue > 0);
+  if (list.length < 2) return "";
+  // ranked by % (like the movers), so a small position can win too; € shown alongside
+  const pct = (p) => p.dayChange / p.prevValue;
+  const sorted = [...list].sort((a, b) => pct(b) - pct(a));
   const best = sorted[0], worst = sorted.at(-1);
-  const row = (g, label) => `
-    <li class="row row--link" data-chart="${esc(g.isin || g.key)}"${g.isin ? ` data-isin="${esc(g.isin)}"` : ""} tabindex="0" role="button" aria-label="${label}: ${esc(g.label)}, show chart">
+  const row = (p, label) => `
+    <li class="row row--link" data-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${label}: ${esc(p.label)}, show chart">
       <div class="row__id">
-        <div class="row__kicker ${dir(g.gain)}">${label}</div>
-        <div class="row__title">${esc(g.label)}</div>
-        <div class="row__name">${fmtEur(g.value)}</div>
+        <div class="row__kicker ${dir(p.dayChange)}">${label}</div>
+        <div class="row__title">${esc(p.label)}</div>
+        <div class="row__name">${fmtEur(p.value)}</div>
       </div>
       <div class="row__nums">
-        <div class="row__price ${dir(g.gain)}">${fmtEurSigned(g.gain)}</div>
-        <span class="pill ${dir(g.gain)}">${fmtPct(g.gainPct)}</span>
+        <div class="row__price ${dir(p.dayChange)}">${fmtEurSigned(p.dayChange)}</div>
+        <span class="pill ${dir(p.dayChange)}">${fmtPct((p.dayChange / p.prevValue) * 100)}</span>
       </div>
     </li>`;
   return `
       <article class="card panel">
-        <div class="card__head"><h3 class="card__title">Winner &amp; loser</h3><span class="card__hint">total gain</span></div>
+        <div class="card__head"><h3 class="card__title">Winner &amp; loser</h3><span class="card__hint">today</span></div>
         <ol class="rows winners">
-          ${row(best, best.gain >= 0 ? "Biggest winner" : "Smallest loss")}
-          ${row(worst, worst.gain < 0 ? "Biggest loser" : "Smallest gain")}
+          ${row(best, best.dayChange >= 0 ? "Biggest winner" : "Smallest loss")}
+          ${row(worst, worst.dayChange < 0 ? "Biggest loser" : "Smallest gain")}
         </ol>
       </article>`;
 }
@@ -1501,7 +1504,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=95").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=96").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2032,7 +2035,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=95");
+  const { resetDemo } = await import("./demo-store.js?v=96");
   resetDemo();
   state.demo = true;
   state.names = {};
