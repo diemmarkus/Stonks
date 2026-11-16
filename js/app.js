@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=111";
-import { legalDoc } from "./legal.js?v=111";
-import { isCryptoCode } from "./crypto.js?v=111";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=112";
+import { legalDoc } from "./legal.js?v=112";
+import { isCryptoCode } from "./crypto.js?v=112";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=111") : import("./store.js?v=111"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=112") : import("./store.js?v=112"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -195,8 +195,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=111").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=111").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=112").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=112").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1142,13 +1142,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=111");
+  const { CRYPTO } = await import("./crypto.js?v=112");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=111");
+    const { searchInstruments } = await import("./onvista.js?v=112");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1328,7 +1328,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=111");
+    const { decode, parseTrades } = await import("./import-csv.js?v=112");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1622,7 +1622,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=111").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=112").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1637,7 +1637,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=111").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=112").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1651,9 +1651,73 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=111");
+  const { mountPriceChart } = await import("./chart.js?v=112");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
+
+/* ======================================================================
+   Overview 2 (#/overview2): setup, today's changes and latest events, as pictures
+   ====================================================================== */
+let ov2 = null;
+const typeLabel = (k) => ({ stock: "Stocks", etf: "ETFs", certificate: "Certificates", crypto: "Crypto" }[k] || k);
+function ago(iso) {
+  const days = Math.round((new Date(isoToday() + "T12:00:00") - new Date(iso + "T12:00:00")) / 864e5);
+  return days <= 0 ? "Today" : days === 1 ? "Yesterday" : days < 7 ? `${days} days ago` : days < 60 ? `${Math.round(days / 7)} wk ago` : fmtDate(iso);
+}
+function ov2Events(pos) {
+  const ev = [];
+  // today's big moves in what you hold
+  for (const p of pos.filter((x) => x.live && Math.abs(x.dayPct) >= 2).sort((a, b) => Math.abs(b.dayPct) - Math.abs(a.dayPct))) {
+    const up = p.dayPct > 0;
+    ev.push({ kind: up ? "up" : "down", icon: up ? "▲" : "▼", when: "Today", sort: 3e12,
+      html: `<b>${esc(p.label)}</b> ${up ? "jumped" : "fell"} <span class="${dir(p.dayPct)}">${fmtPct(p.dayPct)}</span> · <span class="${dir(p.dayChange)}">${fmtEurSigned(p.dayChange)}</span> for you` });
+  }
+  // your buys and sales in the last 60 days
+  const since = new Date(); since.setDate(since.getDate() - 60);
+  const sinceIso = since.toLocaleDateString("en-CA");
+  for (const h of (state.holdings || []).filter((x) => x.buyDate && x.buyDate >= sinceIso)) {
+    const sell = h.side === "sell";
+    const name = state.names[h.isin] || state.isin[h.isin]?.name || h.name || h.isin || h.symbol;
+    ev.push({ kind: sell ? "sell" : "buy", icon: sell ? "−" : "+", when: ago(h.buyDate), sort: new Date(h.buyDate + "T12:00:00").getTime(),
+      html: `${sell ? "Sold" : "Bought"} ${fmtQty.format(h.quantity)} × <b>${esc(name)}</b> at ${fmtEur(h.buyPrice)}` });
+  }
+  // analysts: strong opinions on what you hold
+  for (const p of pos) {
+    const r = ratingFor(p.isin || p.key);
+    if (!r) continue;
+    const total = r.strongBuy + r.buy + r.hold + r.sell + r.strongSell;
+    const score = r.score ?? (2 * r.strongBuy + r.buy - r.sell - 2 * r.strongSell) / total;
+    if (score < 1.2 && score > -0.5) continue;
+    ev.push({ kind: score > 0 ? "up" : "down", icon: "★", when: r.period ? new Date(`${r.period.slice(0, 7)}-15T12:00:00`).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "", sort: 1,
+      html: `Analysts rate <b>${esc(p.label)}</b> <span class="${score > 0 ? "up" : "down"}">${ratingLabel(score)}</span> (${total})` });
+  }
+  const stale = pos.filter((p) => !p.live && p.value > 0.005).length;
+  if (stale) ev.push({ kind: "warn", icon: "!", when: "Now", sort: 2e12, html: `${stale} ${stale === 1 ? "position has" : "positions have"} no live price yet` });
+  return ev.sort((a, b) => b.sort - a.sort);
+}
+function renderOverview2Now() {
+  const body = $("ov2-body");
+  if (state.holdings === null) { body.innerHTML = loadingState(); return; }
+  if (!state.holdings.length) { body.innerHTML = emptyState(); return; }
+  const rows = state.holdings.map(valuate);
+  const t = totals(rows);
+  const pos = positions(rows);
+  import("./overview2.js?v=112").then(({ renderOverview2 }) => {
+    ov2 = renderOverview2(body, { rows, t, pos, esc, fmtEur, fmtEurSigned, fmtPct, dir, typeLabel,
+      stamp: state.pricesAt ? stampOf(state.pricesAt) : "", events: ov2Events(pos) });
+    const chart = $("ov2-chart");
+    if (chart) { const positions = portfolioChartPositions(); import("./chart.js?v=112").then(({ mountPortfolioChart }) => mountPortfolioChart(chart, { positions })); }
+  });
+}
+window.addEventListener("resize", () => { if (state.view === "overview2") ov2?.relayout(); });
+document.addEventListener("click", (e) => {
+  const el = e.target.closest?.("[data-ov2-chart]");
+  if (el) openChart(el.dataset.ov2Chart, el.dataset.isin);
+});
+document.addEventListener("keydown", (e) => {
+  const el = e.target.closest?.("[data-ov2-chart]");
+  if (el && el.tagName !== "BUTTON" && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openChart(el.dataset.ov2Chart, el.dataset.isin); }
+});
 
 /* ======================================================================
    Biggest winner and loser of the day, in € (what moved your money most)
@@ -1705,7 +1769,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=111").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=112").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -1993,7 +2057,7 @@ window.addEventListener("hashchange", closeChart);
 /* ======================================================================
    Router
    ====================================================================== */
-const PROTECTED = ["overview", "portfolio", "you"];
+const PROTECTED = ["overview", "overview2", "portfolio", "you"];
 const LEGAL = ["imprint", "privacy"];
 
 function renderLegal(kind) {
@@ -2011,6 +2075,7 @@ function renderCurrentNow() {
   if (state.holdings) computeSells(state.holdings);
   withLookupFocus(() => {
     if (state.view === "overview") renderOverview();
+    else if (state.view === "overview2") renderOverview2Now();
     else if (state.view === "portfolio") renderPortfolio();
   });
 }
@@ -2236,7 +2301,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=111");
+  const { resetDemo } = await import("./demo-store.js?v=112");
   resetDemo();
   state.demo = true;
   state.names = {};
