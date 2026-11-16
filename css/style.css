@@ -788,7 +788,19 @@ body.has-tabbar #view-home .hero { display: none; }
 .lot-row.armed[data-dir="left"] .lot-bg--del, .lot-row.armed[data-dir="right"] .lot-bg--edit, .lot-row.leaving .lot-bg--del { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .lot-row .lot, .lot-bg { transition: none; } }
 /* toast with an action (Undo) */
-.toast { display: flex; align-items: center; gap: 14px; }
+/* the message bar: floats above the tab bar, centred, readable on any screen */
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 60;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 14px; max-width: min(92vw, 460px); width: max-content;
+  padding: 12px 14px 12px 18px; border-radius: 14px;
+  background: var(--ink); color: var(--bg); font: 500 14px/1.35 var(--sans);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  animation: toast-in .2s ease-out;
+}
+body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-inset-bottom)); }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 .toast__act { background: none; border: 0; color: inherit; font: 700 14px/1 var(--sans); text-decoration: underline; text-underline-offset: 3px; padding: 4px 6px; cursor: pointer; }
 .toast[hidden] { display: none; }
 
