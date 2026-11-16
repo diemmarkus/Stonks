@@ -931,3 +931,4 @@ body.pf-editing .pos__swipe .del-x { left: calc(var(--pf-pad) - 4px); }
 body.pf-editing .pos__swipe .pos__head { padding-left: calc(var(--pf-pad) + 34px); }
 body.pf-editing .lot-row .del-x { left: 8px; width: 22px; height: 22px; }
 body.pf-editing .lot-row .lot { padding-left: 40px; }
+html.has-session #signin { visibility: hidden; }

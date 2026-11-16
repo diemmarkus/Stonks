@@ -27,7 +27,9 @@
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
   <link rel="preload" href="fonts/manrope.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=133" />
+  <link rel="stylesheet" href="css/style.css?v=135" />
+  <!-- signed in last time? hide the sign-in button until the app knows (no flash of the start page) -->
+  <script>try { if (localStorage.getItem("stonks-session-v1")) document.documentElement.classList.add("has-session"); } catch (e) {}</script>
 </head>
 <body>
   <div id="loadbar" class="loadbar" role="progressbar" aria-label="Loading prices" aria-hidden="true"></div>
@@ -55,7 +57,7 @@
   </header>
 
   <main>
-   <div class="view" id="view-home">
+   <div class="view" id="view-home" hidden>
     <div class="page-head markets-head"><h2 class="page-title">Markets</h2><span class="page-meta" id="mk-asof"></span></div>
     <section class="hero">
       <p class="eyebrow" id="asof">Today's movers</p>
@@ -182,6 +184,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=133"></script>
+  <script type="module" src="js/app.js?v=135"></script>
 </body>
 </html>
