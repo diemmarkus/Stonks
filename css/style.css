@@ -772,3 +772,14 @@ body.has-tabbar #view-home .hero { display: none; }
 .import__list .is-dupe { opacity: .45; }
 .import__actions { display: flex; gap: 10px; justify-content: flex-end; }
 .import__warn { color: var(--down); }
+
+/* portfolio: swipe a buy or sale left to reveal Delete */
+.lot-row { position: relative; overflow: hidden; }
+.lot-row .lot { position: relative; z-index: 1; background: var(--bg-2); transition: transform .2s cubic-bezier(.2, .8, .2, 1); touch-action: pan-y; }
+.pos.is-open .lot-row .lot { background: color-mix(in srgb, var(--ink) 5%, var(--bg-2)); }
+.lot__del {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; cursor: pointer;
+  background: var(--down); color: #fff; font: 600 14px/1 var(--sans);
+}
+.lot__del:disabled { opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .lot-row .lot { transition: none; } }
