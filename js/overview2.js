@@ -4,6 +4,7 @@
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // "N more in between" unfolded per list (movers, returns); kept across re-renders
 const open = { movers: false, returns: false };
+let mapZoom = false; // map shows only the "Others" (kept across re-renders)
 document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-ov2-more]");
   if (!b) return;
@@ -117,7 +118,7 @@ export function renderOverview2(body, ctx) {
   body.innerHTML = `
 
     <article class="card panel ov2-card">
-      <div class="card__head"><h3 class="card__title">Today's map</h3></div>
+      <div class="card__head"><h3 class="card__title" id="ov2-map-title">Today's map</h3><button type="button" class="ov2-back" data-ov2-map-back hidden>← All positions</button></div>
       <div class="ov2-map" id="ov2-map" role="img" aria-label="Your positions by value, coloured by today's change"></div>
     </article>
 
@@ -158,30 +159,43 @@ export function renderOverview2(body, ctx) {
   const layout = () => {
     const W = host.clientWidth, H = host.clientHeight;
     if (!W) return;
-    // tiny positions (< 2 % of the map) fold into one "Others" tile, so no tile is too small to read or tap
+    // tiny positions (< 2 % of the map) fold into one "Others" tile; tap it to zoom into just those
     const total = mapItems.reduce((n, p) => n + p.value, 0);
     const small = mapItems.filter((p) => p.value / total < 0.02);
-    const items = small.length > 1 ? mapItems.filter((p) => !small.includes(p)) : mapItems;
-    if (small.length > 1) {
-      const v = small.reduce((n, p) => n + p.value, 0), prev = small.reduce((n, p) => n + (p.live ? p.prevValue : p.value), 0);
-      const day = small.reduce((n, p) => n + (p.live ? p.dayChange : 0), 0);
-      items.push({ key: "", label: `Others (${small.length})`, value: v, dayPct: prev ? (day / prev) * 100 : 0, live: small.some((p) => p.live), others: true });
+    if (small.length < 2) mapZoom = false;
+    let items;
+    if (mapZoom) items = [...small];
+    else {
+      items = small.length > 1 ? mapItems.filter((p) => !small.includes(p)) : [...mapItems];
+      if (small.length > 1) {
+        const v = small.reduce((n, p) => n + p.value, 0), prev = small.reduce((n, p) => n + (p.live ? p.prevValue : p.value), 0);
+        const day = small.reduce((n, p) => n + (p.live ? p.dayChange : 0), 0);
+        items.push({ key: "", label: `Others (${small.length})`, value: v, dayPct: prev ? (day / prev) * 100 : 0, live: small.some((p) => p.live), others: true });
+      }
     }
-    const rects = squarify(items.map((p) => ({ p, size: p.value })), 0, 0, W, H);
+    const title = body.querySelector("#ov2-map-title"), back = body.querySelector("[data-ov2-map-back]");
+    title.textContent = mapZoom ? `Others (${small.length})` : "Today's map";
+    back.hidden = !mapZoom;
+    // the Others tile gets at least 7 % of the area, so it stays big enough to tap
+    const rects = squarify(items.map((p) => ({ p, size: p.others ? Math.max(p.value, total * 0.07) : p.value })).sort((x, y) => y.size - x.size), 0, 0, W, H);
     host.innerHTML = rects.map(({ p, x, y, w, h }) => {
       // what fits: name + % (+ value when roomy); a narrow tile shows just a small %; tiny ones only colour
       const big = w > 90 && h > 64, mid = w > 70 && h > 40, slim = !mid && w > 44 && h > 22;
       const tw = Math.max(1, w - 3), th = Math.max(1, h - 3);
-      const tag = p.others ? "div" : "button";
-      return `<${tag}${p.others ? "" : ` type="button"`} class="ov2-tile${mid ? "" : slim ? " ov2-tile--slim" : " ov2-tile--tiny"}"${p.others ? "" : ` data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""}`}
+      return `<button type="button" class="ov2-tile${mid ? "" : slim ? " ov2-tile--slim" : " ov2-tile--tiny"}"${p.others ? " data-ov2-others" : ` data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""}`}
         style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${tw.toFixed(1)}px;height:${th.toFixed(1)}px;background:${moveColor(p.dayPct, p.live)}"
-        aria-label="${esc(p.label)}, ${share(p.value).toFixed(1)}% of portfolio, ${p.live ? `${fmtPct(p.dayPct)} today` : "no live price"}">
+        aria-label="${esc(p.label)}, ${share(p.value).toFixed(1)}% of portfolio, ${p.live ? `${fmtPct(p.dayPct)} today` : "no live price"}${p.others ? ", show them" : ""}">
         ${mid ? `<span class="ov2-tile__name">${esc(p.label)}</span>` : ""}
         ${mid || slim ? `<span class="ov2-tile__pct">${p.live ? fmtPct(p.dayPct) : "—"}</span>` : ""}
         ${big ? `<span class="ov2-tile__val">${fmtEur(p.value)}</span>` : ""}
-      </${tag}>`;
+      </button>`;
     }).join("");
   };
+  const card = host.closest(".card");
+  card.addEventListener("click", (e) => {
+    if (e.target.closest("[data-ov2-others]")) { mapZoom = true; layout(); card.querySelector("[data-ov2-map-back]").focus(); }
+    else if (e.target.closest("[data-ov2-map-back]")) { mapZoom = false; layout(); }
+  });
   layout();
   return { relayout: layout };
 }
