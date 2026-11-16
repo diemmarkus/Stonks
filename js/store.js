@@ -1,6 +1,6 @@
 // Firestore access for holdings.
 //   users/{uid}/holdings/{id}  → { isin, name, type, quantity, buyPrice (EUR), buyDate, currency, createdAt, updatedAt }
-import { getDb } from "./firebase.js?v=119";
+import { getDb } from "./firebase.js?v=120";
 
 export async function watchHoldings(uid, callback, onError) {
   const { db, collection, onSnapshot } = await getDb();

@@ -2,16 +2,27 @@
 // recent events. Pure rendering: app.js hands in the valued rows and helpers.
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-let moversOpen = false; // "N more in between" unfolded (kept across re-renders)
+// "N more in between" unfolded per list (movers, returns); kept across re-renders
+const open = { movers: false, returns: false };
 document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-ov2-more]");
   if (!b) return;
-  moversOpen = !moversOpen;
+  const k = b.dataset.ov2More;
+  open[k] = !open[k];
   const list = b.closest(".ov2-bars");
-  list.querySelectorAll(".ov2-bar--mid").forEach((li) => { li.hidden = !moversOpen; });
-  b.setAttribute("aria-expanded", String(moversOpen));
-  b.textContent = moversOpen ? "Show less" : `${list.querySelectorAll(".ov2-bar--mid").length} more in between`;
+  list.querySelectorAll(".ov2-bar--mid").forEach((li) => { li.hidden = !open[k]; });
+  b.setAttribute("aria-expanded", String(open[k]));
+  b.textContent = open[k] ? "Show less" : `${list.querySelectorAll(".ov2-bar--mid").length} more in between`;
 });
+// top 3 and bottom 3, the rest folded behind a button in between
+function foldable(list, key, rowHtml) {
+  const hidden = Math.max(0, list.length - 6);
+  return list.map((p, i) => {
+    const mid = hidden && i >= 3 && i < list.length - 3;
+    const gap = hidden && i === 3 ? `<li class="ov2-gap"><button type="button" data-ov2-more="${key}" aria-expanded="${open[key]}">${open[key] ? "Show less" : `${hidden} more in between`}</button></li>` : "";
+    return gap + rowHtml(p, mid ? `class="ov2-bar ov2-bar--mid"${open[key] ? "" : " hidden"}` : `class="ov2-bar"`);
+  }).join("");
+}
 
 /* ---------- squarified treemap (Bruls et al.) ---------- */
 function squarify(items, x, y, w, h) {
@@ -64,22 +75,18 @@ export function renderOverview2(body, ctx) {
 
   /* 2 · what moved your money today (€) */
   const contrib = [...live].filter((p) => Math.abs(p.dayChange) >= 0.005).sort((a, b) => b.dayChange - a.dayChange);
-  // top 3 and bottom 3 only; the net line below still counts every position
-  const hidden = Math.max(0, contrib.length - 6);
-  const shown = hidden ? [...contrib.slice(0, 3), null, ...contrib.slice(3)] : contrib;
+  // top 3 and bottom 3; the net line below still counts every position
   const maxAbs = Math.max(1e-9, ...contrib.map((p) => Math.abs(p.dayChange)));
-  const contribRows = shown.map((p) => {
-    if (!p) return `<li class="ov2-gap"><button type="button" data-ov2-more aria-expanded="${moversOpen}">${moversOpen ? "Show less" : `${hidden} more in between`}</button></li>`;
-    const mid = hidden && contrib.indexOf(p) >= 3 && contrib.indexOf(p) < contrib.length - 3;
+  const contribRows = foldable(contrib, "movers", (p, attrs) => {
     const w = (Math.abs(p.dayChange) / maxAbs) * 50;
     const up = p.dayChange >= 0;
     return `
-      <li class="ov2-bar${mid ? " ov2-bar--mid" : ""}"${mid && !moversOpen ? " hidden" : ""} data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${esc(p.label)} ${fmtEurSigned(p.dayChange)} today">
+      <li ${attrs} data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${esc(p.label)} ${fmtEurSigned(p.dayChange)} today">
         <span class="ov2-bar__name">${esc(p.label)}</span>
         <span class="ov2-bar__track"><span class="ov2-bar__fill ${up ? "up" : "down"}" style="${up ? "left:50%" : `left:${(50 - w).toFixed(2)}%`};width:${w.toFixed(2)}%"></span></span>
         <span class="ov2-bar__val ${dir(p.dayChange)}">${fmtEurSigned(p.dayChange)}</span>
       </li>`;
-  }).join("");
+  });
 
   /* 3 · setup: classes + concentration */
   const top3 = mapItems.slice(0, 3).reduce((n, p) => n + p.value, 0);
@@ -89,15 +96,15 @@ export function renderOverview2(body, ctx) {
   /* 4 · since you bought: total return per position = open gain + realised, against all money put in */
   const ret = [...returns].sort((a, b) => b.gp - a.gp);
   const maxRet = Math.max(1e-9, ...ret.map((p) => Math.abs(p.gp)));
-  const retRows = ret.map((p) => {
+  const retRows = foldable(ret, "returns", (p, attrs) => {
     const w = (Math.abs(p.gp) / maxRet) * 50, up = p.gp >= 0;
     return `
-      <li class="ov2-bar" data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${esc(p.label)} ${fmtPct(p.gp)} since bought, including realised gains">
+      <li ${attrs} data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${esc(p.label)} ${fmtPct(p.gp)} since bought, including realised gains">
         <span class="ov2-bar__name">${esc(p.label)}${p.closed ? ` <em class="ov2-sold">sold</em>` : ""}</span>
         <span class="ov2-bar__track"><span class="ov2-bar__fill ${up ? "up" : "down"}" style="${up ? "left:50%" : `left:${(50 - w).toFixed(2)}%`};width:${w.toFixed(2)}%"></span></span>
         <span class="ov2-bar__val ${dir(p.gp)}">${fmtPct(p.gp)}<small>${fmtEurSigned(p.g)}</small></span>
       </li>`;
-  }).join("");
+  });
 
   /* 5 · latest: events */
   const evRows = events.slice(0, 8).map((e) => `
@@ -142,13 +149,13 @@ export function renderOverview2(body, ctx) {
 
     ${ret.length ? `
     <article class="card panel ov2-card">
-      <div class="card__head"><h3 class="card__title">Since you bought</h3><span class="card__hint">incl. realised</span></div>
+      <div class="card__head"><h3 class="card__title">Since you bought</h3></div>
       <ol class="ov2-bars">${retRows}</ol>
     </article>` : ""}
 
     ${evRows ? `
     <article class="card panel ov2-card">
-      <div class="card__head"><h3 class="card__title">Latest</h3><span class="card__hint">moves · buys · ratings</span></div>
+      <div class="card__head"><h3 class="card__title">Latest</h3></div>
       <ol class="ov2-events">${evRows}</ol>
     </article>` : ""}
 
