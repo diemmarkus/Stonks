@@ -910,7 +910,11 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 @media (prefers-reduced-motion: reduce) { .ov2-live { animation: none; } }
 
 .ov2-sold { font: 600 10px/1 var(--sans); font-style: normal; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin-left: 4px; }
-.ov2-gap { padding: 4px 0; text-align: center; font: 400 11px/1.2 var(--mono); color: var(--ink-3); letter-spacing: .04em; }
+.ov2-gap { padding: 2px 0; text-align: center; }
+.ov2-gap button { border: 0; background: none; cursor: pointer; padding: 8px 12px; border-radius: 999px; font: 400 11px/1.2 var(--mono); color: var(--ink-3); letter-spacing: .04em; }
+.ov2-gap button:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.ov2-gap button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ov2-gap button::after { content: " ▾"; } .ov2-gap button[aria-expanded="true"]::after { content: " ▴"; }
 .ov2-tile--tiny { padding: 0; }
 .ov2-tile--slim { padding: 6px 5px; }
 .ov2-tile--slim .ov2-tile__pct { font-size: 11px; }

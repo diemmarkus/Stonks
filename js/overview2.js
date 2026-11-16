@@ -2,6 +2,16 @@
 // recent events. Pure rendering: app.js hands in the valued rows and helpers.
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+let moversOpen = false; // "N more in between" unfolded (kept across re-renders)
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-ov2-more]");
+  if (!b) return;
+  moversOpen = !moversOpen;
+  const list = b.closest(".ov2-bars");
+  list.querySelectorAll(".ov2-bar--mid").forEach((li) => { li.hidden = !moversOpen; });
+  b.setAttribute("aria-expanded", String(moversOpen));
+  b.textContent = moversOpen ? "Show less" : `${list.querySelectorAll(".ov2-bar--mid").length} more in between`;
+});
 
 /* ---------- squarified treemap (Bruls et al.) ---------- */
 function squarify(items, x, y, w, h) {
@@ -56,14 +66,15 @@ export function renderOverview2(body, ctx) {
   const contrib = [...live].filter((p) => Math.abs(p.dayChange) >= 0.005).sort((a, b) => b.dayChange - a.dayChange);
   // top 3 and bottom 3 only; the net line below still counts every position
   const hidden = Math.max(0, contrib.length - 6);
-  const shown = hidden ? [...contrib.slice(0, 3), null, ...contrib.slice(-3)] : contrib;
+  const shown = hidden ? [...contrib.slice(0, 3), null, ...contrib.slice(3)] : contrib;
   const maxAbs = Math.max(1e-9, ...contrib.map((p) => Math.abs(p.dayChange)));
   const contribRows = shown.map((p) => {
-    if (!p) return `<li class="ov2-gap" aria-hidden="true">${hidden} more in between</li>`;
+    if (!p) return `<li class="ov2-gap"><button type="button" data-ov2-more aria-expanded="${moversOpen}">${moversOpen ? "Show less" : `${hidden} more in between`}</button></li>`;
+    const mid = hidden && contrib.indexOf(p) >= 3 && contrib.indexOf(p) < contrib.length - 3;
     const w = (Math.abs(p.dayChange) / maxAbs) * 50;
     const up = p.dayChange >= 0;
     return `
-      <li class="ov2-bar" data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${esc(p.label)} ${fmtEurSigned(p.dayChange)} today">
+      <li class="ov2-bar${mid ? " ov2-bar--mid" : ""}"${mid && !moversOpen ? " hidden" : ""} data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${esc(p.label)} ${fmtEurSigned(p.dayChange)} today">
         <span class="ov2-bar__name">${esc(p.label)}</span>
         <span class="ov2-bar__track"><span class="ov2-bar__fill ${up ? "up" : "down"}" style="${up ? "left:50%" : `left:${(50 - w).toFixed(2)}%`};width:${w.toFixed(2)}%"></span></span>
         <span class="ov2-bar__val ${dir(p.dayChange)}">${fmtEurSigned(p.dayChange)}</span>
@@ -116,7 +127,7 @@ export function renderOverview2(body, ctx) {
 
     ${contrib.length ? `
     <article class="card panel ov2-card">
-      <div class="card__head"><h3 class="card__title">What moved your money</h3><span class="card__hint">today · in €</span></div>
+      <div class="card__head"><h3 class="card__title">What moved your money</h3><span class="card__hint">today</span></div>
       <ol class="ov2-bars">${contribRows}</ol>
       <div class="ov2-sum"><span>Net today</span><b class="${dir(t.day)}">${fmtEurSigned(t.day)}</b></div>
     </article>` : ""}
