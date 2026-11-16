@@ -16,7 +16,7 @@ document.addEventListener("click", (e) => {
 });
 // top 3 and bottom 3, the rest folded behind a button in between
 function foldable(list, key, rowHtml) {
-  const hidden = Math.max(0, list.length - 6);
+  const extra = list.length - 6, hidden = extra >= 2 ? extra : 0; // folding a single row is not worth a button
   return list.map((p, i) => {
     const mid = hidden && i >= 3 && i < list.length - 3;
     const gap = hidden && i === 3 ? `<li class="ov2-gap"><button type="button" data-ov2-more="${key}" aria-expanded="${open[key]}">${open[key] ? "Show less" : `${hidden} more in between`}</button></li>` : "";
@@ -115,14 +115,6 @@ export function renderOverview2(body, ctx) {
       </li>`).join("");
 
   body.innerHTML = `
-    <section class="ov2-hero">
-      <div class="ov2-hero__value"><small>€</small>${whole}<small>.${cents}</small></div>
-      <div class="ov2-hero__chips">
-        <span class="pill ${dir(t.day)}">${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)} today</span>
-        <span class="pill ${dir(t.gain)}">${fmtEurSigned(t.gain)} · ${fmtPct(t.gainPct)} total</span>
-      </div>
-      <div class="ov2-hero__chart pos__chart" id="ov2-chart"></div>
-    </section>
 
     <article class="card panel ov2-card">
       <div class="card__head"><h3 class="card__title">Today's map</h3></div>

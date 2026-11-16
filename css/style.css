@@ -830,16 +830,9 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 /* ======================================================================
    Overview 2 (#/overview2)
    ====================================================================== */
-#ov2-body { display: grid; gap: 14px; }
-.ov2-hero { padding: 0 0 4px; }
-.ov2-hero__top { display: flex; align-items: center; gap: 8px; font: 400 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); }
+.ov2-cards { display: grid; gap: 14px; margin-top: 14px; }
 .ov2-live { width: 8px; height: 8px; border-radius: 50%; background: var(--up); box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 60%, transparent); animation: ov2pulse 2s ease-out infinite; }
 @keyframes ov2pulse { 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
-.ov2-hero__value { margin: 10px 0 12px; font: 300 clamp(50px, 12.5vw, 84px)/1 var(--display); letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
-.ov2-hero__value small { font-size: .42em; color: var(--ink-2); margin-right: 4px; }
-.ov2-hero__chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.ov2-hero__chips .pill { margin: 0; }
-.ov2-hero__chart { height: 260px; margin: 14px 0 0; }
 .ov2-card .card__head { margin-bottom: 12px; }
 
 /* treemap */
@@ -904,8 +897,7 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 .ov2-ev__text .up { color: var(--up); } .ov2-ev__text .down { color: var(--down); }
 .ov2-ev__when { font: 400 11px/1.2 var(--mono); color: var(--ink-3); white-space: nowrap; }
 @media (min-width: 900px) {
-  #ov2-body { grid-template-columns: 1fr 1fr; align-items: start; }
-  .ov2-hero { grid-column: 1 / -1; }
+  .ov2-cards { grid-template-columns: 1fr 1fr; align-items: start; }
 }
 @media (prefers-reduced-motion: reduce) { .ov2-live { animation: none; } }
 

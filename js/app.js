@@ -1,6 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=120";
-import { legalDoc } from "./legal.js?v=120";
-import { isCryptoCode } from "./crypto.js?v=120";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=123";
+import { legalDoc } from "./legal.js?v=123";
+import { isCryptoCode } from "./crypto.js?v=123";
+import { renderOverview2 } from "./overview2.js?v=123";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +58,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=120") : import("./store.js?v=120"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=123") : import("./store.js?v=123"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -195,8 +196,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=120").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=120").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=123").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=123").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -674,26 +675,10 @@ function renderOverview() {
   const t = totals(rows);
   const sold = t.soldCost > 0; // anything sold → show the in/out and open/realised split
   const pos = positions(rows).sort((a, b) => b.value - a.value);
-  const stale = rows.filter((r) => !r.live).length;
   const [whole, cents] = fmt2.format(t.value).split(".");
 
-  const { byType, share, allocBar, allocLegend } = allocationParts(rows, t);
 
-  const top = pos.slice(0, 3);
-  const topRows = top.map((p) => `
-    <li class="row row--link" data-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button">
-      <div class="row__id">
-        <div class="row__title">${esc(p.label)}</div>
-        <div class="row__bar" title="${share(p.value).toFixed(1)}% of portfolio"><span style="width:${share(p.value)}%"></span></div>
-      </div>
-      <div class="row__nums">
-        <div class="row__price">${fmtEur(p.value)}</div>
-        <div class="holding__sub">${share(p.value).toFixed(1)}%</div>
-      </div>
-    </li>`).join("");
 
-  const analysts = getAnalysts();
-  const aInfo = infoButton("About analyst ratings");
 
   body.innerHTML = `
     <section class="hero-num" id="hero-num" role="button" tabindex="0" aria-label="Show a chart of your whole portfolio">
@@ -711,37 +696,10 @@ function renderOverview() {
         <dl class="tile__notes"><div><dt>Open</dt><dd class="${dir(t.unrealized)}">${fmtEurSigned(t.unrealized)}</dd></div><div><dt>Realised</dt><dd class="${dir(t.realized)}">${fmtEurSigned(t.realized)}</dd></div></dl>` : ""}</div>
     </div>
 
-    <div class="panels">
-      ${winnersCard(rows)}
+    <div class="ov2-cards"></div>`;
 
-      <article class="card panel">
-        <div class="card__head"><h3 class="card__title">Allocation</h3><span class="card__hint">by value</span></div>
-        <div class="alloc" role="img" aria-label="${byType.map((x) => `${x.label} ${share(x.value).toFixed(1)}%`).join(", ")}">${allocBar}</div>
-        <ul class="legend">${allocLegend}</ul>
-      </article>
-
-      ${yearsCard(rows)}
-
-      <article class="card panel">
-        <div class="card__head"><h3 class="card__title">Largest positions</h3><span class="card__hint">share of total</span></div>
-        <ol class="rows weights">${topRows}</ol>
-      </article>
-
-      ${analysts ? `
-      <article class="card panel card--up">
-        <div class="card__head"><h3 class="card__title">Analysts' top buys</h3><span class="card__side"><span class="card__hint">12-month view</span>${aInfo.btn}</span></div>
-        <p class="info__text" id="${aInfo.id}" hidden>${analystInfo(analysts)}</p>
-        <ol class="rows">${analystRows(analysts.buys.slice(0, 3))}</ol>
-      </article>
-      <article class="card panel card--down">
-        <div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div>
-        <ol class="rows">${analystRows(analysts.sells.slice(0, 3))}</ol>
-      </article>
-      ${lookupHtml("overview")}` : ""}
-    </div>
-
-    ${stale ? `<p class="note"><span class="stale">●</span> ${stale} ${stale === 1 ? "holding has" : "holdings have"} no live price yet and ${stale === 1 ? "is" : "are"} valued at buy price. Prices are fetched from onvista when the app opens; try again in a moment.</p>` : ""}
-    ${state.pricesAt ? `<p class="note ov-asof">Prices · ${stampOf(state.pricesAt)}</p>` : ""}`;
+  // below the head: map, money movers, setup, since you bought, latest (js/overview2.js)
+  ov2 = renderOverview2(body.querySelector(".ov2-cards"), ov2Ctx(rows, t, pos));
 }
 
 /* ======================================================================
@@ -1149,13 +1107,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=120");
+  const { CRYPTO } = await import("./crypto.js?v=123");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=120");
+    const { searchInstruments } = await import("./onvista.js?v=123");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1335,7 +1293,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=120");
+    const { decode, parseTrades } = await import("./import-csv.js?v=123");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1629,7 +1587,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=120").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=123").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1644,7 +1602,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=120").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=123").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1658,12 +1616,12 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=120");
+  const { mountPriceChart } = await import("./chart.js?v=123");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
 /* ======================================================================
-   Overview 2 (#/overview2): setup, today's changes and latest events, as pictures
+   Overview cards (js/overview2.js): setup, today's changes and latest events, as pictures
    ====================================================================== */
 let ov2 = null;
 const typeLabel = (k) => ({ stock: "Stocks", etf: "ETFs", certificate: "Certificates", crypto: "Crypto" }[k] || k);
@@ -1702,13 +1660,7 @@ function ov2Events(pos) {
   if (stale) ev.push({ kind: "warn", icon: "!", when: "Now", sort: 2e12, html: `${stale} ${stale === 1 ? "position has" : "positions have"} no live price yet` });
   return ev.sort((a, b) => b.sort - a.sort);
 }
-function renderOverview2Now() {
-  const body = $("ov2-body");
-  if (state.holdings === null) { body.innerHTML = loadingState(); return; }
-  if (!state.holdings.length) { body.innerHTML = emptyState(); return; }
-  const rows = state.holdings.map(valuate);
-  const t = totals(rows);
-  const pos = positions(rows);
+function ov2Ctx(rows, t, pos) {
   // per position: open gain + gains already taken, against everything ever put in (still held + cost of sold)
   const byKey = new Map();
   for (const r of rows) {
@@ -1721,15 +1673,10 @@ function renderOverview2Now() {
     const g = (closed ? 0 : k.value - k.cost) + k.realized;
     return { ...k, closed, base, g, gp: base > 0.005 ? (g / base) * 100 : 0 };
   }).filter((k) => k.base > 0.005 && (k.live || k.closed));
-  import("./overview2.js?v=120").then(({ renderOverview2 }) => {
-    const alloc = allocationParts(rows, t);
-    ov2 = renderOverview2(body, { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, typeLabel,
-      stamp: state.pricesAt ? stampOf(state.pricesAt) : "", events: ov2Events(pos) });
-    const chart = $("ov2-chart");
-    if (chart) { const positions = portfolioChartPositions(); import("./chart.js?v=120").then(({ mountPortfolioChart }) => mountPortfolioChart(chart, { positions, vsInvested: false })); }
-  });
+  return { rows, t, pos, returns, alloc: allocationParts(rows, t), esc, fmtEur, fmtEurSigned, fmtPct, dir, typeLabel,
+    stamp: state.pricesAt ? stampOf(state.pricesAt) : "", events: ov2Events(pos) };
 }
-window.addEventListener("resize", () => { if (state.view === "overview2") ov2?.relayout(); });
+window.addEventListener("resize", () => { if (state.view === "overview") ov2?.relayout(); });
 document.addEventListener("click", (e) => {
   const el = e.target.closest?.("[data-ov2-chart]");
   if (el) openChart(el.dataset.ov2Chart, el.dataset.isin);
@@ -1738,37 +1685,6 @@ document.addEventListener("keydown", (e) => {
   const el = e.target.closest?.("[data-ov2-chart]");
   if (el && el.tagName !== "BUTTON" && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openChart(el.dataset.ov2Chart, el.dataset.isin); }
 });
-
-/* ======================================================================
-   Biggest winner and loser of the day, in € (what moved your money most)
-   ====================================================================== */
-function winnersCard(rows) {
-  const list = positions(rows).filter((p) => p.live && p.value > 0.005 && p.prevValue > 0);
-  if (list.length < 2) return "";
-  const sorted = [...list].sort((a, b) => b.dayChange - a.dayChange);
-  const best = sorted[0], worst = sorted.at(-1);
-  const bestLabel = best.dayChange >= 0 ? "Biggest winner" : "Smallest loss";
-  const worstLabel = worst.dayChange < 0 ? "Biggest loser" : "Smallest gain";
-  const row = (p, label) => `
-    <li class="row row--link" data-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${label}: ${esc(p.label)}, ${fmtEurSigned(p.dayChange)} today, show chart">
-      <div class="row__id">
-        <div class="row__kicker ${dir(p.dayChange)}">${label}</div>
-        <div class="row__title">${esc(p.label)}</div>
-      </div>
-      <div class="row__nums">
-        <div class="row__price ${dir(p.dayChange)}">${fmtEurSigned(p.dayChange)}</div>
-        <span class="pill ${dir(p.dayChange)}">${fmtPct((p.dayChange / p.prevValue) * 100)}</span>
-      </div>
-    </li>`;
-  return `
-      <article class="card panel">
-        <div class="card__head"><h3 class="card__title">Winner &amp; loser</h3><span class="card__hint">today · in €</span></div>
-        <ol class="rows winners">
-          ${row(best, bestLabel)}
-          ${row(worst, worstLabel)}
-        </ol>
-      </article>`;
-}
 
 /* ======================================================================
    Year by year: money put in (buys − sales) and the gain made, per calendar year
@@ -1789,7 +1705,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=120").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=123").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2077,7 +1993,7 @@ window.addEventListener("hashchange", closeChart);
 /* ======================================================================
    Router
    ====================================================================== */
-const PROTECTED = ["overview", "overview2", "portfolio", "you"];
+const PROTECTED = ["overview", "portfolio", "you"];
 const LEGAL = ["imprint", "privacy"];
 
 function renderLegal(kind) {
@@ -2095,13 +2011,13 @@ function renderCurrentNow() {
   if (state.holdings) computeSells(state.holdings);
   withLookupFocus(() => {
     if (state.view === "overview") renderOverview();
-    else if (state.view === "overview2") renderOverview2Now();
     else if (state.view === "portfolio") renderPortfolio();
   });
 }
 
 function route() {
   let [name, arg] = location.hash.replace(/^#\/?/, "").split("/");
+  if (name === "overview2") { name = "overview"; history.replaceState(null, "", "#/overview"); } // the preview became the Overview
 
   // Add / edit open as a sheet on top of the current screen.
   if (name === "add" || name === "edit") {
@@ -2321,7 +2237,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=120");
+  const { resetDemo } = await import("./demo-store.js?v=123");
   resetDemo();
   state.demo = true;
   state.names = {};
