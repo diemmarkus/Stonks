@@ -179,18 +179,32 @@ export function renderOverview2(body, ctx) {
     // the Others tile gets at least 7 % of the area, so it stays big enough to tap
     const rects = squarify(items.map((p) => ({ p, size: p.others ? Math.max(p.value, total * 0.07) : p.value })).sort((x, y) => y.size - x.size), 0, 0, W, H);
     host.innerHTML = rects.map(({ p, x, y, w, h }) => {
-      // what fits: name + % (+ value when roomy); a narrow tile shows just a small %; tiny ones only colour
-      const big = w > 90 && h > 64, mid = w > 70 && h > 40, slim = !mid && w > 44 && h > 22;
       const tw = Math.max(1, w - 3), th = Math.max(1, h - 3);
-      return `<button type="button" class="ov2-tile${mid ? "" : slim ? " ov2-tile--slim" : " ov2-tile--tiny"}"${p.others ? " data-ov2-others" : ` data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""}`}
+      const small = tw < 64 || th < 44;
+      return `<button type="button" class="ov2-tile${small ? " ov2-tile--small" : ""}"${p.others ? " data-ov2-others" : ` data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""}`}
         style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${tw.toFixed(1)}px;height:${th.toFixed(1)}px;background:${moveColor(p.dayPct, p.live)}"
         aria-label="${esc(p.label)}, ${share(p.value).toFixed(1)}% of portfolio, ${p.live ? `${fmtPct(p.dayPct)} today` : "no live price"}${p.others ? ", show them" : ""}">
-        ${mid ? `<span class="ov2-tile__name">${esc(p.label)}</span>` : ""}
-        ${mid || slim ? `<span class="ov2-tile__pct">${p.live ? fmtPct(p.dayPct) : "—"}</span>` : ""}
-        ${big ? `<span class="ov2-tile__val">${fmtEur(p.value)}</span>` : ""}
+        <span class="ov2-tile__name${p.others ? " is-others" : ""}">${esc(p.label)}</span>
+        <span class="ov2-tile__pct">${p.live ? fmtPct(p.dayPct) : "—"}</span>
+        <span class="ov2-tile__val">${fmtEur(p.value)}</span>
       </button>`;
     }).join("");
+    host.querySelectorAll(".ov2-tile").forEach(fitTile);
   };
+  // Keep only what fits, measured: shrink the name first, then drop it; drop the value before
+  // the %; the Others tile shortens to "Others"; nothing ends in "…" unless most of the name shows.
+  function fitTile(tile) {
+    const name = tile.querySelector(".ov2-tile__name"), pct = tile.querySelector(".ov2-tile__pct"), val = tile.querySelector(".ov2-tile__val");
+    const over = (el) => el.scrollWidth > el.clientWidth + 0.5;
+    if (over(name)) name.style.fontSize = "11px";
+    if (over(name) && name.classList.contains("is-others")) name.textContent = "Others";
+    if (over(name) && (name.classList.contains("is-others") || name.clientWidth / name.scrollWidth < 0.7)) name.remove();
+    if (over(pct)) pct.style.fontSize = "11px";
+    if (over(pct)) pct.remove();
+    if (over(val)) val.remove();
+    // too tall: drop value, then name, then %
+    for (const el of [val, name, pct]) if (tile.scrollHeight > tile.clientHeight + 0.5 && el.isConnected) el.remove();
+  }
   const card = host.closest(".card");
   card.addEventListener("click", (e) => {
     if (e.target.closest("[data-ov2-others]")) { mapZoom = true; layout(); card.querySelector("[data-ov2-map-back]").focus(); }
