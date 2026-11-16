@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=131";
-import { legalDoc } from "./legal.js?v=131";
-import { isCryptoCode } from "./crypto.js?v=131";
-import { renderOverview2 } from "./overview2.js?v=131";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=132";
+import { legalDoc } from "./legal.js?v=132";
+import { isCryptoCode } from "./crypto.js?v=132";
+import { renderOverview2 } from "./overview2.js?v=132";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -58,7 +58,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=131") : import("./store.js?v=131"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=132") : import("./store.js?v=132"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -196,8 +196,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=131").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=131").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=132").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=132").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -408,20 +408,6 @@ document.addEventListener("click", (e) => {
   b.setAttribute("aria-expanded", String(open));
 });
 
-function analystGroup(a) {
-  const body = (items) => (a ? analystRows(items) : skeletonRows());
-  const info = infoButton("About analyst ratings");
-  return `
-      <div class="group is-active" data-kind="analysts">
-        <h2 class="group__title">Analyst ratings</h2>
-        <div class="group__cards">
-          <article class="card card--up"><div class="card__head"><h3 class="card__title">Top buys</h3><span class="card__side"><span class="card__hint">12-month view</span>${a ? info.btn : ""}</span></div>${a ? `<p class="info__text" id="${info.id}" hidden>${analystInfo(a)}</p>` : ""}<ol class="rows">${body((a?.buys || []).slice(0, 3))}</ol></article>
-          <article class="card card--down"><div class="card__head"><h3 class="card__title">Weakest ratings</h3><span class="card__hint">12-month view</span></div><ol class="rows">${body((a?.sells || []).slice(0, 3))}</ol></article>
-        </div>
-        ${lookupHtml("markets")}
-        ${a ? "" : `<p class="note">Analyst ratings appear after the next daily update.</p>`}
-      </div>`;
-}
 
 // Movers over 1D (Finnhub) or 1W … 5Y (from onvista's history, added by the hourly job)
 const MOVER_RANGE_KEY = "stonks-movers-range";
@@ -456,8 +442,8 @@ function renderHome() {
 }
 function renderHomeNow() {
   const data = state.market;
-  // one after the other: analysts' Buy/Sell first, then stock and ETF movers
-  $("boards").innerHTML = analystGroup(getAnalysts()) + GROUPS.map(({ kind, title }) => {
+  // stock movers, then ETF movers (analyst ratings live on the Overview)
+  $("boards").innerHTML = GROUPS.map(({ kind, title }) => {
     const g = moversFor(data, kind);
     const rows = (list, d) => (g.none ? `<li class="row"><p class="lookup__hint">${moverRange} changes appear after the next price update.</p></li>`
       : list.length ? moverRows(list, d) : `<li class="row"><p class="lookup__hint">None over ${moverRange}.</p></li>`);
@@ -1102,13 +1088,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=131");
+  const { CRYPTO } = await import("./crypto.js?v=132");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=131");
+    const { searchInstruments } = await import("./onvista.js?v=132");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1288,7 +1274,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=131");
+    const { decode, parseTrades } = await import("./import-csv.js?v=132");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1602,7 +1588,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=131").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=132").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1617,7 +1603,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=131").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=132").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1631,7 +1617,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=131");
+  const { mountPriceChart } = await import("./chart.js?v=132");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1720,7 +1706,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=131").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=132").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2252,7 +2238,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=131");
+  const { resetDemo } = await import("./demo-store.js?v=132");
   resetDemo();
   state.demo = true;
   state.names = {};
