@@ -910,3 +910,5 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
   .ov2-hero { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { .ov2-live { animation: none; } }
+
+.ov2-sold { font: 600 10px/1 var(--sans); font-style: normal; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin-left: 4px; }

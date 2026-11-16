@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=112";
-import { legalDoc } from "./legal.js?v=112";
-import { isCryptoCode } from "./crypto.js?v=112";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=113";
+import { legalDoc } from "./legal.js?v=113";
+import { isCryptoCode } from "./crypto.js?v=113";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=112") : import("./store.js?v=112"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=113") : import("./store.js?v=113"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -195,8 +195,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=112").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=112").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=113").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=113").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1142,13 +1142,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=112");
+  const { CRYPTO } = await import("./crypto.js?v=113");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=112");
+    const { searchInstruments } = await import("./onvista.js?v=113");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1328,7 +1328,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=112");
+    const { decode, parseTrades } = await import("./import-csv.js?v=113");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1622,7 +1622,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=112").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=113").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1637,7 +1637,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=112").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=113").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1651,7 +1651,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=112");
+  const { mountPriceChart } = await import("./chart.js?v=113");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1702,11 +1702,23 @@ function renderOverview2Now() {
   const rows = state.holdings.map(valuate);
   const t = totals(rows);
   const pos = positions(rows);
-  import("./overview2.js?v=112").then(({ renderOverview2 }) => {
-    ov2 = renderOverview2(body, { rows, t, pos, esc, fmtEur, fmtEurSigned, fmtPct, dir, typeLabel,
+  // per position: open gain + gains already taken, against everything ever put in (still held + cost of sold)
+  const byKey = new Map();
+  for (const r of rows) {
+    const k = byKey.get(r.key) || { key: r.key, isin: r.isin, label: r.label, live: r.live, value: 0, cost: 0, realized: 0, soldCost: 0 };
+    k.value += r.value; k.cost += r.cost; k.realized += r.realized || 0; k.soldCost += r.soldCost || 0; k.live = k.live || r.live;
+    byKey.set(r.key, k);
+  }
+  const returns = [...byKey.values()].map((k) => {
+    const base = k.cost + k.soldCost, closed = k.value <= 0.005;
+    const g = (closed ? 0 : k.value - k.cost) + k.realized;
+    return { ...k, closed, base, g, gp: base > 0.005 ? (g / base) * 100 : 0 };
+  }).filter((k) => k.base > 0.005 && (k.live || k.closed));
+  import("./overview2.js?v=113").then(({ renderOverview2 }) => {
+    ov2 = renderOverview2(body, { rows, t, pos, returns, esc, fmtEur, fmtEurSigned, fmtPct, dir, typeLabel,
       stamp: state.pricesAt ? stampOf(state.pricesAt) : "", events: ov2Events(pos) });
     const chart = $("ov2-chart");
-    if (chart) { const positions = portfolioChartPositions(); import("./chart.js?v=112").then(({ mountPortfolioChart }) => mountPortfolioChart(chart, { positions })); }
+    if (chart) { const positions = portfolioChartPositions(); import("./chart.js?v=113").then(({ mountPortfolioChart }) => mountPortfolioChart(chart, { positions })); }
   });
 }
 window.addEventListener("resize", () => { if (state.view === "overview2") ov2?.relayout(); });
@@ -1769,7 +1781,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=112").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=113").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2301,7 +2313,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=112");
+  const { resetDemo } = await import("./demo-store.js?v=113");
   resetDemo();
   state.demo = true;
   state.names = {};

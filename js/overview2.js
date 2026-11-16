@@ -44,7 +44,7 @@ function moveColor(pct, live) {
 }
 
 export function renderOverview2(body, ctx) {
-  const { rows, t, pos, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel } = ctx;
+  const { rows, t, pos, returns, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel } = ctx;
   const live = pos.filter((p) => p.live);
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
   const [whole, cents] = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(t.value).split(".");
@@ -73,14 +73,14 @@ export function renderOverview2(body, ctx) {
   const conc = mapItems.map((p, i) => `<span class="ov2-conc__seg${i < 3 ? ` is-top is-top${i}` : ""}" style="flex:${p.value}" title="${esc(p.label)} · ${share(p.value).toFixed(1)}%"></span>`).join("");
   const topList = mapItems.slice(0, 3).map((p, i) => `<li><span class="ov2-sw is-top${i}"></span><span>${esc(p.label)}</span><b>${share(p.value).toFixed(1)}%</b></li>`).join("");
 
-  /* 4 · since you bought (open return per position, %) */
-  const ret = [...live].filter((p) => p.cost > 0.005 && p.value > 0.005).map((p) => ({ ...p, g: p.value - p.cost, gp: ((p.value - p.cost) / p.cost) * 100 })).sort((a, b) => b.gp - a.gp);
+  /* 4 · since you bought: total return per position = open gain + realised, against all money put in */
+  const ret = [...returns].sort((a, b) => b.gp - a.gp);
   const maxRet = Math.max(1e-9, ...ret.map((p) => Math.abs(p.gp)));
   const retRows = ret.map((p) => {
     const w = (Math.abs(p.gp) / maxRet) * 50, up = p.gp >= 0;
     return `
-      <li class="ov2-bar" data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${esc(p.label)} ${fmtPct(p.gp)} since bought">
-        <span class="ov2-bar__name">${esc(p.label)}</span>
+      <li class="ov2-bar" data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""} tabindex="0" role="button" aria-label="${esc(p.label)} ${fmtPct(p.gp)} since bought, including realised gains">
+        <span class="ov2-bar__name">${esc(p.label)}${p.closed ? ` <em class="ov2-sold">sold</em>` : ""}</span>
         <span class="ov2-bar__track"><span class="ov2-bar__fill ${up ? "up" : "down"}" style="${up ? "left:50%" : `left:${(50 - w).toFixed(2)}%`};width:${w.toFixed(2)}%"></span></span>
         <span class="ov2-bar__val ${dir(p.gp)}">${fmtPct(p.gp)}<small>${fmtEurSigned(p.g)}</small></span>
       </li>`;
@@ -133,7 +133,7 @@ export function renderOverview2(body, ctx) {
 
     ${ret.length ? `
     <article class="card panel ov2-card">
-      <div class="card__head"><h3 class="card__title">Since you bought</h3><span class="card__hint">open return</span></div>
+      <div class="card__head"><h3 class="card__title">Since you bought</h3><span class="card__hint">incl. realised</span></div>
       <ol class="ov2-bars">${retRows}</ol>
     </article>` : ""}
 
