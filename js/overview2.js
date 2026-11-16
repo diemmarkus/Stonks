@@ -195,10 +195,25 @@ export function renderOverview2(body, ctx) {
   // the %; the Others tile shortens to "Others"; nothing ends in "…" unless most of the name shows.
   function fitTile(tile) {
     const name = tile.querySelector(".ov2-tile__name"), pct = tile.querySelector(".ov2-tile__pct"), val = tile.querySelector(".ov2-tile__val");
-    const over = (el) => el.scrollWidth > el.clientWidth + 0.5;
+    // precise (sub-pixel) check: scrollWidth rounds, which let "OMV" end up as "O…"
+    const over = (el) => {
+      if (el.scrollWidth > el.clientWidth) return true;
+      const r = document.createRange(); r.selectNodeContents(el);
+      return r.getBoundingClientRect().width > el.getBoundingClientRect().width + 0.01;
+    };
+    const others = name.classList.contains("is-others");
     if (over(name)) name.style.fontSize = "11px";
-    if (over(name) && name.classList.contains("is-others")) name.textContent = "Others";
-    if (over(name) && (name.classList.contains("is-others") || name.clientWidth / name.scrollWidth < 0.7)) name.remove();
+    if (over(name) && others) name.textContent = "Others";
+    if (over(name) && !others) {
+      // try two lines; keep it only if every word fits and it really is at most two lines
+      name.classList.add("is-wrap");
+      const lines = Math.round(name.scrollHeight / parseFloat(getComputedStyle(name).lineHeight));
+      if (over(name) || lines > 2) {
+        name.classList.remove("is-wrap");
+        if (tile.clientWidth < 90) name.remove(); // narrow: no "O…" stubs; wide tiles may end in "…"
+      }
+    }
+    if (name.isConnected && over(name) && others) name.remove();
     if (over(pct)) pct.style.fontSize = "11px";
     if (over(pct)) pct.remove();
     if (over(val)) val.remove();
@@ -211,5 +226,7 @@ export function renderOverview2(body, ctx) {
     else if (e.target.closest("[data-ov2-map-back]")) { mapZoom = false; layout(); }
   });
   layout();
+  // labels are measured: measure again once the web fonts have loaded (they're wider than the fallback)
+  document.fonts?.ready?.then(() => { if (host.isConnected) layout(); });
   return { relayout: layout };
 }

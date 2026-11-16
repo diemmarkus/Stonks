@@ -845,9 +845,9 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 }
 .ov2-tile:hover { filter: brightness(1.12); }
 .ov2-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.ov2-tile__name { font: 600 13px/1.2 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.ov2-tile__pct { font: 600 13px/1.2 var(--mono); }
-.ov2-tile__val { margin-top: auto; font: 400 12px/1.2 var(--mono); opacity: .8; }
+.ov2-tile__name { flex: none; font: 600 13px/1.25 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ov2-tile__pct { flex: none; font: 600 13px/1.25 var(--mono); }
+.ov2-tile__val { flex: none; margin-top: auto; font: 400 12px/1.25 var(--mono); opacity: .8; }
 
 /* diverging bars (money moved today, return since bought) */
 .ov2-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
@@ -932,3 +932,4 @@ body.pf-editing .pos__swipe .pos__head { padding-left: calc(var(--pf-pad) + 34px
 body.pf-editing .lot-row .del-x { left: 8px; width: 22px; height: 22px; }
 body.pf-editing .lot-row .lot { padding-left: 40px; }
 html.has-session #signin { visibility: hidden; }
+.ov2-tile__name.is-wrap { white-space: normal; overflow-wrap: normal; word-break: normal; }
