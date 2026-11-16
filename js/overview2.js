@@ -54,8 +54,12 @@ export function renderOverview2(body, ctx) {
 
   /* 2 · what moved your money today (€) */
   const contrib = [...live].filter((p) => Math.abs(p.dayChange) >= 0.005).sort((a, b) => b.dayChange - a.dayChange);
+  // top 3 and bottom 3 only; the net line below still counts every position
+  const hidden = Math.max(0, contrib.length - 6);
+  const shown = hidden ? [...contrib.slice(0, 3), null, ...contrib.slice(-3)] : contrib;
   const maxAbs = Math.max(1e-9, ...contrib.map((p) => Math.abs(p.dayChange)));
-  const contribRows = contrib.map((p) => {
+  const contribRows = shown.map((p) => {
+    if (!p) return `<li class="ov2-gap" aria-hidden="true">${hidden} more in between</li>`;
     const w = (Math.abs(p.dayChange) / maxAbs) * 50;
     const up = p.dayChange >= 0;
     return `
@@ -106,9 +110,8 @@ export function renderOverview2(body, ctx) {
     </section>
 
     <article class="card panel ov2-card">
-      <div class="card__head"><h3 class="card__title">Today's map</h3><span class="card__hint">size = value · colour = today</span></div>
-      <div class="ov2-map" id="ov2-map" role="img" aria-label="Treemap of your positions by value, coloured by today's change"></div>
-      <div class="ov2-scale" aria-hidden="true"><span>−3%</span><span class="ov2-scale__bar"></span><span>+3%</span></div>
+      <div class="card__head"><h3 class="card__title">Today's map</h3></div>
+      <div class="ov2-map" id="ov2-map" role="img" aria-label="Your positions by value, coloured by today's change"></div>
     </article>
 
     ${contrib.length ? `
@@ -148,16 +151,28 @@ export function renderOverview2(body, ctx) {
   const layout = () => {
     const W = host.clientWidth, H = host.clientHeight;
     if (!W) return;
-    const rects = squarify(mapItems.map((p) => ({ p, size: p.value })), 0, 0, W, H);
+    // tiny positions (< 2 % of the map) fold into one "Others" tile, so no tile is too small to read or tap
+    const total = mapItems.reduce((n, p) => n + p.value, 0);
+    const small = mapItems.filter((p) => p.value / total < 0.02);
+    const items = small.length > 1 ? mapItems.filter((p) => !small.includes(p)) : mapItems;
+    if (small.length > 1) {
+      const v = small.reduce((n, p) => n + p.value, 0), prev = small.reduce((n, p) => n + (p.live ? p.prevValue : p.value), 0);
+      const day = small.reduce((n, p) => n + (p.live ? p.dayChange : 0), 0);
+      items.push({ key: "", label: `Others (${small.length})`, value: v, dayPct: prev ? (day / prev) * 100 : 0, live: small.some((p) => p.live), others: true });
+    }
+    const rects = squarify(items.map((p) => ({ p, size: p.value })), 0, 0, W, H);
     host.innerHTML = rects.map(({ p, x, y, w, h }) => {
-      const big = w > 74 && h > 46, mid = w > 44 && h > 28;
-      return `<button type="button" class="ov2-tile" data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""}
-        style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${(w - 3).toFixed(1)}px;height:${(h - 3).toFixed(1)}px;background:${moveColor(p.dayPct, p.live)}"
+      // what fits: name + % (+ value when roomy); a narrow tile shows just a small %; tiny ones only colour
+      const big = w > 90 && h > 64, mid = w > 70 && h > 40, slim = !mid && w > 44 && h > 22;
+      const tw = Math.max(1, w - 3), th = Math.max(1, h - 3);
+      const tag = p.others ? "div" : "button";
+      return `<${tag}${p.others ? "" : ` type="button"`} class="ov2-tile${mid ? "" : slim ? " ov2-tile--slim" : " ov2-tile--tiny"}"${p.others ? "" : ` data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""}`}
+        style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${tw.toFixed(1)}px;height:${th.toFixed(1)}px;background:${moveColor(p.dayPct, p.live)}"
         aria-label="${esc(p.label)}, ${share(p.value).toFixed(1)}% of portfolio, ${p.live ? `${fmtPct(p.dayPct)} today` : "no live price"}">
         ${mid ? `<span class="ov2-tile__name">${esc(p.label)}</span>` : ""}
-        ${mid ? `<span class="ov2-tile__pct">${p.live ? fmtPct(p.dayPct) : "—"}</span>` : ""}
+        ${mid || slim ? `<span class="ov2-tile__pct">${p.live ? fmtPct(p.dayPct) : "—"}</span>` : ""}
         ${big ? `<span class="ov2-tile__val">${fmtEur(p.value)}</span>` : ""}
-      </button>`;
+      </${tag}>`;
     }).join("");
   };
   layout();

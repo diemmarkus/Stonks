@@ -845,7 +845,7 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 /* treemap */
 .ov2-map { position: relative; height: 280px; margin: 0 -4px; }
 .ov2-tile {
-  position: absolute; border: 0; border-radius: 8px; padding: 8px 9px; text-align: left; cursor: pointer; overflow: hidden;
+  position: absolute; box-sizing: border-box; min-width: 0; min-height: 0; border: 0; border-radius: 8px; padding: 8px 9px; text-align: left; cursor: pointer; overflow: hidden;
   display: flex; flex-direction: column; justify-content: flex-start; gap: 2px; color: var(--ink); font: inherit;
   transition: filter .15s; -webkit-tap-highlight-color: transparent;
 }
@@ -854,8 +854,6 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 .ov2-tile__name { font: 600 13px/1.2 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .ov2-tile__pct { font: 600 13px/1.2 var(--mono); }
 .ov2-tile__val { margin-top: auto; font: 400 12px/1.2 var(--mono); opacity: .8; }
-.ov2-scale { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 400 11px/1 var(--mono); color: var(--ink-3); }
-.ov2-scale__bar { flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--down), var(--bg-2) 50%, var(--up)); border: 1px solid var(--line); }
 
 /* diverging bars (money moved today, return since bought) */
 .ov2-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
@@ -912,3 +910,7 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 @media (prefers-reduced-motion: reduce) { .ov2-live { animation: none; } }
 
 .ov2-sold { font: 600 10px/1 var(--sans); font-style: normal; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin-left: 4px; }
+.ov2-gap { padding: 4px 0; text-align: center; font: 400 11px/1.2 var(--mono); color: var(--ink-3); letter-spacing: .04em; }
+.ov2-tile--tiny { padding: 0; }
+.ov2-tile--slim { padding: 6px 5px; }
+.ov2-tile--slim .ov2-tile__pct { font-size: 11px; }
