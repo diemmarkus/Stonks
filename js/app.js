@@ -1,6 +1,6 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=102";
-import { legalDoc } from "./legal.js?v=102";
-import { isCryptoCode } from "./crypto.js?v=102";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=103";
+import { legalDoc } from "./legal.js?v=103";
+import { isCryptoCode } from "./crypto.js?v=103";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,7 +57,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=102") : import("./store.js?v=102"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=103") : import("./store.js?v=103"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -186,8 +186,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=102").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=102").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=103").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=103").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1131,13 +1131,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=102");
+  const { CRYPTO } = await import("./crypto.js?v=103");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=102");
+    const { searchInstruments } = await import("./onvista.js?v=103");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1219,6 +1219,7 @@ function openAdd(id) {
   form.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
   $("f-error").hidden = true;
   resetDelete();
+  endImport();
   editingId = null;
   pendingEditId = null;
   f.price.placeholder = "100.00";
@@ -1233,6 +1234,7 @@ function openAdd(id) {
     $("add-title").textContent = "Edit holding";
     $("f-submit").textContent = "Save";
     $("f-delete").hidden = false;
+    $("f-import-btn").hidden = true;
     f.isin.value = h.isin || "";
     f.qty.value = String(h.quantity);
     f.price.value = h.isin ? String(h.buyPrice) : "";
@@ -1245,6 +1247,7 @@ function openAdd(id) {
     $("add-title").textContent = "Add holding";
     $("f-submit").textContent = "Add";
     $("f-delete").hidden = true;
+    $("f-import-btn").hidden = false;
   }
   updateIsinHint(); updateDateShow(); updateTotal();
   [f.qty, f.price].forEach(sizePill);
@@ -1298,6 +1301,95 @@ form.addEventListener("mousedown", (e) => {
 });
 addSheet.querySelectorAll("[data-close-add]").forEach((el) => el.addEventListener("click", closeAdd));
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAdd(); });
+
+/* ---------- Import a CSV from flatex (Depotumsätze): read here, nothing is uploaded ---------- */
+let importTrades = null;
+function endImport() {
+  importTrades = null;
+  form.classList.remove("is-importing");
+  $("f-import").hidden = true;
+  $("f-import").innerHTML = "";
+  $("f-file").value = "";
+}
+$("f-import-btn").addEventListener("click", () => $("f-file").click());
+$("f-file").addEventListener("change", async () => {
+  const file = $("f-file").files?.[0];
+  if (!file) return;
+  $("f-error").hidden = true;
+  try {
+    const { decode, parseTrades } = await import("./import-csv.js?v=103");
+    const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
+    // already in stonks? same ISIN, side, date, units and price
+    const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
+      && (h.buyDate || "") === t.date && Math.abs(h.quantity - t.quantity) < 1e-6 && Math.abs(h.buyPrice - t.price) < 0.01);
+    trades.forEach((t) => { t.dupe = same(t); });
+    // a sale of more than you hold (counting earlier lines of the file) is flagged, not blocked
+    const held = {};
+    for (const t of trades) {
+      held[t.isin] ??= heldUnits(t.isin);
+      if (t.dupe) continue;
+      if (t.side === "sell") { t.short = t.quantity > held[t.isin] + 1e-9; held[t.isin] -= t.quantity; }
+      else held[t.isin] += t.quantity;
+    }
+    importTrades = trades;
+    showImport(file.name, trades, skipped);
+  } catch (e) {
+    console.warn(e);
+    showError(e.message || "Couldn't read this file.");
+    $("f-file").value = "";
+  }
+});
+function showImport(fileName, trades, skipped) {
+  const fresh = trades.filter((t) => !t.dupe);
+  const buys = fresh.filter((t) => t.side === "buy").length, sells = fresh.length - buys;
+  form.classList.add("is-importing");
+  const box = $("f-import");
+  box.hidden = false;
+  box.innerHTML = `
+    <p class="import__sum"><b>${esc(fileName)}</b><br>${fresh.length ? `${buys} ${buys === 1 ? "buy" : "buys"}${sells ? ` · ${sells} ${sells === 1 ? "sale" : "sales"}` : ""} to import` : "Nothing new to import"}${trades.length - fresh.length ? ` · ${trades.length - fresh.length} already in stonks` : ""}${skipped.length ? ` · ${skipped.length} other ${skipped.length === 1 ? "line" : "lines"} skipped` : ""}</p>
+    <ol class="lots import__list">${trades.map((t) => `
+      <li><div class="lot${t.side === "sell" ? " lot--sell" : ""}${t.dupe ? " is-dupe" : ""}">
+        <span class="lot__date">${t.side === "sell" ? "Sold · " : ""}${esc(state.names[t.isin] || state.isin[t.isin]?.name || t.name || t.isin)}</span>
+        <span class="lot__qty">${t.date ? fmtDate(t.date) : "No date"} · ${fmtQty.format(t.quantity)} × ${fmtEur(t.price)}${t.short ? ` · <span class="import__warn">more than you hold in stonks</span>` : ""}</span>
+        <span class="lot__val">${t.dupe ? `<span class="stale">already in</span>` : fmtEur(t.quantity * t.price)}</span>
+      </div></li>`).join("")}
+    </ol>
+    <div class="import__actions">
+      <button class="btn btn--ghost" type="button" data-import-cancel>Cancel</button>
+      <button class="btn btn--primary" type="button" data-import-go${fresh.length ? "" : " disabled"}>Import ${fresh.length || ""}</button>
+    </div>`;
+  box.querySelector("[data-import-cancel]").addEventListener("click", endImport);
+  box.querySelector("[data-import-go]").addEventListener("click", runImport);
+}
+async function runImport() {
+  const todo = (importTrades || []).filter((t) => !t.dupe);
+  if (!todo.length || !state.user) return;
+  const go = $("f-import").querySelector("[data-import-go]");
+  go.disabled = true;
+  try {
+    // names and types from onvista / CoinGecko, one lookup per security
+    const isins = [...new Set(todo.map((t) => t.isin))];
+    await Promise.all(isins.map((i) => lookupLive(i).catch(() => null)));
+    const { saveHolding } = await loadStore();
+    let n = 0;
+    for (const t of todo) {
+      const q = state.isin[t.isin];
+      go.textContent = `Importing ${++n} of ${todo.length}…`;
+      await saveHolding(state.user.uid, null, {
+        isin: t.isin, quantity: t.quantity, buyPrice: t.price, buyDate: t.date, side: t.side,
+        type: q?.type || guessType(t.isin), name: q?.name || t.name || "",
+      });
+    }
+    toast(`Imported ${todo.length} ${todo.length === 1 ? "trade" : "trades"}`);
+    endImport();
+    closeAdd();
+  } catch (e) {
+    console.error(e);
+    showError(firestoreMessage(e));
+    go.disabled = false;
+    go.textContent = `Import ${todo.length}`;
+  }
+}
 
 function firestoreMessage(e) {
   if (e?.code === "permission-denied") return "Firestore blocked this. Check the security rules (see README).";
@@ -1418,7 +1510,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=102").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=103").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1433,7 +1525,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=102").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=103").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1447,7 +1539,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=102");
+  const { mountPriceChart } = await import("./chart.js?v=103");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1501,7 +1593,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=102").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=103").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2032,7 +2124,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=102");
+  const { resetDemo } = await import("./demo-store.js?v=103");
   resetDemo();
   state.demo = true;
   state.names = {};

@@ -27,7 +27,7 @@
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
   <link rel="preload" href="fonts/manrope.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=102" />
+  <link rel="stylesheet" href="css/style.css?v=103" />
 </head>
 <body>
   <div id="loadbar" class="loadbar" role="progressbar" aria-label="Loading prices" aria-hidden="true"></div>
@@ -137,9 +137,14 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
         <h2 id="add-title">Add holding</h2>
+        <button class="addsheet__import" type="button" id="f-import-btn" aria-label="Import a CSV from flatex" title="Import a CSV from flatex">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
+        </button>
+        <input type="file" id="f-file" accept=".csv,text/csv,text/plain" hidden />
         <button class="btn btn--primary addsheet__save" type="submit" id="f-submit">Add</button>
       </div>
       <p class="form__error" id="f-error" role="alert" hidden></p>
+      <div class="import" id="f-import" hidden></div>
       <input class="input input--big" id="f-isin" name="isin" placeholder="Name or ISIN, e.g. Apple or IE00BK5BQT80" aria-label="Name or ISIN" aria-describedby="f-isin-hint" autocapitalize="off" aria-autocomplete="list" aria-controls="f-results" spellcheck="false" maxlength="60" />
       <datalist id="isin-list"></datalist>
       <ul class="results" id="f-results" role="listbox" aria-label="Matching securities" hidden></ul>
@@ -178,6 +183,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=102"></script>
+  <script type="module" src="js/app.js?v=103"></script>
 </body>
 </html>

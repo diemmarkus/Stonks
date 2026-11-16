@@ -55,6 +55,7 @@ function privacy() {
       { h: "What data we process", p: [
         "Account: when you sign in with Google, we receive your name, email address, profile picture and a technical user ID from Google.",
         "Holdings: for each buy or sell you enter, the ISIN (or crypto code), name, type (stock, ETF or crypto), quantity, price in EUR, date, whether it is a buy or a sell, and when you added or changed it.",
+        "CSV import: a file you import (for example flatex Depotumsätze) is read in your browser only and never uploaded. Only the buys and sales you confirm are saved, with the same fields as above.",
         "Position settings: a name of your own for a position and the stock exchange it should be valued with, if you set them.",
         "Only you can read your holdings and position settings. We don't use them for anything other than showing you your portfolio.",
         "Visiting the site: the hosting provider processes technically necessary data such as your IP address and browser details.",
