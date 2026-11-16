@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=124";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=125";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -381,7 +381,7 @@ export function mountPortfolioChart(host, { positions, vsInvested = true }) {
       opts: {
         ref: refThin,
         rest: vsInvested
-          ? ({ change, pct, sign }) => `<b class="${change >= 0 ? "up" : "down"}">${sign}${fmt(Math.abs(change)).replace(/^-/, "")}</b> <span class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</span> <span>vs invested</span>`
+          ? ({ change, pct, sign }) => `<b class="${change >= 0 ? "up" : "down"}">${sign}${fmt(Math.abs(change)).replace(/^-/, "")}</b> <span class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</span>`
           : () => "",
         hover: (q, i, when) => {
           const inv = refThin[i], g = q.v - inv;
