@@ -654,7 +654,10 @@ body.has-tabbar #view-home .hero { display: none; }
 
 /* ---------- add dialog: cleaner ---------- */
 /* headline left in the display font (like page titles), Add + close on the right; no divider */
-.addsheet__head { grid-template-columns: 1fr auto auto 36px; gap: 10px; border-bottom: 0; padding-bottom: 6px; }
+/* flex, not a fixed grid: the close button stays at the right edge whether or not the import button shows */
+.addsheet__head { display: flex; gap: 10px; border-bottom: 0; padding-bottom: 6px; }
+.addsheet__head h2 { flex: 1; min-width: 0; }
+.addsheet__head .sheet__close, .addsheet__head .addsheet__import { flex: none; }
 .addsheet__head h2 { order: -1; text-align: left; font: 300 30px/1.25 var(--display); padding-bottom: 2px; letter-spacing: -0.035em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .addsheet__import { order: 0; }
 .addsheet__save { order: 1; }
