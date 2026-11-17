@@ -104,10 +104,11 @@ in big totals (`€28,413.15`).
 - **Tiles** (Overview): label, big mono value, optional split lines (Put in / Sold for, Open /
   Realised) under a hairline, aligned across both tiles.
 - **Treemap** (Today's map): size = value, colour = the move over the chosen range (rose → surface →
-  mint, saturating at ±3 % for 1D, ±6 / 10 / 30 / 60 % for 1W / 1M / 1Y / 5Y). Two filters: the range
-  as a "1D change" drop-down in the head (like the movers), the asset class as a segmented choice
-  (All, ETFs, Certs, Stocks, Crypto; only when there's more than one class) under it. Every visit
-  starts at 1D · All. Over 1W … 5Y the title reads "Your map" and tiles show "…" while history loads,
+  mint, saturating at ±3 % for 1D, ±6 / 10 / 30 / 60 % for 1W / 1M / 1Y / 5Y). Two filters behind a filter button (sliders icon, 32 px, `--ink-3`) at the right of the
+  head: tap it to unfold two segmented rows, the range (1D 1W 1M 1Y 5Y) and the asset class (All,
+  ETFs, Certs, Stocks, Crypto; only when there's more than one class). Every visit starts at
+  1D · All; anything else puts a pink dot on the button and a mono summary ("1W · ETFs") beside it.
+  Over 1W … 5Y the title reads "Your map" and tiles show "…" while history loads,
   "—" where there's none. Labels are measured: shrink, then drop; never a one-letter "O…" stub. Positions under 2 %
   fold into a tappable "Others (n)" tile (≥ 7 % of the area) that zooms in with "← All positions".
 - **Month by month** (heatmap, Overview): positions you hold down (by value, 8 then "N more"), the
