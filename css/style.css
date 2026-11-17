@@ -24,7 +24,7 @@
   --radius: 14px;
   --glass: #FFF4F8;     /* glass highlights (tab bar edge) */
   --warn: #FFC861;      /* stale prices */
-  --hm-off: #000000;    /* month by month: periods you didn't own the position */
+  --hm-off: var(--bg);  /* month by month: periods you didn't own the position (recessed, darker than the card) */
   --scheme: dark;       /* native controls */
   --accent-text: var(--accent); /* pink used as text */
   --sel-bg: var(--accent-2); --sel-ink: var(--on-accent);
@@ -1013,7 +1013,7 @@ html.has-session #signin { visibility: hidden; }
   --accent-2: #0B7FA8;
   --up: #08865C; --up-dim: rgba(8, 134, 92, 0.12);
   --down: #D02A49; --down-dim: rgba(208, 42, 73, 0.11);
-  --glass: #FFFFFF; --warn: #A86A00; --scheme: light; --hm-off: #1A1220;
+  --glass: #FFFFFF; --warn: #A86A00; --scheme: light; --hm-off: color-mix(in srgb, var(--ink) 10%, var(--bg-2));
   --sel-bg: #BFE9F8; --sel-ink: #1A1220;
   --stocks: #0B9FD0; --etfs: var(--accent);
   --crypto: #C58A00; --crypto-ink: #8A6100; --certs: #7B5CF0; --certs-ink: #5E3FD6;
@@ -1026,7 +1026,7 @@ html.has-session #signin { visibility: hidden; }
     --accent-2: #0B7FA8;
     --up: #08865C; --up-dim: rgba(8, 134, 92, 0.12);
     --down: #D02A49; --down-dim: rgba(208, 42, 73, 0.11);
-    --glass: #FFFFFF; --warn: #A86A00; --scheme: light; --hm-off: #1A1220;
+    --glass: #FFFFFF; --warn: #A86A00; --scheme: light; --hm-off: color-mix(in srgb, var(--ink) 10%, var(--bg-2));
     --sel-bg: #BFE9F8; --sel-ink: #1A1220;
     --stocks: #0B9FD0; --etfs: var(--accent);
     --crypto: #C58A00; --crypto-ink: #8A6100; --certs: #7B5CF0; --certs-ink: #5E3FD6;
