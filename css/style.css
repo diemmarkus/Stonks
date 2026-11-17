@@ -22,6 +22,7 @@
   --sans: "Inter Tight", system-ui, -apple-system, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
   --radius: 14px;
+  --page-max: 960px;  /* content column on big screens */
 }
 
 * { box-sizing: border-box; }
@@ -46,13 +47,13 @@ body {
   display: flex;
   flex-direction: column;
 }
-main { width: min(1120px, 100% - 40px); margin: 0 auto; flex: 1; }
+main { width: min(var(--page-max), 100% - 40px); margin: 0 auto; flex: 1; }
 button { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 
 /* header */
 .top {
-  width: min(1120px, 100% - 40px);
+  width: min(var(--page-max), 100% - 40px);
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -148,7 +149,7 @@ h1 em.down { color: var(--down); }
 .note .badge { color: #FFC861; }
 
 .foot {
-  width: min(1120px, 100% - 40px); margin: 64px auto 0; padding: 22px 0 34px;
+  width: min(var(--page-max), 100% - 40px); margin: 64px auto 0; padding: 22px 0 34px;
   color: var(--ink-3); font-size: 13px;
   display: flex; flex-wrap: wrap; gap: 6px 24px; justify-content: space-between;
 }
@@ -951,3 +952,14 @@ html.has-session #signin { visibility: hidden; }
 #sheet .sheet__chart { margin: 0; }
 #sheet .pchart__plot { margin-inline: -18px; --chart-inset: 18px; }
 #sheet .pchart__read { left: 18px; }
+
+/* Desktop: value chart always open under the head; head tiles and cards share one 2-column grid */
+.ov-deskchart .pos__chart { height: 300px; margin: 0 0 18px; }
+@media (min-width: 900px) {
+  #view-overview .hero-num { cursor: default; }
+  #view-overview .hero-num__label::after { content: none; }
+  #view-overview .tiles { gap: 14px; }
+  .ov2-cards { align-items: stretch; }
+}
+.ov-deskchart .pchart__plot { margin-inline: 0; --chart-inset: 0px; } /* stays inside the column, edges line up with the cards */
+.ov-deskchart .pchart__read { left: 0; }

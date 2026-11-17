@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=149";
-import { legalDoc } from "./legal.js?v=149";
-import { isCryptoCode } from "./crypto.js?v=149";
-import { renderOverview2 } from "./overview2.js?v=149";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=153";
+import { legalDoc } from "./legal.js?v=153";
+import { isCryptoCode } from "./crypto.js?v=153";
+import { renderOverview2 } from "./overview2.js?v=153";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,7 +59,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=149") : import("./store.js?v=149"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=153") : import("./store.js?v=153"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -198,8 +198,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=149").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=149").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=153").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=153").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -711,8 +711,10 @@ function renderOverview() {
 
 
 
+  const keptChart = body.querySelector(".ov-deskchart");
+  keptChart?.remove();
   body.innerHTML = `
-    <section class="hero-num" id="hero-num" role="button" tabindex="0" aria-label="Show a chart of your whole portfolio">
+    <section class="hero-num" id="hero-num"${isDesk() ? "" : ` role="button" tabindex="0" aria-label="Show a chart of your whole portfolio"`}>
       <div class="hero-num__label">Total value</div>
       <div class="hero-num__value"><small>€</small>${whole}<small>.${cents}</small></div>
       <div class="hero-num__sub">
@@ -731,6 +733,7 @@ function renderOverview() {
 
   // below the head: map, money movers, setup, since you bought, latest (js/overview2.js)
   ov2 = renderOverview2(body.querySelector(".ov2-cards"), ov2Ctx(rows, t, pos));
+  placeDeskChart(body, keptChart);
 }
 
 /* ======================================================================
@@ -1140,13 +1143,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=149");
+  const { CRYPTO } = await import("./crypto.js?v=153");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=149");
+    const { searchInstruments } = await import("./onvista.js?v=153");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1326,7 +1329,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=149");
+    const { decode, parseTrades } = await import("./import-csv.js?v=153");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1651,14 +1654,33 @@ function portfolioChartPositions() {
   }
   return [...byKey.values()];
 }
+// Desktop (two columns): the value chart is always shown under the head, outside the
+// one-thing-open logic, and kept across re-renders so it doesn't reload on every price tick.
+const DESK = window.matchMedia("(min-width: 900px)");
+const isDesk = () => DESK.matches;
+DESK.addEventListener?.("change", () => { if (state.view === "overview") renderCurrent(); });
+function placeDeskChart(body, kept) {
+  if (!isDesk() || !state.holdings?.length) return;
+  const positions = portfolioChartPositions();
+  const sig = JSON.stringify(positions);
+  const hero = body.querySelector("#hero-num");
+  if (!hero) return;
+  if (kept && kept.dataset.sig === sig) { hero.after(kept); return; }
+  const node = document.createElement("div");
+  node.className = "ov-deskchart";
+  node.dataset.sig = sig;
+  node.innerHTML = `<div class="pos__chart"></div>`;
+  hero.after(node);
+  import("./chart.js?v=153").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+}
 function togglePortfolioChart() {
-  if (!state.holdings?.length) return;
+  if (!state.holdings?.length || isDesk()) return; // on desktop it's always open
   toggleExpand("total", () => $("hero-num"), () => {
     const node = document.createElement("div");
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=149").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=153").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1673,7 +1695,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=149").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=153").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1687,7 +1709,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=149");
+  const { mountPriceChart } = await import("./chart.js?v=153");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1776,7 +1798,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=149").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=153").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2416,7 +2438,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=149");
+  const { resetDemo } = await import("./demo-store.js?v=153");
   resetDemo();
   state.demo = true;
   state.names = {};

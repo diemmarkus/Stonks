@@ -63,13 +63,15 @@ in big totals (`€28,413.15`).
 
 ## Layout
 
-- Content column: `min(1120px, 100% − 40px)`; cards stack with 14 px gaps, two columns from 900 px.
+- Content column: `min(960px, 100% − 40px)` (`--page-max`); cards stack with 14 px gaps, two columns from 900 px.
 - **Cards**: `--bg-2`, 1 px `--line` border, radius 14 px, padding 18 px (8 px at the bottom when a
   list ends the card). Head: title left, optional hint or control right.
 - **Portfolio on a phone in portrait** runs edge to edge: no side borders or corners, 16 px inside.
 - **Unfolded items** (rows, positions, allocation classes) and their chart share one `--open-bg`
   block that runs edge to edge across the card; on the last row it reaches the card's bottom edge.
   One thing open at a time.
+- On desktop (≥ 900 px) the Overview always shows the value chart under the head, inside the column;
+  head tiles and cards share one two-column grid (14 px gaps) and cards in a row are equal height.
 - **Charts inside cards** run their line to the card edges; labels, readouts and range buttons keep
   the card padding.
 - **Tab bar**: on phones docked to the bottom edge, square corners, frosted glass, filling the area
