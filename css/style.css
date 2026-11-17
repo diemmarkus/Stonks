@@ -921,6 +921,9 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 .ov2-tile__name.is-others { text-overflow: clip; }
 .ov2-asof { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; }
 @media (min-width: 900px) { .ov2-asof { grid-column: 1 / -1; } }
+/* map filters: asset class (segmented) under the head; the range sits in the head */
+.ov2-seg { margin-bottom: 12px; }
+.ov2-seg button { min-height: 32px; font-size: 12px; padding: 0 6px; }
 .ov2-back { border: 0; background: none; padding: 6px 10px; margin: -6px -10px -6px 0; border-radius: 999px; cursor: pointer; font: 500 13px/1 var(--sans); color: var(--accent-2); }
 .ov2-back:hover { background: color-mix(in srgb, var(--accent-2) 12%, transparent); }
 .ov2-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
