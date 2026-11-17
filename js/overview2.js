@@ -65,6 +65,38 @@ function moveColor(pct, live) {
   return `color-mix(in srgb, var(--${pct >= 0 ? "up" : "down"}) ${mix}%, var(--bg-2))`;
 }
 
+// Two-column grid: cards side by side share a height only when they're within ~15 % of each
+// other; very different cards keep their own height (no big empty gaps).
+function alignRows(grid) {
+  const cards = [...grid.children].filter((c) => c.classList.contains("card"));
+  cards.forEach((c) => { c.style.minHeight = ""; });
+  if (getComputedStyle(grid).gridTemplateColumns.split(" ").length < 2) return;
+  const rows = new Map();
+  for (const c of cards) {
+    const top = Math.round(c.offsetTop);
+    if (!rows.has(top)) rows.set(top, []);
+    rows.get(top).push(c);
+  }
+  for (const row of rows.values()) {
+    if (row.length < 2) continue;
+    const hs = row.map((c) => c.offsetHeight), max = Math.max(...hs), min = Math.min(...hs);
+    if (min / max >= 0.85) row.forEach((c) => { c.style.minHeight = `${max}px`; });
+  }
+}
+const watched = new WeakSet();
+function watchRows(grid) {
+  let queued = false;
+  const run = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; alignRows(grid); }); };
+  run();
+  if (watched.has(grid) || typeof ResizeObserver === "undefined") return;
+  watched.add(grid);
+  // re-check when a card's content changes height (folding, unfolding, charts loading)
+  const ro = new ResizeObserver(run);
+  const observe = () => [...grid.children].forEach((c) => ro.observe(c));
+  observe();
+  new MutationObserver(() => { observe(); run(); }).observe(grid, { childList: true, subtree: true });
+}
+
 export function renderOverview2(body, ctx) {
   const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel } = ctx;
   const live = pos.filter((p) => p.live);
@@ -228,5 +260,6 @@ export function renderOverview2(body, ctx) {
   layout();
   // labels are measured: measure again once the web fonts have loaded (they're wider than the fallback)
   document.fonts?.ready?.then(() => { if (host.isConnected) layout(); });
-  return { relayout: layout };
+  watchRows(body);
+  return { relayout: () => { layout(); alignRows(body); } };
 }

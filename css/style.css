@@ -173,11 +173,9 @@ h1 em.down { color: var(--down); }
   --tabbar-h: 64px;
 }
 body.has-tabbar { padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom)); }
-.view { animation: viewin .22s ease-out; }
-@keyframes viewin { from { opacity: 0; transform: translateY(6px); } }
-.view.is-sliding { animation: none; } /* tab changes slide sideways instead (playViewEnter) */
-.view { will-change: auto; touch-action: pan-y; }
-@media (prefers-reduced-motion: reduce) { .view { animation: none; } }
+@keyframes viewin { from { opacity: 0; transform: translateY(6px); } } /* used for things that unfold inside a page */
+/* view changes are animated from JS (playViewEnter): a CSS animation here would replay and flicker */
+.view { touch-action: pan-y; }
 
 .page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 20px 0 18px; }
 .page-title { margin: 0; font: 300 clamp(36px, 6.6vw, 52px)/1.05 var(--display); letter-spacing: -0.03em; }
@@ -959,7 +957,7 @@ html.has-session #signin { visibility: hidden; }
   #view-overview .hero-num { cursor: default; }
   #view-overview .hero-num__label::after { content: none; }
   #view-overview .tiles { gap: 14px; }
-  .ov2-cards { align-items: stretch; }
+  /* rows align only when the two cards are about the same height (see alignRows in overview2.js) */
 }
 .ov-deskchart .pchart__plot { margin-inline: 0; --chart-inset: 0px; } /* stays inside the column, edges line up with the cards */
 .ov-deskchart .pchart__read { left: 0; }

@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=153";
-import { legalDoc } from "./legal.js?v=153";
-import { isCryptoCode } from "./crypto.js?v=153";
-import { renderOverview2 } from "./overview2.js?v=153";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=157";
+import { legalDoc } from "./legal.js?v=157";
+import { isCryptoCode } from "./crypto.js?v=157";
+import { renderOverview2 } from "./overview2.js?v=157";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,7 +59,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=153") : import("./store.js?v=153"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=157") : import("./store.js?v=157"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -198,8 +198,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=153").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=153").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=157").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=157").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1143,13 +1143,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=153");
+  const { CRYPTO } = await import("./crypto.js?v=157");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=153");
+    const { searchInstruments } = await import("./onvista.js?v=157");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1329,7 +1329,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=153");
+    const { decode, parseTrades } = await import("./import-csv.js?v=157");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1671,7 +1671,7 @@ function placeDeskChart(body, kept) {
   node.dataset.sig = sig;
   node.innerHTML = `<div class="pos__chart"></div>`;
   hero.after(node);
-  import("./chart.js?v=153").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+  import("./chart.js?v=157").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
 }
 function togglePortfolioChart() {
   if (!state.holdings?.length || isDesk()) return; // on desktop it's always open
@@ -1680,7 +1680,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=153").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=157").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1695,7 +1695,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=153").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=157").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1709,7 +1709,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=153");
+  const { mountPriceChart } = await import("./chart.js?v=157");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1798,7 +1798,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=153").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=157").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2137,6 +2137,7 @@ function route() {
   state.view = view;
 
   document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== `view-${section}`));
+  if (slidOut) { const o = slidOut; slidOut = null; if (o.el.hidden) { o.anim.cancel(); o.reset(); } else o.anim.finished.then(() => { o.anim.cancel(); o.reset(); }); }
   if (changed && prevView) playViewEnter(prevView, section);
   document.querySelectorAll(".tab").forEach((t) => {
     if (t.dataset.tab === section || (t.dataset.tab === "add" && !addSheet.hidden)) t.setAttribute("aria-current", "page");
@@ -2161,6 +2162,7 @@ const reduceMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)
 const EASE_OUT = "cubic-bezier(.2, .8, .2, 1)";
 let swipe = null;
 let pendingSlide = null; // "left" | "right": direction the next view enters from, set by a swipe
+let slidOut = null;      // the page a swipe just pushed out; released once it's hidden
 document.addEventListener("touchstart", (e) => {
   swipe = null;
   if (!state.user || e.touches.length !== 1 || !SWIPE_TABS.includes(state.view)) return;
@@ -2221,8 +2223,13 @@ document.addEventListener("touchend", () => {
     { transform: `translateX(${dirLeft ? -w * 0.45 : w * 0.45}px)`, opacity: 0 }], { duration: 150, easing: "cubic-bezier(.4, 0, 1, 1)", fill: "forwards" });
   out.finished.then(() => {
     pendingSlide = dirLeft ? "right" : "left";
-    location.hash = TAB_HASH[next];
-    out.cancel(); reset();
+    // keep the old page parked off-screen (fill: forwards) until route() has hidden it,
+    // and switch right now instead of waiting for the async hashchange: no frame in between
+    slidOut = { el, anim: out, reset };
+    history.pushState(null, "", TAB_HASH[next]); // no hashchange: do what its listeners would
+    closeExpand(); closeChart();
+    if (next !== "portfolio") setPfEdit(false);
+    route();
   });
 }, { passive: true });
 document.addEventListener("touchcancel", () => {
@@ -2239,13 +2246,16 @@ function playViewEnter(prev, view) {
   pendingSlide = null;
   if (!from) {
     const a = TAB_ORDER.indexOf(prev), b = TAB_ORDER.indexOf(view);
-    if (a < 0 || b < 0 || a === b) return; // not a tab change: keep the gentle default fade
+    if (a < 0 || b < 0 || a === b) {
+      // not a tab change (legal pages, sign-in): a short fade up
+      el.animate([{ transform: "translateY(6px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 220, easing: "ease-out" });
+      return;
+    }
     from = b > a ? "right" : "left";
   }
   const w = window.innerWidth || 390;
-  el.classList.add("is-sliding");
   el.animate([{ transform: `translateX(${from === "right" ? w * 0.3 : -w * 0.3}px)`, opacity: 0 }, { transform: "translateX(0)", opacity: 1 }],
-    { duration: 300, easing: EASE_OUT }).finished.finally(() => el.classList.remove("is-sliding"));
+    { duration: 300, easing: EASE_OUT });
 }
 
 function renderYou() {
@@ -2438,7 +2448,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=153");
+  const { resetDemo } = await import("./demo-store.js?v=157");
   resetDemo();
   state.demo = true;
   state.names = {};
