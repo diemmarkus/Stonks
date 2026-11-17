@@ -115,7 +115,7 @@ in big totals (`€28,413.15`).
   periods across, each cell coloured by that period's price change (rose → surface → mint). A filter
   button in the head (as on the map) picks the range: 6M, 1Y (default), 2Y in months (±10 %), 5Y in
   quarters (±20 %), 10Y in years (±40 %); the title follows ("Month by month", "Quarter by quarter",
-  "Year by year"). Periods you didn't own the position are black (`--hm-off`); no price is an empty
+  "Year by year"). Periods you didn't own the position are dark (`--hm-off`: the page colour, darker than the card; ink at 10 % in light); no price is an empty
   outline. Column heads: month initials with the year over January, Q1–Q4 with the year over Q1, or
   ’17-style years. No numbers in cells: tap one for the readout ("Name · Oct 2026 · +4.2%"); tap a
   name for its chart. Below the grid a −x % … +x % scale until a cell is tapped.
