@@ -114,6 +114,10 @@ if (await demo.isVisible()) {
   await go("#/portfolio");
   ok("demo: portfolio renders", await page.locator("#view-portfolio").isVisible());
   await shot("demo-portfolio");
+  await page.locator("#user-btn").click();
+  await page.locator("#settings-link").click();
+  await page.waitForTimeout(400);
+  ok("demo: account menu opens Settings (You page)", await page.locator("#view-you").isVisible());
   await go("#/you");
   ok("demo: You page links to the Imprint", await page.locator('#view-you a[href="#/imprint"]').isVisible());
   ok("demo: You page links to the Privacy policy", await page.locator('#view-you a[href="#/privacy"]').isVisible());
