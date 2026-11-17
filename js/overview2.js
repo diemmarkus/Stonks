@@ -11,6 +11,9 @@ const MAP_RANGES = ["1D", "1W", "1M", "1Y", "5Y"];
 // colour saturates at this move (%), wider for longer ranges
 const MAP_SAT = { "1D": 3, "1W": 6, "1M": 10, "1Y": 30, "5Y": 60 };
 const SHORT_TYPE = { etf: "ETFs", certificate: "Certs", stock: "Stocks", crypto: "Crypto" };
+const monthCache = new Map(); // positions → Promise<{ months, byKey }>
+let monthsOpen = false; // month-by-month: all rows shown (kept across re-renders)
+const MONTH_ROWS = 8;
 const changeCache = new Map(); // range + positions → Promise<Map key → %>
 document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-ov2-more]");
@@ -105,7 +108,7 @@ function watchRows(grid) {
 }
 
 export function renderOverview2(body, ctx) {
-  const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel, mapChanges } = ctx;
+  const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel, mapChanges, monthChanges, heldSince } = ctx;
   const live = pos.filter((p) => p.live);
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
   const [whole, cents] = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(t.value).split(".");
@@ -164,6 +167,13 @@ export function renderOverview2(body, ctx) {
       ${mapTypes.length > 1 ? `<div class="seg ov2-seg" role="radiogroup" aria-label="Show">${["all", ...mapTypes].map((k) => `<button type="button" role="radio" data-ov2-map-type="${k}" aria-checked="${k === mapType}">${k === "all" ? "All" : SHORT_TYPE[k] || typeLabel(k)}</button>`).join("")}</div>` : ""}
       <div class="ov2-map" id="ov2-map" role="img" aria-label="Your positions by value, coloured by today's change"></div>
     </article>
+
+    ${mapAll.length && monthChanges ? `
+    <article class="card panel ov2-card" id="ov2-months">
+      <div class="card__head"><h3 class="card__title">Month by month</h3></div>
+      <div class="ov2-hm" aria-busy="true"></div>
+      <p class="ov2-hm__read" aria-live="polite"></p>
+    </article>` : ""}
 
     ${contrib.length ? `
     <article class="card panel ov2-card">
@@ -256,6 +266,53 @@ export function renderOverview2(body, ctx) {
     if (!changeCache.has(key)) changeCache.set(key, mapChanges(mapAll, range).catch(() => new Map()));
     changeCache.get(key).then((m) => { if (range === mapRange && host.isConnected) { changes = m; layout(); } });
   };
+  // Month by month: positions down, the last 12 months across, each cell coloured by that month's
+  // price change (saturating at ±10 %); months before your first buy are faded. Tap a cell to read it.
+  function months() {
+    const cardEl = body.querySelector("#ov2-months");
+    const grid = cardEl.querySelector(".ov2-hm"), read = cardEl.querySelector(".ov2-hm__read");
+    const mLabel = (m, long) => new Date(`${m}-15T12:00:00`).toLocaleDateString("en-GB", long ? { month: "short", year: "numeric" } : { month: "narrow" });
+    const legend = `<span class="ov2-hm__scale"><span>−10%</span><i aria-hidden="true"></i><span>+10%</span></span>`;
+    const draw = (data) => {
+      const ms = data?.months || Array.from({ length: 12 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 11 + i); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; });
+      const extra = mapAll.length - MONTH_ROWS, fold = extra >= 2;
+      const shown = fold && !monthsOpen ? mapAll.slice(0, MONTH_ROWS) : mapAll;
+      grid.style.setProperty("--cols", ms.length);
+      // month initials; the year above each January (the first column's year is clear from it)
+      grid.innerHTML = `<span></span>${ms.map((m) => `<span class="ov2-hm__m" title="${mLabel(m, true)}"><b>${m.endsWith("-01") ? `’${m.slice(2, 4)}` : "&nbsp;"}</b>${mLabel(m)}</span>`).join("")}`
+        + shown.map((p) => {
+          const vals = data?.byKey.get(p.key) || ms.map(() => null);
+          const since = heldSince?.(p.key) || "";
+          return `<button type="button" class="ov2-hm__name" data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""}>${esc(p.label)}</button>`
+            + vals.map((v, i) => {
+              const m = ms[i], before = m && since && m < since.slice(0, 7);
+              const txt = v == null ? (data ? "no price" : "loading") : fmtPct(v);
+              return `<span class="ov2-hm__c${before ? " is-before" : ""}" data-hm="${esc(p.label)}|${m || ""}|${v == null ? "" : v}|${before ? 1 : ""}" role="img"
+                aria-label="${esc(p.label)}, ${m ? mLabel(m, true) : ""}: ${txt}${before ? ", before you bought" : ""}" style="background:${v == null ? "var(--bg)" : moveColor(v, true, 10)}"></span>`;
+            }).join("");
+        }).join("")
+        + (fold ? `<div class="ov2-gap ov2-hm__more"><button type="button" data-hm-more aria-expanded="${monthsOpen}">${monthsOpen ? "Show less" : `${extra} more`}</button></div>` : "");
+      grid.setAttribute("aria-busy", String(!data));
+      read.innerHTML = legend;
+    };
+    draw(null);
+    const key = mapAll.map((p) => p.key).join(",");
+    if (!monthCache.has(key)) monthCache.set(key, monthChanges(mapAll).catch(() => null));
+    let data = null;
+    monthCache.get(key).then((d) => { if (d && grid.isConnected) { data = d; draw(d); } });
+    cardEl.addEventListener("click", (e) => {
+      if (e.target.closest("[data-hm-more]")) { monthsOpen = !monthsOpen; draw(data); return; }
+      const c = e.target.closest("[data-hm]");
+      if (!c) return;
+      grid.querySelectorAll(".is-sel").forEach((x) => x.classList.remove("is-sel"));
+      c.classList.add("is-sel");
+      const [label, m, v, before] = c.dataset.hm.split("|");
+      const n = v === "" ? null : Number(v);
+      read.innerHTML = `<span><b>${esc(label)}</b> · ${m ? mLabel(m, true) : ""}${m === data?.months.at(-1) ? " so far" : ""}${before ? " · before you bought" : ""}</span>`
+        + `<b class="${n == null ? "" : dir(n)}">${n == null ? (data ? "no price" : "…") : fmtPct(n)}</b>`;
+    });
+  }
+
   // Keep only what fits, measured: shrink the name first, then drop it; drop the value before
   // the %; the Others tile shortens to "Others"; nothing ends in "…" unless most of the name shows.
   function fitTile(tile) {
@@ -303,6 +360,7 @@ export function renderOverview2(body, ctx) {
   });
   loadChanges();
   layout();
+  if (mapAll.length && monthChanges) months();
   // labels are measured: measure again once the web fonts have loaded (they're wider than the fallback)
   document.fonts?.ready?.then(() => { if (host.isConnected) layout(); });
   watchRows(body);

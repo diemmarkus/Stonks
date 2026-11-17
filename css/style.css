@@ -921,6 +921,25 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 .ov2-tile__name.is-others { text-overflow: clip; }
 .ov2-asof { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; }
 @media (min-width: 900px) { .ov2-asof { grid-column: 1 / -1; } }
+/* month by month: positions × months heatmap */
+.ov2-hm { display: grid; grid-template-columns: minmax(0, 7.5em) repeat(var(--cols, 12), minmax(0, 1fr)); gap: 3px; align-items: stretch; }
+.ov2-hm__m { font: 400 10px/1.1 var(--mono); color: var(--ink-3); text-align: center; align-self: end; padding-bottom: 2px; display: grid; }
+.ov2-hm__m b { font-weight: 400; font-size: 9px; color: var(--ink-3); opacity: .8; }
+.ov2-hm__name { all: unset; box-sizing: border-box; cursor: pointer; font: 500 12px/1.2 var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px 0 0; min-height: 24px; display: flex; align-items: center; border-radius: 4px; }
+.ov2-hm__name:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ov2-hm__c { min-height: 24px; border-radius: 4px; cursor: pointer; transition: opacity .15s; }
+.ov2-hm__c.is-before { opacity: .35; }
+.ov2-hm__c.is-sel { outline: 2px solid var(--ink); outline-offset: -1px; }
+.ov2-hm[aria-busy="true"] .ov2-hm__c { animation: ov2hm 1.2s ease-in-out infinite alternate; }
+@keyframes ov2hm { to { opacity: .5; } }
+.ov2-hm__more { grid-column: 1 / -1; }
+.ov2-hm__read { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 20px; margin: 12px 0 0; font-size: 13px; color: var(--ink-2); }
+.ov2-hm__read b { font: 600 13px/1 var(--mono); }
+.ov2-hm__read span b { font: 600 13px/1.2 var(--sans); color: var(--ink); }
+.ov2-hm__read .up { color: var(--up); } .ov2-hm__read .down { color: var(--down); }
+.ov2-hm__scale { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font: 400 11px/1 var(--mono); color: var(--ink-3); }
+.ov2-hm__scale i { width: 96px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, color-mix(in srgb, var(--down) 76%, var(--bg-2)), var(--bg-2), color-mix(in srgb, var(--up) 76%, var(--bg-2))); border: 1px solid var(--line); }
+@media (prefers-reduced-motion: reduce) { .ov2-hm[aria-busy="true"] .ov2-hm__c { animation: none; } }
 /* map filters: asset class (segmented) under the head; the range sits in the head */
 .ov2-seg { margin-bottom: 12px; }
 .ov2-seg button { min-height: 32px; font-size: 12px; padding: 0 6px; }

@@ -130,6 +130,14 @@ if (await demo.isVisible()) {
   ok("demo: map over 1W", (await page.locator("#ov2-map-title").textContent()) === "Your map" && await page.locator("#ov2-map .ov2-tile").count() > 0);
   await shot("demo-map-1w");
   await mapRange.selectOption("1D");
+  // month by month: one row per position, 12 month columns, a readout on tap
+  const hmRows = await page.locator("#ov2-months .ov2-hm__name").count();
+  ok("demo: month by month has rows", hmRows > 0);
+  ok("demo: month by month has 12 months", (await page.locator("#ov2-months .ov2-hm__m").count()) === 12);
+  await page.locator("#ov2-months .ov2-hm__c").first().click();
+  ok("demo: month cell shows a readout", ((await page.locator("#ov2-months .ov2-hm__read").textContent()) || "").includes("·"));
+  await page.locator("#ov2-months").scrollIntoViewIfNeeded();
+  await shot("demo-months");
   await go("#/portfolio");
   ok("demo: portfolio renders", await page.locator("#view-portfolio").isVisible());
   await shot("demo-portfolio");
