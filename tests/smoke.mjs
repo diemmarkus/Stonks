@@ -111,6 +111,25 @@ if (await demo.isVisible()) {
   await page.waitForTimeout(1500);
   ok("demo: overview renders", await page.locator("#view-overview").isVisible());
   await shot("demo-overview");
+  // map filters: 1D · All by default; a class shows only its tiles; 1W relabels the map
+  const mapRange = page.locator("[data-ov2-map-range]");
+  ok("demo: map range defaults to 1D", (await mapRange.inputValue()) === "1D");
+  ok("demo: map class defaults to All", (await page.locator('[data-ov2-map-type="all"]').getAttribute("aria-checked")) === "true");
+  const allTiles = await page.locator("#ov2-map .ov2-tile").count();
+  const cls = page.locator('[data-ov2-map-type]:not([data-ov2-map-type="all"])').first();
+  if (await cls.count()) {
+    await cls.click();
+    await page.waitForTimeout(200);
+    const n = await page.locator("#ov2-map .ov2-tile").count();
+    ok("demo: map class filter narrows the map", n > 0 && n <= allTiles, `${n} of ${allTiles}`);
+    await shot("demo-map-class");
+    await page.locator('[data-ov2-map-type="all"]').click();
+  }
+  await mapRange.selectOption("1W");
+  await page.waitForTimeout(800);
+  ok("demo: map over 1W", (await page.locator("#ov2-map-title").textContent()) === "Your map" && await page.locator("#ov2-map .ov2-tile").count() > 0);
+  await shot("demo-map-1w");
+  await mapRange.selectOption("1D");
   await go("#/portfolio");
   ok("demo: portfolio renders", await page.locator("#view-portfolio").isVisible());
   await shot("demo-portfolio");

@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=158";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=159";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -429,3 +429,19 @@ export async function portfolioYears(positions) {
   return { years, missing: positions.length - series.length };
 }
 
+
+// Price change over a range for the map: first → last price of that range's history, in %.
+// items: [{ key, id, currency, venue, hint }] → Map key → % (null when there's no history for it).
+// Crypto has no 5Y history on CoinGecko's free plan: null.
+export async function changesOver(items, range) {
+  const out = new Map();
+  await Promise.all(items.map(async (it) => {
+    try {
+      if (isCryptoCode(it.id) && !RANGES[range]?.cg) { out.set(it.key, null); return; }
+      const src = await resolve(it.id, it.currency, it.venue, it.hint);
+      const pts = await history(src, range);
+      out.set(it.key, pts.length >= 2 ? (pts[pts.length - 1].v / pts[0].v - 1) * 100 : null);
+    } catch { out.set(it.key, null); }
+  }));
+  return out;
+}

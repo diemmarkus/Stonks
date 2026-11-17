@@ -103,8 +103,12 @@ in big totals (`€28,413.15`).
   Only fold when at least 2 rows would be hidden.
 - **Tiles** (Overview): label, big mono value, optional split lines (Put in / Sold for, Open /
   Realised) under a hairline, aligned across both tiles.
-- **Treemap** (Today's map): size = value, colour = today's move (rose → surface → mint, saturating
-  at ±3 %). Labels are measured: shrink, then drop; never a one-letter "O…" stub. Positions under 2 %
+- **Treemap** (Today's map): size = value, colour = the move over the chosen range (rose → surface →
+  mint, saturating at ±3 % for 1D, ±6 / 10 / 30 / 60 % for 1W / 1M / 1Y / 5Y). Two filters: the range
+  as a "1D change" drop-down in the head (like the movers), the asset class as a segmented choice
+  (All, ETFs, Certs, Stocks, Crypto; only when there's more than one class) under it. Every visit
+  starts at 1D · All. Over 1W … 5Y the title reads "Your map" and tiles show "…" while history loads,
+  "—" where there's none. Labels are measured: shrink, then drop; never a one-letter "O…" stub. Positions under 2 %
   fold into a tappable "Others (n)" tile (≥ 7 % of the area) that zooms in with "← All positions".
 - **Diverging bars** (What moved your money, Since you bought): centre line, mint right, rose left,
   value right-aligned in mono.

@@ -5,6 +5,13 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // "N more in between" unfolded per list (movers, returns); kept across re-renders
 const open = { movers: false, returns: false };
 let mapZoom = false; // map shows only the "Others" (kept across re-renders)
+// the map's two filters, kept across re-renders (not stored: a fresh visit starts at 1D · All)
+let mapRange = "1D", mapType = "all";
+const MAP_RANGES = ["1D", "1W", "1M", "1Y", "5Y"];
+// colour saturates at this move (%), wider for longer ranges
+const MAP_SAT = { "1D": 3, "1W": 6, "1M": 10, "1Y": 30, "5Y": 60 };
+const SHORT_TYPE = { etf: "ETFs", certificate: "Certs", stock: "Stocks", crypto: "Crypto" };
+const changeCache = new Map(); // range + positions → Promise<Map key → %>
 document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-ov2-more]");
   if (!b) return;
@@ -57,10 +64,10 @@ function squarify(items, x, y, w, h) {
   return out;
 }
 
-// today's % → tile colour: rose ← surface → mint, saturating at ±3 %
-function moveColor(pct, live) {
+// the range's % → tile colour: rose ← surface → mint, saturating at ±3 % for a day (MAP_SAT)
+function moveColor(pct, live, sat = 3) {
   if (!live) return "var(--bg)";
-  const k = clamp(Math.abs(pct) / 3, 0, 1);
+  const k = clamp(Math.abs(pct) / sat, 0, 1);
   const mix = Math.round(14 + k * 62);
   return `color-mix(in srgb, var(--${pct >= 0 ? "up" : "down"}) ${mix}%, var(--bg-2))`;
 }
@@ -98,13 +105,15 @@ function watchRows(grid) {
 }
 
 export function renderOverview2(body, ctx) {
-  const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel } = ctx;
+  const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel, mapChanges } = ctx;
   const live = pos.filter((p) => p.live);
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
   const [whole, cents] = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(t.value).split(".");
 
-  /* 1 · today's map */
-  const mapItems = pos.filter((p) => p.value > 0.005).sort((a, b) => b.value - a.value);
+  /* 1 · today's map (or over 1W … 5Y), all positions or one class */
+  const mapAll = pos.filter((p) => p.value > 0.005).sort((a, b) => b.value - a.value);
+  const mapTypes = alloc.byType.map((x) => x.key).filter((k) => mapAll.some((p) => p.type === k));
+  if (mapType !== "all" && !mapTypes.includes(mapType)) mapType = "all";
 
   /* 2 · what moved your money today (€) */
   const contrib = [...live].filter((p) => Math.abs(p.dayChange) >= 0.005).sort((a, b) => b.dayChange - a.dayChange);
@@ -122,9 +131,9 @@ export function renderOverview2(body, ctx) {
   });
 
   /* 3 · setup: classes + concentration */
-  const top3 = mapItems.slice(0, 3).reduce((n, p) => n + p.value, 0);
-  const conc = mapItems.map((p, i) => `<span class="ov2-conc__seg${i < 3 ? ` is-top is-top${i}` : ""}" style="flex:${p.value}" title="${esc(p.label)} · ${share(p.value).toFixed(1)}%"></span>`).join("");
-  const topList = mapItems.slice(0, 3).map((p, i) => `<li><span class="ov2-sw is-top${i}"></span><span>${esc(p.label)}</span><b>${share(p.value).toFixed(1)}%</b></li>`).join("");
+  const top3 = mapAll.slice(0, 3).reduce((n, p) => n + p.value, 0);
+  const conc = mapAll.map((p, i) => `<span class="ov2-conc__seg${i < 3 ? ` is-top is-top${i}` : ""}" style="flex:${p.value}" title="${esc(p.label)} · ${share(p.value).toFixed(1)}%"></span>`).join("");
+  const topList = mapAll.slice(0, 3).map((p, i) => `<li><span class="ov2-sw is-top${i}"></span><span>${esc(p.label)}</span><b>${share(p.value).toFixed(1)}%</b></li>`).join("");
 
   /* 4 · since you bought: total return per position = open gain + realised, against all money put in */
   const ret = [...returns].sort((a, b) => b.gp - a.gp);
@@ -150,7 +159,9 @@ export function renderOverview2(body, ctx) {
   body.innerHTML = `
 
     <article class="card panel ov2-card">
-      <div class="card__head"><h3 class="card__title" id="ov2-map-title">Today's map</h3><button type="button" class="ov2-back" data-ov2-map-back hidden>← All positions</button></div>
+      <div class="card__head"><h3 class="card__title" id="ov2-map-title">Today's map</h3><span class="card__side"><button type="button" class="ov2-back" data-ov2-map-back hidden>← All positions</button>
+        <label class="card__range"><select data-ov2-map-range aria-label="Time range">${MAP_RANGES.map((r) => `<option value="${r}"${r === mapRange ? " selected" : ""}>${r} change</option>`).join("")}</select></label></span></div>
+      ${mapTypes.length > 1 ? `<div class="seg ov2-seg" role="radiogroup" aria-label="Show">${["all", ...mapTypes].map((k) => `<button type="button" role="radio" data-ov2-map-type="${k}" aria-checked="${k === mapType}">${k === "all" ? "All" : SHORT_TYPE[k] || typeLabel(k)}</button>`).join("")}</div>` : ""}
       <div class="ov2-map" id="ov2-map" role="img" aria-label="Your positions by value, coloured by today's change"></div>
     </article>
 
@@ -188,9 +199,18 @@ export function renderOverview2(body, ctx) {
 
   // treemap needs the real width
   const host = body.querySelector("#ov2-map");
+  let changes = null; // 1W … 5Y: key → % once loaded (null while loading)
+  // per position: { live, pct } for the chosen range
+  const moveOf = (p) => {
+    if (mapRange === "1D") return { live: p.live, pct: p.dayPct };
+    const v = changes?.get(p.key);
+    return v == null ? { live: false, pct: 0, loading: !changes } : { live: true, pct: v };
+  };
+  const when = () => (mapRange === "1D" ? "today" : `over ${mapRange}`);
   const layout = () => {
     const W = host.clientWidth, H = host.clientHeight;
     if (!W) return;
+    const mapItems = mapType === "all" ? mapAll : mapAll.filter((p) => p.type === mapType);
     // tiny positions (< 2 % of the map) fold into one "Others" tile; tap it to zoom into just those
     const total = mapItems.reduce((n, p) => n + p.value, 0);
     const small = mapItems.filter((p) => p.value / total < 0.02);
@@ -200,28 +220,41 @@ export function renderOverview2(body, ctx) {
     else {
       items = small.length > 1 ? mapItems.filter((p) => !small.includes(p)) : [...mapItems];
       if (small.length > 1) {
-        const v = small.reduce((n, p) => n + p.value, 0), prev = small.reduce((n, p) => n + (p.live ? p.prevValue : p.value), 0);
-        const day = small.reduce((n, p) => n + (p.live ? p.dayChange : 0), 0);
-        items.push({ key: "", label: `Others (${small.length})`, value: v, dayPct: prev ? (day / prev) * 100 : 0, live: small.some((p) => p.live), others: true });
+        // value-weighted move of the ones with a price for this range
+        let v = 0, prev = 0, any = false;
+        for (const p of small) { const m = moveOf(p); if (m.live) { any = true; v += p.value; prev += p.value / (1 + m.pct / 100); } }
+        items.push({ key: "", label: `Others (${small.length})`, value: small.reduce((n, p) => n + p.value, 0), move: { live: any, pct: prev ? (v / prev - 1) * 100 : 0, loading: !any && moveOf(small[0]).loading }, others: true });
       }
     }
     const title = body.querySelector("#ov2-map-title"), back = body.querySelector("[data-ov2-map-back]");
-    title.textContent = mapZoom ? `Others (${small.length})` : "Today's map";
+    title.textContent = mapZoom ? `Others (${small.length})` : mapRange === "1D" ? "Today's map" : "Your map";
     back.hidden = !mapZoom;
+    host.setAttribute("aria-label", `Your ${mapType === "all" ? "positions" : typeLabel(mapType)} by value, coloured by the change ${when()}`);
+    if (!items.length) { host.innerHTML = ""; return; }
     // the Others tile gets at least 7 % of the area, so it stays big enough to tap
     const rects = squarify(items.map((p) => ({ p, size: p.others ? Math.max(p.value, total * 0.07) : p.value })).sort((x, y) => y.size - x.size), 0, 0, W, H);
     host.innerHTML = rects.map(({ p, x, y, w, h }) => {
       const tw = Math.max(1, w - 3), th = Math.max(1, h - 3);
       const small = tw < 64 || th < 44;
+      const m = p.move || moveOf(p);
+      const state = m.live ? `${fmtPct(m.pct)} ${when()}` : m.loading ? "loading" : mapRange === "1D" ? "no live price" : `no history ${when()}`;
       return `<button type="button" class="ov2-tile${small ? " ov2-tile--small" : ""}"${p.others ? " data-ov2-others" : ` data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""}`}
-        style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${tw.toFixed(1)}px;height:${th.toFixed(1)}px;background:${moveColor(p.dayPct, p.live)}"
-        aria-label="${esc(p.label)}, ${share(p.value).toFixed(1)}% of portfolio, ${p.live ? `${fmtPct(p.dayPct)} today` : "no live price"}${p.others ? ", show them" : ""}">
+        style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${tw.toFixed(1)}px;height:${th.toFixed(1)}px;background:${moveColor(m.pct, m.live, MAP_SAT[mapRange])}"
+        aria-label="${esc(p.label)}, ${share(p.value).toFixed(1)}% of portfolio, ${state}${p.others ? ", show them" : ""}">
         <span class="ov2-tile__name${p.others ? " is-others" : ""}">${esc(p.label)}</span>
-        <span class="ov2-tile__pct">${p.live ? fmtPct(p.dayPct) : "—"}</span>
+        <span class="ov2-tile__pct">${m.live ? fmtPct(m.pct) : m.loading ? "…" : "—"}</span>
         <span class="ov2-tile__val">${fmtEur(p.value)}</span>
       </button>`;
     }).join("");
     host.querySelectorAll(".ov2-tile").forEach(fitTile);
+  };
+  // 1W … 5Y: price history per position (loaded once per range and visit)
+  const loadChanges = () => {
+    changes = null;
+    if (mapRange === "1D" || !mapChanges) return;
+    const range = mapRange, key = `${range}|${mapAll.map((p) => p.key).join(",")}`;
+    if (!changeCache.has(key)) changeCache.set(key, mapChanges(mapAll, range).catch(() => new Map()));
+    changeCache.get(key).then((m) => { if (range === mapRange && host.isConnected) { changes = m; layout(); } });
   };
   // Keep only what fits, measured: shrink the name first, then drop it; drop the value before
   // the %; the Others tile shortens to "Others"; nothing ends in "…" unless most of the name shows.
@@ -256,7 +289,19 @@ export function renderOverview2(body, ctx) {
   card.addEventListener("click", (e) => {
     if (e.target.closest("[data-ov2-others]")) { mapZoom = true; layout(); card.querySelector("[data-ov2-map-back]").focus(); }
     else if (e.target.closest("[data-ov2-map-back]")) { mapZoom = false; layout(); }
+    const typeBtn = e.target.closest("[data-ov2-map-type]");
+    if (typeBtn && typeBtn.dataset.ov2MapType !== mapType) {
+      mapType = typeBtn.dataset.ov2MapType; mapZoom = false;
+      card.querySelectorAll("[data-ov2-map-type]").forEach((b) => b.setAttribute("aria-checked", String(b === typeBtn)));
+      layout();
+    }
   });
+  card.addEventListener("change", (e) => {
+    if (!e.target.matches("[data-ov2-map-range]")) return;
+    mapRange = e.target.value; mapZoom = false;
+    loadChanges(); layout();
+  });
+  loadChanges();
   layout();
   // labels are measured: measure again once the web fonts have loaded (they're wider than the fallback)
   document.fonts?.ready?.then(() => { if (host.isConnected) layout(); });
