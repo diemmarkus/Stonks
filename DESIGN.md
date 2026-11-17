@@ -102,6 +102,9 @@ in big totals (`€28,413.15`).
 ## Data and copy
 
 - Euros by default (`€1,234.56`); US tickers in dollars only where the source is in dollars.
+- Cost is the moving average (gleitender Durchschnittspreis, like flatex Austria): every buy blends
+  into one average per position; a sale takes units out at that average. Which buy rows show as
+  "sold" follows FIFO, for display only. Same-day sells that held units cover go before that day's buys.
 - Returns per position = open gain + realised gain, divided by everything put in (still held + cost
   of what was sold). Totals follow the same rule.
 - Dates: "Today", "Yesterday", "Mon 9 Nov", "17 Sept 2026"; 24-hour times.

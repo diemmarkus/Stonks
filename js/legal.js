@@ -38,7 +38,7 @@ function imprint() {
       { h: "No investment advice", p: [
         "Nothing on this site is investment advice, a recommendation or an offer to buy or sell securities or crypto assets. The \"top movers\" are simply the largest price changes within a fixed watchlist over the period you pick.",
         "The Buy / Hold / Sell labels summarise analyst recommendations published by third parties (via Finnhub). They are not my opinion, are not tailored to you, and can be outdated or wrong.",
-        "Gains, losses and sold positions are calculated from what you enter (sells by the FIFO method) and are for your own overview only; they are not a tax calculation.",
+        "Gains, losses and sold positions are calculated from what you enter (sells at the moving average buy price, as Austrian brokers use it) and are for your own overview only; they are not a tax calculation.",
       ] },
       { h: "Liability", p: ["Prices come from Finnhub, onvista and CoinGecko and may be delayed or wrong; analyst ratings come from Finnhub; price charts use data from onvista and CoinGecko. All figures without guarantee. Operators of linked sites are responsible for their content."] },
     ],

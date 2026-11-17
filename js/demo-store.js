@@ -18,7 +18,7 @@ const SAMPLE = () => [
   { isin: "AT0000743059", type: "stock", name: "OMV", quantity: 50, buyPrice: 41.8, buyDate: daysAgo(520) },
   { isin: "XFC000A2YY6Q", type: "crypto", name: "Bitcoin (BTC)", quantity: 0.08, buyPrice: 61200, buyDate: daysAgo(200) },
   { isin: "US88160R1014", type: "stock", name: "Tesla", quantity: 10, buyPrice: 210, buyDate: daysAgo(480) },
-  // sells (FIFO: the oldest buys go first). buyPrice is the sell price.
+  // sells, at the moving average cost of what's held. buyPrice is the sell price.
   { isin: "IE00BK5BQT80", type: "etf", name: "Vanguard FTSE All-World", quantity: 15, buyPrice: 132.5, buyDate: daysAgo(150), side: "sell" },
   { isin: "US67066G1040", type: "stock", name: "NVIDIA", quantity: 10, buyPrice: 158, buyDate: daysAgo(60), side: "sell" },
   { isin: "XFC000A2YY6Q", type: "crypto", name: "Bitcoin (BTC)", quantity: 0.03, buyPrice: 92500, buyDate: daysAgo(40), side: "sell" },

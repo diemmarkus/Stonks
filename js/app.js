@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=145";
-import { legalDoc } from "./legal.js?v=145";
-import { isCryptoCode } from "./crypto.js?v=145";
-import { renderOverview2 } from "./overview2.js?v=145";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=146";
+import { legalDoc } from "./legal.js?v=146";
+import { isCryptoCode } from "./crypto.js?v=146";
+import { renderOverview2 } from "./overview2.js?v=146";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -58,7 +58,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=145") : import("./store.js?v=145"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=146") : import("./store.js?v=146"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -196,8 +196,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=145").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=145").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=146").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=146").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -506,27 +506,57 @@ function computeSells(holdings) {
   }
   const usd = state.fx.USD || 1;
   for (const list of byKey.values()) {
-    // buys before sells on the same day; undated buys first
-    list.sort((a, b) => (a.buyDate || "").localeCompare(b.buyDate || "") || (a.side === "sell") - (b.side === "sell"));
-    // FIFO: a sale uses up the oldest buys first; those units are frozen at their own buy price
-    const open = []; // { id, left, px } in buy order
+    // Date order; undated buys first. Within one day, sales the units already held can cover go
+    // before that day's buys (a switch: sell, then buy back); any other sale goes after them.
+    const byDay = new Map();
     for (const h of list) {
+      const d = h.buyDate || "";
+      if (!byDay.has(d)) byDay.set(d, []);
+      byDay.get(d).push(h);
+    }
+    // Cost: moving average (gleitender Durchschnittspreis, as Austrian brokers and tax use it).
+    // A sale takes units out at the average cost of everything held at that moment.
+    let poolUnits = 0, poolCost = 0;
+    // Which rows show as sold: FIFO, the oldest buys go first (display only, cost comes from the pool)
+    const open = []; // { id, left, px } in buy order
+    const sell = (h) => {
       const px = h.isin ? h.buyPrice : h.buyPrice / usd;
-      if (h.side === "sell") {
-        let need = h.quantity, basis = 0, q = 0;
-        for (const lot of open) {
-          if (need <= 1e-9) break;
-          const take = Math.min(lot.left, need);
-          if (take <= 0) continue;
-          lot.left -= take; need -= take; q += take; basis += take * lot.px;
-        }
-        const avg = q > 0 ? basis / q : px;
-        sellInfo.set(h.id, { avg, realized: q * px - basis, soldCost: basis });
-      } else {
-        const lot = { id: h.id, left: h.quantity, px };
+      const q = Math.min(h.quantity, poolUnits);
+      const avg = poolUnits > 1e-9 ? poolCost / poolUnits : px;
+      const basis = q * avg;
+      poolUnits -= q; poolCost -= basis;
+      if (poolUnits <= 1e-9) { poolUnits = 0; poolCost = 0; }
+      let need = q;
+      for (const lot of open) {
+        if (need <= 1e-9) break;
+        const take = Math.min(lot.left, need);
+        if (take > 0) { lot.left -= take; need -= take; }
+      }
+      sellInfo.set(h.id, { avg, realized: q * px - basis, soldCost: basis });
+    };
+    for (const d of [...byDay.keys()].sort()) {
+      const day = byDay.get(d);
+      const sells = day.filter((h) => h.side === "sell");
+      const later = [];
+      for (const h of sells) {
+        if (h.quantity <= poolUnits + 1e-9) sell(h); else later.push(h);
+      }
+      for (const h of day.filter((x) => x.side !== "sell")) {
+        const px = h.isin ? h.buyPrice : h.buyPrice / usd;
+        poolUnits += h.quantity; poolCost += h.quantity * px;
+        const lot = { id: h.id, left: h.quantity, px, adj: 0 };
         open.push(lot);
         sellInfo.set(h.id, lot); // buys: how many units of this lot are still held
       }
+      later.forEach(sell);
+    }
+    // Spread the gap between the pool's average cost and the lots' own prices evenly over the
+    // units still held, so the position's cost is the moving average.
+    const held = open.reduce((n, l) => n + l.left, 0);
+    if (held > 1e-9) {
+      const own = open.reduce((c, l) => c + l.left * l.px, 0);
+      const adj = (poolCost - own) / held;
+      for (const l of open) l.adj = adj;
     }
   }
 }
@@ -557,7 +587,7 @@ function valuate(h0) {
     tv = h.symbol;
     sub = `${h.symbol} · needs ISIN`;
   }
-  // FIFO: a buy counts only its units still held; a sale only carries its realised gain
+  // A buy counts only its units still held; a sale only carries its realised gain
   const sell = h.side === "sell";
   const info = sellInfo.get(h.id);
   const si = sell ? info : null;
@@ -566,7 +596,10 @@ function valuate(h0) {
   const histUnits = sell ? -h.quantity : h.quantity; // for the portfolio chart over time
   if (sell) buy = si?.avg ?? buy;
   const value = units * price;
-  const cost = units * buy;
+  // cost at the moving average (adds up to the position's average); the row's own % stays
+  // against what this lot was bought for
+  const cost = units * (buy + (sell ? 0 : info?.adj || 0));
+  const ownCost = units * buy;
   const realized = si?.realized || 0;
   const soldCost = si?.soldCost || 0;
   return {
@@ -589,8 +622,8 @@ function valuate(h0) {
     soldCost,
     value,
     cost,
-    gain: value - cost,
-    gainPct: cost ? ((value - cost) / cost) * 100 : 0,
+    gain: value - ownCost,
+    gainPct: ownCost ? ((value - ownCost) / ownCost) * 100 : 0,
     dayChange: live ? units * q.change : 0,
     prevValue: live ? units * (q.price - q.change) : 0,
     dayPct: live ? q.changePct : 0,
@@ -1103,13 +1136,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=145");
+  const { CRYPTO } = await import("./crypto.js?v=146");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=145");
+    const { searchInstruments } = await import("./onvista.js?v=146");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1289,7 +1322,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=145");
+    const { decode, parseTrades } = await import("./import-csv.js?v=146");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1608,7 +1641,7 @@ function portfolioChartPositions() {
     const id = r.isin || r.symbol;
     if (!id) continue;
     const p = byKey.get(id) || { id, currency: r.isin ? "EUR" : "USD", venue: r.isin ? state.venues[r.isin] : undefined, toEur: r.isin ? 1 : 1 / usd, lots: [] };
-    // sells: negative units at their FIFO cost; cash: money paid (+) or received (−)
+    // sells: negative units at their average cost; cash: money paid (+) or received (−)
     p.lots.push({ qty: r.histUnits, buyEur: r.buyEur, date: r.buyDate || "", cash: r.sell ? -r.quantity * r.sellPrice : r.quantity * r.buyEur });
     byKey.set(id, p);
   }
@@ -1621,7 +1654,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=145").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=146").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1636,7 +1669,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=145").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=146").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1650,7 +1683,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=145");
+  const { mountPriceChart } = await import("./chart.js?v=146");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1739,7 +1772,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=145").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=146").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2273,7 +2306,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=145");
+  const { resetDemo } = await import("./demo-store.js?v=146");
   resetDemo();
   state.demo = true;
   state.names = {};
