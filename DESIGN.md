@@ -110,6 +110,11 @@ in big totals (`€28,413.15`).
   starts at 1D · All. Over 1W … 5Y the title reads "Your map" and tiles show "…" while history loads,
   "—" where there's none. Labels are measured: shrink, then drop; never a one-letter "O…" stub. Positions under 2 %
   fold into a tappable "Others (n)" tile (≥ 7 % of the area) that zooms in with "← All positions".
+- **Month by month** (heatmap, Overview): positions you hold down (by value, 8 then "N more"), the
+  last 12 months across (month initials, the year over January), each cell coloured by that month's
+  price change (rose → surface → mint, saturating at ±10 %); months before your first buy are faded.
+  No numbers in cells: tap one for the readout ("Name · Oct 2026 · +4.2%"); tap a name for its chart.
+  Below the grid a −10 % … +10 % scale until a cell is tapped.
 - **Diverging bars** (What moved your money, Since you bought): centre line, mint right, rose left,
   value right-aligned in mono.
 - **Segmented choice** (settings): pill track on `--bg`, the chosen option filled `--ink` with plum
