@@ -159,6 +159,11 @@ if (await demo.isVisible()) {
   await go("#/you");
   ok("demo: You page links to the Imprint", await page.locator('#view-you a[href="#/imprint"]').isVisible());
   ok("demo: You page links to the Privacy policy", await page.locator('#view-you a[href="#/privacy"]').isVisible());
+  const lineBtn = page.locator('#view-you [data-chart-style="line"]'), candleBtn = page.locator('#view-you [data-chart-style="candles"]');
+  ok("demo: price charts default to a line", (await lineBtn.getAttribute("aria-checked")) === "true");
+  await candleBtn.click();
+  ok("demo: candlesticks can be picked", (await candleBtn.getAttribute("aria-checked")) === "true" && (await page.evaluate(() => localStorage.getItem("stonks-chart-style"))) === "candles");
+  await lineBtn.click();
   const avgBtn = page.locator('#view-you [data-cost-method="average"]'), fifoBtn = page.locator('#view-you [data-cost-method="fifo"]');
   ok("demo: cost method defaults to moving average", (await avgBtn.getAttribute("aria-checked")) === "true");
   await fifoBtn.click();

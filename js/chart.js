@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=164";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=166";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -14,6 +14,9 @@ const RANGES = {
   "Max": { ov: "MAX", back: { years: 40 }, cg: null, res: "1D" }, // default would be monthly
 };
 const RANGE_KEY = "stonks-chart-range";
+// Price charts as a line (default) or as candlesticks; picked on the You page, kept on this device
+export const STYLE_KEY = "stonks-chart-style";
+const chartStyle = () => { try { return localStorage.getItem(STYLE_KEY) === "candles" ? "candles" : "line"; } catch { return "line"; } };
 
 const iso = (d) => d.toISOString().slice(0, 10);
 function startDate(back) {
@@ -118,8 +121,12 @@ async function history(src, range) {
     if (!r.ok) throw new Error(`onvista HTTP ${r.status}`);
     const d = await r.json();
     // keep timestamps and prices from the same pair of arrays (tick ↔ datetimeTick, last ↔ datetimeLast)
-    const [ts, vs] = Array.isArray(d.tick) && Array.isArray(d.datetimeTick) ? [d.datetimeTick, d.tick] : [d.datetimeLast || [], d.last || []];
-    pts = clean(ts.map((t, i) => ({ t: toMs(t), v: vs[i] })));
+    const ticks = Array.isArray(d.tick) && Array.isArray(d.datetimeTick);
+    const [ts, vs] = ticks ? [d.datetimeTick, d.tick] : [d.datetimeLast || [], d.last || []];
+    // bars also carry first / high / low (for candlesticks); only when they line up with the closes
+    const ohlc = !ticks && [d.first, d.high, d.low].every((a) => Array.isArray(a) && a.length === vs.length);
+    const num = (x) => (typeof x === "number" && isFinite(x) && x > 0 ? x : undefined);
+    pts = clean(ts.map((t, i) => (ohlc ? { t: toMs(t), v: vs[i], o: num(d.first[i]), h: num(d.high[i]), l: num(d.low[i]) } : { t: toMs(t), v: vs[i] })));
     if (range === "1D" && pts.length) {
       // only the last trading day
       const lastDay = new Date(pts[pts.length - 1].t).toDateString();
@@ -196,7 +203,99 @@ function fmtWhen(t, range) {
   return rel || d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+// Points → candles: one per time bucket (15 min for 1D, 2 h for 1W, a day for 1M, a week for 1Y,
+// a month for 5Y, a quarter or a year for Max); at most ~90, merging neighbours when there are more.
+// open = the bucket's first price (or the bar's own open), close = its last, high / low = its extremes.
+function toCandles(pts, range) {
+  const H = 36e5, D = 864e5;
+  const local = (t) => { const d = new Date(t); return d; };
+  const key = {
+    "1D": (t) => Math.floor(t / (15 * 6e4)),
+    "1W": (t) => Math.floor(t / (2 * H)),
+    "1M": (t) => local(t).toDateString(),
+    "1Y": (t) => Math.floor((t + 3 * D) / (7 * D)), // weeks starting Monday
+    "5Y": (t) => { const d = local(t); return d.getFullYear() * 12 + d.getMonth(); },
+    "Max": (t) => { const d = local(t); return pts.length && pts[pts.length - 1].t - pts[0].t > 20 * 365 * D ? d.getFullYear() : d.getFullYear() * 4 + Math.floor(d.getMonth() / 3); },
+  }[range] || ((t) => Math.floor(t / D));
+  let out = [];
+  for (const p of pts) {
+    const k = key(p.t), last = out[out.length - 1];
+    const hi = Math.max(p.v, p.h ?? p.v, p.o ?? p.v), lo = Math.min(p.v, p.l ?? p.v, p.o ?? p.v);
+    if (last && last.k === k) { last.c = p.v; last.h = Math.max(last.h, hi); last.l = Math.min(last.l, lo); last.t1 = p.t; }
+    else out.push({ k, t: p.t, t1: p.t, o: p.o ?? p.v, c: p.v, h: hi, l: lo });
+  }
+  while (out.length > 90) {
+    const m = [];
+    for (let i = 0; i < out.length; i += 2) {
+      const a = out[i], b = out[i + 1];
+      m.push(b ? { k: a.k, t: a.t, t1: b.t1, o: a.o, c: b.c, h: Math.max(a.h, b.h), l: Math.min(a.l, b.l) } : a);
+    }
+    out = m;
+  }
+  return out;
+}
+
+function drawCandles(plot, pts, range, currency) {
+  const cs = toCandles(pts, range);
+  const W = plot.clientWidth || 320, H = plot.clientHeight || 220;
+  const inset = parseFloat(getComputedStyle(plot).getPropertyValue("--chart-inset")) || 0;
+  const padT = 42, padB = 36, padR = inset ? 0 : 4; // room for the low label under its line
+  const labR = W - padR - inset;
+  let lo = Math.min(...cs.map((c) => c.l)), hi = Math.max(...cs.map((c) => c.h));
+  if (hi === lo) { hi += hi * 0.01 || 1; lo -= lo * 0.01 || 1; }
+  // even slots, like the line (nights and weekends take no room); a little air at both ends
+  const slot = (W - padR - 2 * Math.max(inset, 4)) / cs.length, x0 = Math.max(inset, 4);
+  const xc = (i) => x0 + (i + 0.5) * slot;
+  const bw = Math.max(1, Math.min(14, slot * 0.62));
+  const y = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+  const first = pts[0].v, lastV = pts[pts.length - 1].v;
+  const change = lastV - first, pct = first ? (change / first) * 100 : 0;
+  const sign = pct > 0 ? "+" : pct < 0 ? "−" : "";
+  const up = cssVar("--up", "#2EE6A6"), down = cssVar("--down", "#FF4D6A");
+  const bars = cs.map((c, i) => {
+    const col = c.c >= c.o ? up : down, x = xc(i);
+    const top = y(Math.max(c.o, c.c)), h = Math.max(1, Math.abs(y(c.o) - y(c.c)));
+    return `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${y(c.h).toFixed(1)}" y2="${y(c.l).toFixed(1)}" stroke="${col}" stroke-width="1" vector-effect="non-scaling-stroke"/>`
+      + `<rect x="${(x - bw / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${bw > 4 ? 1 : 0}" fill="${col}"/>`;
+  }).join("");
+  const when = (t) => fmtWhen(t, range === "1D" || range === "1W" ? "1W+time" : range);
+  plot.innerHTML = `
+    <svg class="pchart__svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
+      aria-label="Candlesticks over ${range}: from ${fmtMoney(first, currency)} to ${fmtMoney(lastV, currency)}, ${sign}${Math.abs(pct).toFixed(2)}%, high ${fmtMoney(hi, currency)}, low ${fmtMoney(lo, currency)}">
+      <line x1="0" x2="${W}" y1="${y(hi)}" y2="${y(hi)}" class="pchart__grid"/>
+      <line x1="0" x2="${W}" y1="${y(lo)}" y2="${y(lo)}" class="pchart__grid"/>
+      <rect class="pchart__band" y="${padT - 6}" height="${H - padB - padT + 12}" width="${slot.toFixed(1)}" style="display:none"/>
+      ${bars}
+      <text x="${labR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
+      <text x="${labR}" y="${y(lo) + 13}" text-anchor="end" class="pchart__axis">${fmtMoney(lo, currency)}</text>
+      <text x="${inset}" y="${H - 4}" class="pchart__axis">${fmtWhen(pts[0].t, range)}</text>
+      <text x="${labR}" y="${H - 4}" text-anchor="end" class="pchart__axis">${fmtWhen(pts[pts.length - 1].t, range)}</text>
+    </svg>
+    <div class="pchart__read"><b class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</b> <span>${range === "Max" ? "all time" : `over ${range}`}</span></div>`;
+
+  // tap or hover a candle: its open, high, low and close
+  const svg = plot.querySelector("svg"), band = svg.querySelector(".pchart__band"), read = plot.querySelector(".pchart__read");
+  const resting = read.innerHTML;
+  const show = (e) => {
+    const r = svg.getBoundingClientRect();
+    const i = Math.max(0, Math.min(cs.length - 1, Math.floor((((e.clientX - r.left) / r.width) * W - x0) / slot)));
+    const c = cs[i], d = c.c - c.o, dp = c.o ? (d / c.o) * 100 : 0;
+    band.style.display = ""; band.setAttribute("x", (x0 + i * slot).toFixed(1));
+    const m = (v) => fmtMoney(v, currency);
+    read.innerHTML = `<b>${m(c.c)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${when(c.t)}</span>`
+      + `<span class="pchart__ohlc">O ${m(c.o)} · H ${m(c.h)} · L ${m(c.l)}</span>`;
+  };
+  const hide = () => { band.style.display = "none"; read.innerHTML = resting; };
+  svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
+  svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) show(e); });
+  svg.addEventListener("pointerup", hide);
+  svg.addEventListener("pointercancel", hide);
+  svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
+}
+
 function draw(plot, pts, range, currency, opts = {}) {
+  // a single security's price, when you picked candlesticks (the portfolio chart stays a line)
+  if (opts.candles && chartStyle() === "candles" && pts.length >= 2) return drawCandles(plot, pts, range, currency);
   const ref = opts.ref || null; // e.g. invested amount, drawn dashed
   const W = plot.clientWidth || 320, H = plot.clientHeight || 220;
   // --chart-inset (CSS): the line runs edge to edge, while labels keep this margin
@@ -325,7 +424,7 @@ export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credi
   mountRanged(host, ranges, async (range) => {
     const src = await resolve(id, currency, venue, hint);
     const pts = await history(src, range);
-    return { pts, currency: src.currency || currency, credit: credit ? `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` : "" };
+    return { pts, currency: src.currency || currency, credit: credit ? `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` : "", opts: { candles: true } };
   });
 }
 

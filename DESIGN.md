@@ -119,6 +119,11 @@ in big totals (`€28,413.15`).
   outline. Column heads: month initials with the year over January, Q1–Q4 with the year over Q1, or
   ’17-style years. No numbers in cells: tap one for the readout ("Name · Oct 2026 · +4.2%"); tap a
   name for its chart. Below the grid a −x % … +x % scale until a cell is tapped.
+- **Candlesticks** (price charts, optional): You → Price charts (Line / Candlesticks), stored in
+  `stonks-chart-style`; the portfolio chart stays a line. One candle per 15 min (1D), 2 h (1W), day
+  (1M), week (1Y), month (5Y), quarter or year (Max), at most ~90. Body open → close, mint if it
+  closed at or above its open, rose if below; a 1 px wick low → high in the same colour. Tap or hover
+  a candle: a faint band marks it, the readout shows close, its % and when, with "O · H · L" under it.
 - **Diverging bars** (What moved your money, Since you bought): centre line, mint right, rose left,
   value right-aligned in mono.
 - **Segmented choice** (settings): pill track on `--bg`, the chosen option filled `--ink` with plum
