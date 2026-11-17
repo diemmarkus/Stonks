@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-17T02:53:12.657Z",
+  "updatedAt": "2026-11-17T03:54:04.528Z",
   "source": "onvista",
   "byIsin": {
     "XFC000A2YY6Q": {
@@ -9,9 +9,9 @@
       "tv": "COINBASE:BTCEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 58619,
-      "change": -366.969711,
-      "changePct": -0.62
+      "price": 58992,
+      "change": 52.744612,
+      "changePct": 0.09
     },
     "XFC000A2YY6X": {
       "isin": "XFC000A2YY6X",
@@ -20,9 +20,9 @@
       "tv": "COINBASE:ETHEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 1649.51,
-      "change": -1.887866,
-      "changePct": -0.11
+      "price": 1662.77,
+      "change": 9.803148,
+      "changePct": 0.59
     },
     "XFC000A402EM": {
       "isin": "XFC000A402EM",
@@ -31,9 +31,9 @@
       "tv": "COINBASE:ADAEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 0.139145,
-      "change": -0.00065,
-      "changePct": -0.46
+      "price": 0.140054,
+      "change": 0.00052,
+      "changePct": 0.37
     },
     "XFC000A402FC": {
       "isin": "XFC000A402FC",
@@ -42,9 +42,9 @@
       "tv": "COINBASE:SOLEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 65.22,
-      "change": -0.177377,
-      "changePct": -0.27
+      "price": 65.9,
+      "change": 0.613361,
+      "changePct": 0.94
     },
     "XFC000A402FE": {
       "isin": "XFC000A402FE",
@@ -53,9 +53,9 @@
       "tv": "COINBASE:XRPEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 0.869219,
-      "change": -0.005414,
-      "changePct": -0.62
+      "price": 0.877376,
+      "change": 0.005539,
+      "changePct": 0.64
     },
     "XFC000A402DH": {
       "isin": "XFC000A402DH",
@@ -64,9 +64,9 @@
       "tv": "COINBASE:LTCEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 40.64,
-      "change": -0.214603,
-      "changePct": -0.53
+      "price": 40.82,
+      "change": 0.162266,
+      "changePct": 0.4
     },
     "XFC000A3C3BH": {
       "isin": "XFC000A3C3BH",
@@ -75,9 +75,9 @@
       "tv": "COINBASE:DOTEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 0.667097,
-      "change": 0.005003,
-      "changePct": 0.76
+      "price": 0.672334,
+      "change": 0.012148,
+      "changePct": 1.84
     },
     "XFC000A402DB": {
       "isin": "XFC000A402DB",
@@ -86,9 +86,9 @@
       "tv": "COINBASE:BCHEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 188.61,
-      "change": -1.60224,
-      "changePct": -0.84
+      "price": 189.98,
+      "change": 1.019464,
+      "changePct": 0.54
     },
     "XFC000A402EN": {
       "isin": "XFC000A402EN",
@@ -97,9 +97,9 @@
       "tv": "COINBASE:ATOMEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 1.21,
-      "change": 0.023473,
-      "changePct": 1.98
+      "price": 1.22,
+      "change": 0.035238,
+      "changePct": 2.97
     },
     "XFC000A402DD": {
       "isin": "XFC000A402DD",
@@ -108,9 +108,9 @@
       "tv": "COINBASE:DOGEEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 0.053436,
-      "change": -0.000311,
-      "changePct": -0.58
+      "price": 0.053819,
+      "change": 0.000337,
+      "changePct": 0.63
     },
     "XFC000A3DH2J": {
       "isin": "XFC000A3DH2J",
@@ -119,9 +119,9 @@
       "tv": "COINBASE:AVAXEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 6.44,
-      "change": -0.120198,
-      "changePct": -1.83
+      "price": 6.51,
+      "change": -0.027008,
+      "changePct": -0.41
     },
     "XFC000A2YY62": {
       "isin": "XFC000A2YY62",
@@ -130,9 +130,9 @@
       "tv": "",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 0.277456,
-      "change": 0.002022,
-      "changePct": 0.73
+      "price": 0.277661,
+      "change": 0.001703,
+      "changePct": 0.62
     },
     "XFC000A402F9": {
       "isin": "XFC000A402F9",
@@ -141,9 +141,9 @@
       "tv": "COINBASE:POLEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 0.072556,
-      "change": -0.000419,
-      "changePct": -0.57
+      "price": 0.073063,
+      "change": 0.000266,
+      "changePct": 0.37
     },
     "XFC000A402EX": {
       "isin": "XFC000A402EX",
@@ -152,9 +152,9 @@
       "tv": "COINBASE:LINKEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 8.28,
-      "change": -0.089695,
-      "changePct": -1.07
+      "price": 8.35,
+      "change": 0.007348,
+      "changePct": 0.09
     },
     "XFC000A402EG": {
       "isin": "XFC000A402EG",
@@ -163,9 +163,9 @@
       "tv": "COINBASE:UNIEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 4.71,
-      "change": -0.00795,
-      "changePct": -0.17
+      "price": 4.76,
+      "change": 0.060374,
+      "changePct": 1.28
     },
     "XFC000A402ET": {
       "isin": "XFC000A402ET",
@@ -174,9 +174,9 @@
       "tv": "COINBASE:ETCEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 5.34,
-      "change": -0.107061,
-      "changePct": -1.97
+      "price": 5.37,
+      "change": -0.059585,
+      "changePct": -1.1
     },
     "XFC000A2YY60": {
       "isin": "XFC000A2YY60",
@@ -185,9 +185,9 @@
       "tv": "COINBASE:XLMEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 0.125189,
-      "change": -0.001687,
-      "changePct": -1.33
+      "price": 0.126513,
+      "change": -0.000042,
+      "changePct": -0.03
     },
     "XFC000A402EL": {
       "isin": "XFC000A402EL",
@@ -196,9 +196,9 @@
       "tv": "COINBASE:AAVEEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 100.22,
-      "change": 1.177874,
-      "changePct": 1.19
+      "price": 102.09,
+      "change": 3.200279,
+      "changePct": 3.24
     },
     "XFC000A4AJNY": {
       "isin": "XFC000A4AJNY",
@@ -207,9 +207,9 @@
       "tv": "COINBASE:COMPEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 16.22,
-      "change": -0.046485,
-      "changePct": -0.29
+      "price": 16.34,
+      "change": 0.122746,
+      "changePct": 0.76
     },
     "XFC000A402FG": {
       "isin": "XFC000A402FG",
@@ -218,9 +218,9 @@
       "tv": "COINBASE:HBAREUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 0.05176,
-      "change": -0.001767,
-      "changePct": -3.3
+      "price": 0.052144,
+      "change": -0.001237,
+      "changePct": -2.32
     },
     "XFC000A4AJPK": {
       "isin": "XFC000A4AJPK",
@@ -229,9 +229,9 @@
       "tv": "COINBASE:SUIEUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 0.652967,
-      "change": -0.009539,
-      "changePct": -1.44
+      "price": 0.659979,
+      "change": -0.000624,
+      "changePct": -0.09
     },
     "XFC000A4AQ5D": {
       "isin": "XFC000A4AQ5D",
@@ -240,9 +240,9 @@
       "tv": "",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 62.59,
-      "change": 2.262356,
-      "changePct": 3.75
+      "price": 63.72,
+      "change": 3.522882,
+      "changePct": 5.85
     },
     "XFC000A402FA": {
       "isin": "XFC000A402FA",
@@ -251,9 +251,9 @@
       "tv": "COINBASE:NEAREUR",
       "venue": "CoinGecko",
       "currency": "EUR",
-      "price": 2.89,
-      "change": -0.006418,
-      "changePct": -0.22
+      "price": 2.96,
+      "change": 0.064104,
+      "changePct": 2.21
     }
   },
   "failed": [],
