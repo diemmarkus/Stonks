@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=157";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=158";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -174,7 +174,8 @@ function thin(pts, max) {
 }
 
 /* ---------- drawing ---------- */
-const UP = "#2EE6A6", DOWN = "#FF4D6A";
+// gain / loss colours come from the theme (light or dark), read when a chart is drawn
+const cssVar = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
 function fmtMoney(v, currency) {
   const digits = v >= 1000 ? 0 : v >= 1 ? 2 : 4;
@@ -213,7 +214,7 @@ function draw(plot, pts, range, currency, opts = {}) {
   const y = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
   const change = ref ? vals[vals.length - 1] - ref[ref.length - 1] : vals[vals.length - 1] - vals[0];
   const pct = ref ? (ref[ref.length - 1] ? (change / ref[ref.length - 1]) * 100 : 0) : vals[0] ? (change / vals[0]) * 100 : 0;
-  const color = change >= 0 ? UP : DOWN;
+  const color = change >= 0 ? cssVar("--up", "#2EE6A6") : cssVar("--down", "#FF4D6A");
   const line = pts.map((p, i) => `${i ? "L" : "M"}${xi(i).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
   const area = `${line}L${xi(n).toFixed(1)},${H - padB}L0,${H - padB}Z`;
   const refLine = ref ? ref.map((v, i) => `${i ? "L" : "M"}${xi(i).toFixed(1)},${y(v).toFixed(1)}`).join("") : "";

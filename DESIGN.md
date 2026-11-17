@@ -21,7 +21,7 @@ properties in `css/style.css` are the source of truth. Update this file when a c
 
 ## Colour
 
-Dark only, on a plum-black base.
+Dark by default, on a plum-black base, plus a light theme (see **Light theme** below).
 
 | Role | Token | Hex | Rules |
 |---|---|---|---|
@@ -33,7 +33,7 @@ Dark only, on a plum-black base.
 | Second | `--accent-2` | `#3CCBF4` | Text selection, "← All positions" style links, the buy-list rule, stock tag |
 | Gain | `--up` (+ `--up-dim`) | `#2EE6A6` | Anything that went up |
 | Loss | `--down` (+ `--down-dim`) | `#FF4D6A` | Anything that went down; destructive actions |
-| Warning | — | `#FFC861` | Stale prices only |
+| Warning | `--warn` | `#FFC861` | Stale prices only |
 | Open item | `--open-bg` | ink at 5 % | Background of an unfolded row and its chart |
 
 **Gains and losses**
@@ -48,6 +48,17 @@ ETFs `--accent`, stocks `--accent-2`, certificates `#8F72F0`, crypto `#BA8400`.
 Donut slices in order: `#FF2E88`, `#3CCBF4`, `#9B7BFF`, `#F5B700`, `#FFA3CF`, `#2F6FE0`; "Other" in `--ink-3`.
 
 **Contrast**: body text and labels ≥ 4.5:1 on `--bg-2`. Check new colours before using them for text.
+
+**Light theme**
+- The app follows the system setting; You → Theme (System / Light / Dark) overrides it, stored in `stonks-theme`.
+  `html[data-theme]` holds the override; an inline head script sets it before first paint, and the
+  `theme-color` meta follows (`#F7F2F5` light, `#151117` dark).
+- Never hard-code a colour in CSS: use tokens, and `color-mix(in srgb, var(--token) N%, transparent)` for tints.
+  JS that draws colours (charts) reads tokens at draw time; theme changes re-render the view.
+- Light tokens: page `#F7F2F5`, surface `#FFFFFF`, line `#EADFE6`, ink `#1A1220` / `#5A4A57` / `#75626F`,
+  gain `#08865C`, loss `#D02A49`, warning `#A86A00`, second `#0B7FA8`.
+- Pink stays `#FF2E88` for fills; pink *text* uses `--accent-text` (`#C2105F` in light) for contrast.
+  Category text uses `--crypto-ink` / `--certs-ink`. Selection uses `--sel-bg` / `--sel-ink`.
 
 ## Type
 
