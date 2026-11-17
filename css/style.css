@@ -24,6 +24,7 @@
   --radius: 14px;
   --glass: #FFF4F8;     /* glass highlights (tab bar edge) */
   --warn: #FFC861;      /* stale prices */
+  --hm-off: #000000;    /* month by month: periods you didn't own the position */
   --scheme: dark;       /* native controls */
   --accent-text: var(--accent); /* pink used as text */
   --sel-bg: var(--accent-2); --sel-ink: var(--on-accent);
@@ -927,8 +928,13 @@ body.has-tabbar .toast { bottom: calc(var(--tabbar-h) + 18px + env(safe-area-ins
 .ov2-hm__m b { font-weight: 400; font-size: 9px; color: var(--ink-3); opacity: .8; }
 .ov2-hm__name { all: unset; box-sizing: border-box; cursor: pointer; font: 500 12px/1.2 var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px 0 0; min-height: 24px; display: flex; align-items: center; border-radius: 4px; }
 .ov2-hm__name:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ov2-hm.is-dense { column-gap: 1px; }
+.ov2-hm.is-dense .ov2-hm__c { border-radius: 2px; }
+.ov2-hm.is-dense .ov2-hm__m { font-size: 9px; letter-spacing: -.04em; min-width: 0; }
+.ov2-hm__m b { white-space: nowrap; justify-self: center; width: 0; display: flex; justify-content: center; }
 .ov2-hm__c { min-height: 24px; border-radius: 4px; cursor: pointer; transition: opacity .15s; }
-.ov2-hm__c.is-before { opacity: .35; }
+.ov2-hm__c.is-off { background: var(--hm-off) !important; }
+.ov2-hm__c.is-none { background: transparent !important; box-shadow: inset 0 0 0 1px var(--line); }
 .ov2-hm__c.is-sel { outline: 2px solid var(--ink); outline-offset: -1px; }
 .ov2-hm[aria-busy="true"] .ov2-hm__c { animation: ov2hm 1.2s ease-in-out infinite alternate; }
 @keyframes ov2hm { to { opacity: .5; } }
@@ -1007,7 +1013,7 @@ html.has-session #signin { visibility: hidden; }
   --accent-2: #0B7FA8;
   --up: #08865C; --up-dim: rgba(8, 134, 92, 0.12);
   --down: #D02A49; --down-dim: rgba(208, 42, 73, 0.11);
-  --glass: #FFFFFF; --warn: #A86A00; --scheme: light;
+  --glass: #FFFFFF; --warn: #A86A00; --scheme: light; --hm-off: #1A1220;
   --sel-bg: #BFE9F8; --sel-ink: #1A1220;
   --stocks: #0B9FD0; --etfs: var(--accent);
   --crypto: #C58A00; --crypto-ink: #8A6100; --certs: #7B5CF0; --certs-ink: #5E3FD6;
@@ -1020,7 +1026,7 @@ html.has-session #signin { visibility: hidden; }
     --accent-2: #0B7FA8;
     --up: #08865C; --up-dim: rgba(8, 134, 92, 0.12);
     --down: #D02A49; --down-dim: rgba(208, 42, 73, 0.11);
-    --glass: #FFFFFF; --warn: #A86A00; --scheme: light;
+    --glass: #FFFFFF; --warn: #A86A00; --scheme: light; --hm-off: #1A1220;
     --sel-bg: #BFE9F8; --sel-ink: #1A1220;
     --stocks: #0B9FD0; --etfs: var(--accent);
     --crypto: #C58A00; --crypto-ink: #8A6100; --certs: #7B5CF0; --certs-ink: #5E3FD6;

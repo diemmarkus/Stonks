@@ -138,6 +138,13 @@ if (await demo.isVisible()) {
   const hmRows = await page.locator("#ov2-months .ov2-hm__name").count();
   ok("demo: month by month has rows", hmRows > 0);
   ok("demo: month by month has 12 months", (await page.locator("#ov2-months .ov2-hm__m").count()) === 12);
+  await page.locator("[data-hm-filter]").click();
+  await page.locator('[data-hm-range="5Y"]').click();
+  await page.waitForTimeout(300);
+  ok("demo: 5Y goes by quarter", (await page.locator("#ov2-months .ov2-hm__m").count()) === 20 && (await page.locator("#ov2-hm-title").textContent()) === "Quarter by quarter");
+  await page.locator('[data-hm-range="1Y"]').click();
+  await page.locator("[data-hm-filter]").click();
+  await page.waitForTimeout(300);
   await page.locator("#ov2-months .ov2-hm__c").first().click();
   ok("demo: month cell shows a readout", ((await page.locator("#ov2-months .ov2-hm__read").textContent()) || "").includes("·"));
   await page.locator("#ov2-months").scrollIntoViewIfNeeded();
