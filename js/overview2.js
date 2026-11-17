@@ -7,6 +7,7 @@ const open = { movers: false, returns: false };
 let mapZoom = false; // map shows only the "Others" (kept across re-renders)
 // the map's two filters, kept across re-renders (not stored: a fresh visit starts at 1D · All)
 let mapRange = "1D", mapType = "all";
+let filtersOpen = false; // the filter panel under the map's head
 const MAP_RANGES = ["1D", "1W", "1M", "1Y", "5Y"];
 // colour saturates at this move (%), wider for longer ranges
 const MAP_SAT = { "1D": 3, "1W": 6, "1M": 10, "1Y": 30, "5Y": 60 };
@@ -163,8 +164,12 @@ export function renderOverview2(body, ctx) {
 
     <article class="card panel ov2-card">
       <div class="card__head"><h3 class="card__title" id="ov2-map-title">Today's map</h3><span class="card__side"><button type="button" class="ov2-back" data-ov2-map-back hidden>← All positions</button>
-        <label class="card__range"><select data-ov2-map-range aria-label="Time range">${MAP_RANGES.map((r) => `<option value="${r}"${r === mapRange ? " selected" : ""}>${r} change</option>`).join("")}</select></label></span></div>
-      ${mapTypes.length > 1 ? `<div class="seg ov2-seg" role="radiogroup" aria-label="Show">${["all", ...mapTypes].map((k) => `<button type="button" role="radio" data-ov2-map-type="${k}" aria-checked="${k === mapType}">${k === "all" ? "All" : SHORT_TYPE[k] || typeLabel(k)}</button>`).join("")}</div>` : ""}
+        <span class="ov2-filter-sum" data-ov2-filter-sum></span>
+        <button type="button" class="ov2-filter" data-ov2-filter aria-expanded="${filtersOpen}" aria-controls="ov2-map-filters" aria-label="Filter the map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button></span></div>
+      <div class="ov2-filters" id="ov2-map-filters"${filtersOpen ? "" : " hidden"}>
+        <div class="seg ov2-seg" role="radiogroup" aria-label="Time range">${MAP_RANGES.map((r) => `<button type="button" role="radio" data-ov2-map-range="${r}" aria-checked="${r === mapRange}">${r}</button>`).join("")}</div>
+        ${mapTypes.length > 1 ? `<div class="seg ov2-seg" role="radiogroup" aria-label="Asset class">${["all", ...mapTypes].map((k) => `<button type="button" role="radio" data-ov2-map-type="${k}" aria-checked="${k === mapType}">${k === "all" ? "All" : SHORT_TYPE[k] || typeLabel(k)}</button>`).join("")}</div>` : ""}
+      </div>
       <div class="ov2-map" id="ov2-map" role="img" aria-label="Your positions by value, coloured by today's change"></div>
     </article>
 
@@ -239,6 +244,10 @@ export function renderOverview2(body, ctx) {
     const title = body.querySelector("#ov2-map-title"), back = body.querySelector("[data-ov2-map-back]");
     title.textContent = mapZoom ? `Others (${small.length})` : mapRange === "1D" ? "Today's map" : "Your map";
     back.hidden = !mapZoom;
+    // what's filtered, when it isn't the default 1D · All (the button gets a pink dot)
+    const sum = [mapRange !== "1D" ? mapRange : "", mapType !== "all" ? SHORT_TYPE[mapType] || typeLabel(mapType) : ""].filter(Boolean).join(" · ");
+    body.querySelector("[data-ov2-filter-sum]").textContent = mapZoom ? "" : sum;
+    body.querySelector("[data-ov2-filter]").classList.toggle("is-on", Boolean(sum));
     host.setAttribute("aria-label", `Your ${mapType === "all" ? "positions" : typeLabel(mapType)} by value, coloured by the change ${when()}`);
     if (!items.length) { host.innerHTML = ""; return; }
     // the Others tile gets at least 7 % of the area, so it stays big enough to tap
@@ -346,17 +355,24 @@ export function renderOverview2(body, ctx) {
   card.addEventListener("click", (e) => {
     if (e.target.closest("[data-ov2-others]")) { mapZoom = true; layout(); card.querySelector("[data-ov2-map-back]").focus(); }
     else if (e.target.closest("[data-ov2-map-back]")) { mapZoom = false; layout(); }
+    const f = e.target.closest("[data-ov2-filter]");
+    if (f) {
+      filtersOpen = !filtersOpen;
+      f.setAttribute("aria-expanded", String(filtersOpen));
+      card.querySelector("#ov2-map-filters").hidden = !filtersOpen;
+    }
     const typeBtn = e.target.closest("[data-ov2-map-type]");
     if (typeBtn && typeBtn.dataset.ov2MapType !== mapType) {
       mapType = typeBtn.dataset.ov2MapType; mapZoom = false;
       card.querySelectorAll("[data-ov2-map-type]").forEach((b) => b.setAttribute("aria-checked", String(b === typeBtn)));
       layout();
     }
-  });
-  card.addEventListener("change", (e) => {
-    if (!e.target.matches("[data-ov2-map-range]")) return;
-    mapRange = e.target.value; mapZoom = false;
-    loadChanges(); layout();
+    const rangeBtn = e.target.closest("[data-ov2-map-range]");
+    if (rangeBtn && rangeBtn.dataset.ov2MapRange !== mapRange) {
+      mapRange = rangeBtn.dataset.ov2MapRange; mapZoom = false;
+      card.querySelectorAll("[data-ov2-map-range]").forEach((b) => b.setAttribute("aria-checked", String(b === rangeBtn)));
+      loadChanges(); layout();
+    }
   });
   loadChanges();
   layout();

@@ -111,9 +111,11 @@ if (await demo.isVisible()) {
   await page.waitForTimeout(1500);
   ok("demo: overview renders", await page.locator("#view-overview").isVisible());
   await shot("demo-overview");
-  // map filters: 1D · All by default; a class shows only its tiles; 1W relabels the map
-  const mapRange = page.locator("[data-ov2-map-range]");
-  ok("demo: map range defaults to 1D", (await mapRange.inputValue()) === "1D");
+  // map filters: behind a filter button in the head; 1D · All by default
+  ok("demo: map filters folded by default", await page.locator("#ov2-map-filters").isHidden());
+  await page.locator("[data-ov2-filter]").click();
+  ok("demo: filter button opens the map filters", await page.locator("#ov2-map-filters").isVisible());
+  ok("demo: map range defaults to 1D", (await page.locator('[data-ov2-map-range="1D"]').getAttribute("aria-checked")) === "true");
   ok("demo: map class defaults to All", (await page.locator('[data-ov2-map-type="all"]').getAttribute("aria-checked")) === "true");
   const allTiles = await page.locator("#ov2-map .ov2-tile").count();
   const cls = page.locator('[data-ov2-map-type]:not([data-ov2-map-type="all"])').first();
@@ -125,11 +127,13 @@ if (await demo.isVisible()) {
     await shot("demo-map-class");
     await page.locator('[data-ov2-map-type="all"]').click();
   }
-  await mapRange.selectOption("1W");
+  await page.locator('[data-ov2-map-range="1W"]').click();
   await page.waitForTimeout(800);
   ok("demo: map over 1W", (await page.locator("#ov2-map-title").textContent()) === "Your map" && await page.locator("#ov2-map .ov2-tile").count() > 0);
+  ok("demo: filter summary shows 1W", ((await page.locator("[data-ov2-filter-sum]").textContent()) || "").includes("1W"));
   await shot("demo-map-1w");
-  await mapRange.selectOption("1D");
+  await page.locator('[data-ov2-map-range="1D"]').click();
+  await page.locator("[data-ov2-filter]").click();
   // month by month: one row per position, 12 month columns, a readout on tap
   const hmRows = await page.locator("#ov2-months .ov2-hm__name").count();
   ok("demo: month by month has rows", hmRows > 0);
