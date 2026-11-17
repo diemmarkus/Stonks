@@ -179,18 +179,6 @@ export function renderOverview2(body, ctx) {
       <div class="ov2-map" id="ov2-map" role="img" aria-label="Your positions by value, coloured by today's change"></div>
     </article>
 
-    ${mapAll.length && monthChanges ? `
-    <article class="card panel ov2-card" id="ov2-months">
-      <div class="card__head"><h3 class="card__title" id="ov2-hm-title">Month by month</h3><span class="card__side">
-        <span class="ov2-filter-sum" data-hm-sum></span>
-        <button type="button" class="ov2-filter" data-hm-filter aria-expanded="${hmFiltersOpen}" aria-controls="ov2-hm-filters" aria-label="Choose the time range"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button></span></div>
-      <div class="ov2-filters" id="ov2-hm-filters"${hmFiltersOpen ? "" : " hidden"}>
-        <div class="seg ov2-seg" role="radiogroup" aria-label="Time range">${Object.keys(HM_RANGES).map((r) => `<button type="button" role="radio" data-hm-range="${r}" aria-checked="${r === hmRange}">${r}</button>`).join("")}</div>
-      </div>
-      <div class="ov2-hm" aria-busy="true"></div>
-      <p class="ov2-hm__read" aria-live="polite"></p>
-    </article>` : ""}
-
     ${contrib.length ? `
     <article class="card panel ov2-card">
       <div class="card__head"><h3 class="card__title">What moved your money</h3><span class="card__hint">today</span></div>
@@ -208,6 +196,18 @@ export function renderOverview2(body, ctx) {
         <ul class="ov2-top">${topList}</ul>
       </div>
     </article>
+
+    ${mapAll.length && monthChanges ? `
+    <article class="card panel ov2-card" id="ov2-months">
+      <div class="card__head"><h3 class="card__title" id="ov2-hm-title">Month by month</h3><span class="card__side">
+        <span class="ov2-filter-sum" data-hm-sum></span>
+        <button type="button" class="ov2-filter" data-hm-filter aria-expanded="${hmFiltersOpen}" aria-controls="ov2-hm-filters" aria-label="Choose the time range"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button></span></div>
+      <div class="ov2-filters" id="ov2-hm-filters"${hmFiltersOpen ? "" : " hidden"}>
+        <div class="seg ov2-seg" role="radiogroup" aria-label="Time range">${Object.keys(HM_RANGES).map((r) => `<button type="button" role="radio" data-hm-range="${r}" aria-checked="${r === hmRange}">${r}</button>`).join("")}</div>
+      </div>
+      <div class="ov2-hm" aria-busy="true"></div>
+      <p class="ov2-hm__read" aria-live="polite"></p>
+    </article>` : ""}
 
     ${ret.length ? `
     <article class="card panel ov2-card">
