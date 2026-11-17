@@ -120,7 +120,10 @@ in big totals (`€28,413.15`).
 
 - Transitions 150–220 ms; respect `prefers-reduced-motion`.
 - Tap a row → its chart unfolds inline; tap a total → the portfolio chart.
-- Swipe between Overview and Portfolio; in edit mode, swipe a position left to delete.
+- Swipe between Overview and Portfolio: the page follows the finger (rubber band where there's
+  nothing to go to); past a quarter of the width or with a flick it slides out (150 ms) and the next
+  page slides in from the other side (300 ms, ease-out); otherwise it springs back. Tapping a tab
+  slides in the same direction as the tab order. In edit mode, swipe a position left to delete.
 - Text selection is cyan with plum text; focus rings are 2 px pink.
 
 ## Accessibility

@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=148";
-import { legalDoc } from "./legal.js?v=148";
-import { isCryptoCode } from "./crypto.js?v=148";
-import { renderOverview2 } from "./overview2.js?v=148";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=149";
+import { legalDoc } from "./legal.js?v=149";
+import { isCryptoCode } from "./crypto.js?v=149";
+import { renderOverview2 } from "./overview2.js?v=149";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,7 +59,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=148") : import("./store.js?v=148"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=149") : import("./store.js?v=149"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -198,8 +198,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=148").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=148").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=149").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=149").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1140,13 +1140,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=148");
+  const { CRYPTO } = await import("./crypto.js?v=149");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=148");
+    const { searchInstruments } = await import("./onvista.js?v=149");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1326,7 +1326,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=148");
+    const { decode, parseTrades } = await import("./import-csv.js?v=149");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1658,7 +1658,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=148").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=149").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1673,7 +1673,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=148").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=149").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1687,7 +1687,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=148");
+  const { mountPriceChart } = await import("./chart.js?v=149");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1776,7 +1776,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=148").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=149").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2111,9 +2111,11 @@ function route() {
 
   const section = LEGAL.includes(view) ? "legal" : view;
   const changed = state.view !== view;
+  const prevView = state.view;
   state.view = view;
 
   document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== `view-${section}`));
+  if (changed && prevView) playViewEnter(prevView, section);
   document.querySelectorAll(".tab").forEach((t) => {
     if (t.dataset.tab === section || (t.dataset.tab === "add" && !addSheet.hidden)) t.setAttribute("aria-current", "page");
     else t.removeAttribute("aria-current");
@@ -2127,10 +2129,16 @@ function route() {
 let pendingRoute = null;
 window.addEventListener("hashchange", route);
 
-/* Swipe left/right to switch between Overview and Portfolio (like the tabs in Snapchat). */
+/* Swipe left/right to switch between Overview and Portfolio. The page follows your finger;
+   let go past a quarter of the width (or flick) and it slides out while the next one slides in
+   from the other side; otherwise it springs back. Tab taps get the same directional slide. */
 const SWIPE_TABS = ["overview", "portfolio"];
+const TAB_ORDER = ["home", "overview", "portfolio", "you"]; // left → right, for the slide direction
 const TAB_HASH = { home: "#/markets", overview: "#/overview", portfolio: "#/portfolio", you: "#/you" };
+const reduceMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const EASE_OUT = "cubic-bezier(.2, .8, .2, 1)";
 let swipe = null;
+let pendingSlide = null; // "left" | "right": direction the next view enters from, set by a swipe
 document.addEventListener("touchstart", (e) => {
   swipe = null;
   if (!state.user || e.touches.length !== 1 || !SWIPE_TABS.includes(state.view)) return;
@@ -2138,24 +2146,85 @@ document.addEventListener("touchstart", (e) => {
   if (!$("add-sheet").hidden || !$("sheet").hidden) return;
   // charts use horizontal drags to read prices; inputs and buttons keep their own gestures
   if (e.target.closest?.(".pchart, input, textarea, select, .tabbar, .lot-row")) return;
+  if (state.pfEdit && e.target.closest?.(".pos__swipe")) return; // edit mode: swipe a position to delete it
   const t = e.touches[0];
-  swipe = { x: t.clientX, y: t.clientY, t: Date.now() };
+  swipe = { x: t.clientX, y: t.clientY, t: Date.now(), dx: 0, lock: null, el: $(`view-${state.view}`), lastX: t.clientX, lastT: Date.now(), v: 0 };
 }, { passive: true });
-document.addEventListener("touchend", (e) => {
+document.addEventListener("touchmove", (e) => {
   if (!swipe) return;
-  const t = e.changedTouches[0];
-  const dx = t.clientX - swipe.x, dy = t.clientY - swipe.y, dt = Date.now() - swipe.t;
-  swipe = null;
-  if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 700) return;
+  const t = e.touches[0];
+  const dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+  if (!swipe.lock) {
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    swipe.lock = Math.abs(dx) > Math.abs(dy) * 1.2 ? "x" : "y";
+    if (swipe.lock === "y") { swipe = null; return; }
+    if (reduceMotion()) return;
+  }
+  if (swipe.lock !== "x") return;
+  e.preventDefault(); // keep the page from scrolling while you swipe sideways
+  const now = Date.now();
+  swipe.v = (t.clientX - swipe.lastX) / Math.max(1, now - swipe.lastT); // px/ms
+  swipe.lastX = t.clientX; swipe.lastT = now;
+  swipe.dx = dx;
+  if (reduceMotion()) return;
   const i = SWIPE_TABS.indexOf(state.view);
-  const next = SWIPE_TABS[i + (dx < 0 ? 1 : -1)];
-  if (!next) return;
-  const el = $(`view-${next}`);
-  el.classList.remove("slide-from-right", "slide-from-left");
-  void el.offsetWidth; // restart the animation
-  el.classList.add(dx < 0 ? "slide-from-right" : "slide-from-left");
-  location.hash = TAB_HASH[next];
+  const hasNext = Boolean(SWIPE_TABS[i + (dx < 0 ? 1 : -1)]);
+  const x = hasNext ? dx : dx * 0.22; // rubber band where there's nothing to go to
+  const w = window.innerWidth || 390;
+  swipe.el.style.transition = "none";
+  swipe.el.style.transform = `translateX(${x}px)`;
+  swipe.el.style.opacity = String(1 - Math.min(Math.abs(x) / w, 1) * 0.35);
+}, { passive: false });
+document.addEventListener("touchend", () => {
+  if (!swipe) return;
+  const { el, dx, v, lock } = swipe;
+  swipe = null;
+  if (lock !== "x") return;
+  const w = window.innerWidth || 390;
+  const i = SWIPE_TABS.indexOf(state.view);
+  const dirLeft = dx < 0;
+  const next = SWIPE_TABS[i + (dirLeft ? 1 : -1)];
+  const go = next && (Math.abs(dx) > w * 0.25 || (Math.abs(v) > 0.45 && Math.sign(v) === Math.sign(dx) && Math.abs(dx) > 24));
+  const reset = () => { el.style.transition = ""; el.style.transform = ""; el.style.opacity = ""; };
+  if (reduceMotion()) { reset(); if (go) location.hash = TAB_HASH[next]; return; }
+  if (!go) {
+    // spring back
+    el.animate([{ transform: el.style.transform, opacity: el.style.opacity || 1 }, { transform: "translateX(0)", opacity: 1 }],
+      { duration: 260, easing: EASE_OUT }).finished.finally(reset);
+    reset();
+    return;
+  }
+  // slide the current page the rest of the way out, then bring the next one in from the other side
+  const out = el.animate([{ transform: el.style.transform, opacity: el.style.opacity || 1 },
+    { transform: `translateX(${dirLeft ? -w * 0.45 : w * 0.45}px)`, opacity: 0 }], { duration: 150, easing: "cubic-bezier(.4, 0, 1, 1)", fill: "forwards" });
+  out.finished.then(() => {
+    pendingSlide = dirLeft ? "right" : "left";
+    location.hash = TAB_HASH[next];
+    out.cancel(); reset();
+  });
 }, { passive: true });
+document.addEventListener("touchcancel", () => {
+  if (!swipe) return;
+  const { el } = swipe; swipe = null;
+  el.style.transition = ""; el.style.transform = ""; el.style.opacity = "";
+}, { passive: true });
+
+// The view that just became visible slides in: from the swipe's side, or by tab order on a tap.
+function playViewEnter(prev, view) {
+  const el = $(`view-${view}`);
+  if (!el || reduceMotion()) { pendingSlide = null; return; }
+  let from = pendingSlide;
+  pendingSlide = null;
+  if (!from) {
+    const a = TAB_ORDER.indexOf(prev), b = TAB_ORDER.indexOf(view);
+    if (a < 0 || b < 0 || a === b) return; // not a tab change: keep the gentle default fade
+    from = b > a ? "right" : "left";
+  }
+  const w = window.innerWidth || 390;
+  el.classList.add("is-sliding");
+  el.animate([{ transform: `translateX(${from === "right" ? w * 0.3 : -w * 0.3}px)`, opacity: 0 }, { transform: "translateX(0)", opacity: 1 }],
+    { duration: 300, easing: EASE_OUT }).finished.finally(() => el.classList.remove("is-sliding"));
+}
 
 function renderYou() {
   const u = state.user;
@@ -2347,7 +2416,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=148");
+  const { resetDemo } = await import("./demo-store.js?v=149");
   resetDemo();
   state.demo = true;
   state.names = {};
