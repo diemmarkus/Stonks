@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=162";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=163";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -446,32 +446,36 @@ export async function changesOver(items, range) {
   return out;
 }
 
-// Month by month: each position's price change per calendar month, the last `months` months
-// (the current one so far). A month's change = its last price / the previous month's last price.
-// items: [{ key, id, currency, venue, hint }] → { months: ["YYYY-MM", …], byKey: Map key → [% | null] }
-export async function monthlyChanges(items, months = 12) {
-  const now = new Date();
-  const ym = (y, m) => { const d = new Date(y, m, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
-  const list = [];
-  for (let i = months - 1; i >= 0; i--) list.push(ym(now.getFullYear(), now.getMonth() - i));
-  // end of month k months back (k = 0: now)
-  const endOf = (k) => (k === 0 ? Date.now() : new Date(now.getFullYear(), now.getMonth() - k + 1, 1).getTime() - 1);
+// Month by month (or quarter / year): each position's price change per calendar period.
+// A period's change = its last price / the previous period's last price; the last period runs to now.
+// opts: { count: periods, step: months per period (1, 3 or 12) }
+// items: [{ key, id, currency, venue, hint }] → { periods: [{ from, to }] ("YYYY-MM"), byKey: Map key → [% | null] }
+export async function periodChanges(items, { count = 12, step = 1 } = {}) {
+  const now = new Date(), cm = now.getFullYear() * 12 + now.getMonth();
+  const ym = (n) => `${Math.floor(n / 12)}-${String((n % 12) + 1).padStart(2, "0")}`;
+  const curStart = cm - (cm % step); // calendar-aligned: quarters start Jan/Apr/Jul/Oct, years in Jan
+  const periods = [];
+  for (let i = count - 1; i >= 0; i--) { const a = curStart - i * step; periods.push({ a, b: Math.min(a + step - 1, cm), from: ym(a), to: ym(Math.min(a + step - 1, cm)) }); }
+  // end of month n (the current month: now)
+  const endOf = (n) => (n >= cm ? Date.now() : new Date(Math.floor((n + 1) / 12), (n + 1) % 12, 1).getTime() - 1);
+  const back = cm - periods[0].a + 1; // months of history needed
+  const range = back <= 12 ? "1Y" : back <= 59 ? "5Y" : "Max";
   const byKey = new Map();
   await Promise.all(items.map(async (it) => {
     try {
       const src = await resolve(it.id, it.currency, it.venue, it.hint);
-      // a little more than a year is needed (the month before the first one); CoinGecko's free plan stops at a year
-      const pts = await history(src, isCryptoCode(it.id) ? "1Y" : "5Y");
+      // CoinGecko's free plan stops at a year: older periods stay empty
+      const pts = await history(src, isCryptoCode(it.id) ? "1Y" : range);
       const close = (t) => {
         let lo = 0, hi = pts.length - 1, best = -1;
         while (lo <= hi) { const m = (lo + hi) >> 1; if (pts[m].t <= t) { best = m; lo = m + 1; } else hi = m - 1; }
         return best < 0 ? null : pts[best].v;
       };
-      byKey.set(it.key, list.map((_, i) => {
-        const k = months - 1 - i, a = close(endOf(k + 1)), b = close(endOf(k));
-        return a && b ? (b / a - 1) * 100 : null;
+      byKey.set(it.key, periods.map(({ a, b }) => {
+        const p0 = close(endOf(a - 1)), p1 = close(endOf(b));
+        return p0 && p1 ? (p1 / p0 - 1) * 100 : null;
       }));
-    } catch { byKey.set(it.key, list.map(() => null)); }
+    } catch { byKey.set(it.key, periods.map(() => null)); }
   }));
-  return { months: list, byKey };
+  return { periods: periods.map(({ from, to }) => ({ from, to })), byKey };
 }

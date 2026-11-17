@@ -12,7 +12,13 @@ const MAP_RANGES = ["1D", "1W", "1M", "1Y", "5Y"];
 // colour saturates at this move (%), wider for longer ranges
 const MAP_SAT = { "1D": 3, "1W": 6, "1M": 10, "1Y": 30, "5Y": 60 };
 const SHORT_TYPE = { etf: "ETFs", certificate: "Certs", stock: "Stocks", crypto: "Crypto" };
-const monthCache = new Map(); // positions → Promise<{ months, byKey }>
+const monthCache = new Map(); // range + positions → Promise<{ periods, byKey }>
+// month by month: range → periods (5Y in quarters, 10Y in years, so cells stay tappable on a phone)
+const HM_RANGES = {
+  "6M": { count: 6, step: 1, sat: 10 }, "1Y": { count: 12, step: 1, sat: 10 }, "2Y": { count: 24, step: 1, sat: 10 },
+  "5Y": { count: 20, step: 3, sat: 20 }, "10Y": { count: 10, step: 12, sat: 40 },
+};
+let hmRange = "1Y", hmFiltersOpen = false;
 let monthsOpen = false; // month-by-month: all rows shown (kept across re-renders)
 const MONTH_ROWS = 8;
 const changeCache = new Map(); // range + positions → Promise<Map key → %>
@@ -109,7 +115,7 @@ function watchRows(grid) {
 }
 
 export function renderOverview2(body, ctx) {
-  const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel, mapChanges, monthChanges, heldSince } = ctx;
+  const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel, mapChanges, monthChanges, heldIn } = ctx;
   const live = pos.filter((p) => p.live);
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
   const [whole, cents] = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(t.value).split(".");
@@ -175,7 +181,12 @@ export function renderOverview2(body, ctx) {
 
     ${mapAll.length && monthChanges ? `
     <article class="card panel ov2-card" id="ov2-months">
-      <div class="card__head"><h3 class="card__title">Month by month</h3></div>
+      <div class="card__head"><h3 class="card__title" id="ov2-hm-title">Month by month</h3><span class="card__side">
+        <span class="ov2-filter-sum" data-hm-sum></span>
+        <button type="button" class="ov2-filter" data-hm-filter aria-expanded="${hmFiltersOpen}" aria-controls="ov2-hm-filters" aria-label="Choose the time range"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button></span></div>
+      <div class="ov2-filters" id="ov2-hm-filters"${hmFiltersOpen ? "" : " hidden"}>
+        <div class="seg ov2-seg" role="radiogroup" aria-label="Time range">${Object.keys(HM_RANGES).map((r) => `<button type="button" role="radio" data-hm-range="${r}" aria-checked="${r === hmRange}">${r}</button>`).join("")}</div>
+      </div>
       <div class="ov2-hm" aria-busy="true"></div>
       <p class="ov2-hm__read" aria-live="polite"></p>
     </article>` : ""}
@@ -275,49 +286,81 @@ export function renderOverview2(body, ctx) {
     if (!changeCache.has(key)) changeCache.set(key, mapChanges(mapAll, range).catch(() => new Map()));
     changeCache.get(key).then((m) => { if (range === mapRange && host.isConnected) { changes = m; layout(); } });
   };
-  // Month by month: positions down, the last 12 months across, each cell coloured by that month's
-  // price change (saturating at ±10 %); months before your first buy are faded. Tap a cell to read it.
+  // Month by month: positions down, periods across (months; quarters for 5Y, years for 10Y), each
+  // cell coloured by that period's price change; black where you didn't own it. Tap a cell to read it.
   function months() {
     const cardEl = body.querySelector("#ov2-months");
     const grid = cardEl.querySelector(".ov2-hm"), read = cardEl.querySelector(".ov2-hm__read");
-    const mLabel = (m, long) => new Date(`${m}-15T12:00:00`).toLocaleDateString("en-GB", long ? { month: "short", year: "numeric" } : { month: "narrow" });
-    const legend = `<span class="ov2-hm__scale"><span>−10%</span><i aria-hidden="true"></i><span>+10%</span></span>`;
-    const draw = (data) => {
-      const ms = data?.months || Array.from({ length: 12 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 11 + i); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; });
+    const at = (m) => new Date(`${m}-15T12:00:00`);
+    const longLabel = (p, step) => step === 12 ? p.from.slice(0, 4)
+      : step === 3 ? `Q${Math.floor((Number(p.from.slice(5)) - 1) / 3) + 1} ${p.from.slice(0, 4)}`
+      : at(p.from).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+    // column heads: month initials with the year over January; Q1 … Q4 with the year over Q1; years as ’17
+    const head = (p, step) => {
+      const jan = p.from.endsWith("-01"), yy = `’${p.from.slice(2, 4)}`;
+      if (step === 12) return `<b>&nbsp;</b>${yy}`;
+      if (step === 3) return `<b>${jan ? yy : "&nbsp;"}</b>Q${Math.floor((Number(p.from.slice(5)) - 1) / 3) + 1}`;
+      return `<b>${jan ? yy : "&nbsp;"}</b>${at(p.from).toLocaleDateString("en-GB", { month: "narrow" })}`;
+    };
+    const fallback = (R) => { // period list while loading (same as the loader's)
+      const now = new Date(), cm = now.getFullYear() * 12 + now.getMonth(), cur = cm - (cm % R.step);
+      const ym = (n) => `${Math.floor(n / 12)}-${String((n % 12) + 1).padStart(2, "0")}`;
+      return Array.from({ length: R.count }, (_, i) => { const a = cur - (R.count - 1 - i) * R.step; return { from: ym(a), to: ym(Math.min(a + R.step - 1, cm)) }; });
+    };
+    let data = null, token = 0;
+    const draw = () => {
+      const R = HM_RANGES[hmRange];
+      const ps = data?.periods || fallback(R);
       const extra = mapAll.length - MONTH_ROWS, fold = extra >= 2;
       const shown = fold && !monthsOpen ? mapAll.slice(0, MONTH_ROWS) : mapAll;
-      grid.style.setProperty("--cols", ms.length);
-      // month initials; the year above each January (the first column's year is clear from it)
-      grid.innerHTML = `<span></span>${ms.map((m) => `<span class="ov2-hm__m" title="${mLabel(m, true)}"><b>${m.endsWith("-01") ? `’${m.slice(2, 4)}` : "&nbsp;"}</b>${mLabel(m)}</span>`).join("")}`
-        + shown.map((p) => {
-          const vals = data?.byKey.get(p.key) || ms.map(() => null);
-          const since = heldSince?.(p.key) || "";
-          return `<button type="button" class="ov2-hm__name" data-ov2-chart="${esc(p.isin || p.key)}"${p.isin ? ` data-isin="${esc(p.isin)}"` : ""}>${esc(p.label)}</button>`
+      cardEl.querySelector("#ov2-hm-title").textContent = { 1: "Month by month", 3: "Quarter by quarter", 12: "Year by year" }[R.step];
+      cardEl.querySelector("[data-hm-sum]").textContent = hmRange === "1Y" ? "" : hmRange;
+      cardEl.querySelector("[data-hm-filter]").classList.toggle("is-on", hmRange !== "1Y");
+      grid.style.setProperty("--cols", ps.length);
+      grid.classList.toggle("is-dense", ps.length > 14);
+      grid.innerHTML = `<span></span>${ps.map((p) => `<span class="ov2-hm__m" title="${longLabel(p, R.step)}">${head(p, R.step)}</span>`).join("")}`
+        + shown.map((pos) => {
+          const vals = data?.byKey.get(pos.key) || ps.map(() => null);
+          return `<button type="button" class="ov2-hm__name" data-ov2-chart="${esc(pos.isin || pos.key)}"${pos.isin ? ` data-isin="${esc(pos.isin)}"` : ""}>${esc(pos.label)}</button>`
             + vals.map((v, i) => {
-              const m = ms[i], before = m && since && m < since.slice(0, 7);
+              const p = ps[i], off = heldIn && !heldIn(pos.key, p.from, p.to), last = i === ps.length - 1;
+              const lbl = `${longLabel(p, R.step)}${last ? " so far" : ""}`;
               const txt = v == null ? (data ? "no price" : "loading") : fmtPct(v);
-              return `<span class="ov2-hm__c${before ? " is-before" : ""}" data-hm="${esc(p.label)}|${m || ""}|${v == null ? "" : v}|${before ? 1 : ""}" role="img"
-                aria-label="${esc(p.label)}, ${m ? mLabel(m, true) : ""}: ${txt}${before ? ", before you bought" : ""}" style="background:${v == null ? "var(--bg)" : moveColor(v, true, 10)}"></span>`;
+              // not yours then: black; no price: an empty outline; else the move's colour
+              return `<span class="ov2-hm__c${off ? " is-off" : v == null && data ? " is-none" : ""}" data-hm="${esc(pos.label)}|${lbl}|${v == null ? "" : v}|${off ? 1 : ""}" role="img"
+                aria-label="${esc(pos.label)}, ${lbl}: ${off ? "not owned" : txt}" style="background:${v == null ? "var(--bg)" : moveColor(v, true, R.sat)}"></span>`;
             }).join("");
         }).join("")
         + (fold ? `<div class="ov2-gap ov2-hm__more"><button type="button" data-hm-more aria-expanded="${monthsOpen}">${monthsOpen ? "Show less" : `${extra} more`}</button></div>` : "");
       grid.setAttribute("aria-busy", String(!data));
-      read.innerHTML = legend;
+      read.innerHTML = `<span class="ov2-hm__scale"><span>−${R.sat}%</span><i aria-hidden="true"></i><span>+${R.sat}%</span></span>`;
     };
-    draw(null);
-    const key = mapAll.map((p) => p.key).join(",");
-    if (!monthCache.has(key)) monthCache.set(key, monthChanges(mapAll).catch(() => null));
-    let data = null;
-    monthCache.get(key).then((d) => { if (d && grid.isConnected) { data = d; draw(d); } });
+    const load = () => {
+      data = null; draw();
+      const range = hmRange, my = ++token;
+      const key = `${range}|${mapAll.map((p) => p.key).join(",")}`;
+      if (!monthCache.has(key)) monthCache.set(key, monthChanges(mapAll, HM_RANGES[range]).catch(() => null));
+      monthCache.get(key).then((d) => { if (d && my === token && grid.isConnected) { data = d; draw(); } });
+    };
+    load();
     cardEl.addEventListener("click", (e) => {
-      if (e.target.closest("[data-hm-more]")) { monthsOpen = !monthsOpen; draw(data); return; }
+      if (e.target.closest("[data-hm-more]")) { monthsOpen = !monthsOpen; draw(); return; }
+      const f = e.target.closest("[data-hm-filter]");
+      if (f) { hmFiltersOpen = !hmFiltersOpen; f.setAttribute("aria-expanded", String(hmFiltersOpen)); cardEl.querySelector("#ov2-hm-filters").hidden = !hmFiltersOpen; return; }
+      const r = e.target.closest("[data-hm-range]");
+      if (r) {
+        if (r.dataset.hmRange === hmRange) return;
+        hmRange = r.dataset.hmRange;
+        cardEl.querySelectorAll("[data-hm-range]").forEach((b) => b.setAttribute("aria-checked", String(b === r)));
+        load(); return;
+      }
       const c = e.target.closest("[data-hm]");
       if (!c) return;
       grid.querySelectorAll(".is-sel").forEach((x) => x.classList.remove("is-sel"));
       c.classList.add("is-sel");
-      const [label, m, v, before] = c.dataset.hm.split("|");
+      const [label, when, v, off] = c.dataset.hm.split("|");
       const n = v === "" ? null : Number(v);
-      read.innerHTML = `<span><b>${esc(label)}</b> · ${m ? mLabel(m, true) : ""}${m === data?.months.at(-1) ? " so far" : ""}${before ? " · before you bought" : ""}</span>`
+      read.innerHTML = `<span><b>${esc(label)}</b> · ${esc(when)}${off ? " · not owned" : ""}</span>`
         + `<b class="${n == null ? "" : dir(n)}">${n == null ? (data ? "no price" : "…") : fmtPct(n)}</b>`;
     });
   }

@@ -111,11 +111,14 @@ in big totals (`€28,413.15`).
   Over 1W … 5Y the title reads "Your map" and tiles show "…" while history loads,
   "—" where there's none. Labels are measured: shrink, then drop; never a one-letter "O…" stub. Positions under 2 %
   fold into a tappable "Others (n)" tile (≥ 7 % of the area) that zooms in with "← All positions".
-- **Month by month** (heatmap, Overview): positions you hold down (by value, 8 then "N more"), the
-  last 12 months across (month initials, the year over January), each cell coloured by that month's
-  price change (rose → surface → mint, saturating at ±10 %); months before your first buy are faded.
-  No numbers in cells: tap one for the readout ("Name · Oct 2026 · +4.2%"); tap a name for its chart.
-  Below the grid a −10 % … +10 % scale until a cell is tapped.
+- **Month by month** (heatmap, Overview): positions you hold down (by value, 8 then "N more"),
+  periods across, each cell coloured by that period's price change (rose → surface → mint). A filter
+  button in the head (as on the map) picks the range: 6M, 1Y (default), 2Y in months (±10 %), 5Y in
+  quarters (±20 %), 10Y in years (±40 %); the title follows ("Month by month", "Quarter by quarter",
+  "Year by year"). Periods you didn't own the position are black (`--hm-off`); no price is an empty
+  outline. Column heads: month initials with the year over January, Q1–Q4 with the year over Q1, or
+  ’17-style years. No numbers in cells: tap one for the readout ("Name · Oct 2026 · +4.2%"); tap a
+  name for its chart. Below the grid a −x % … +x % scale until a cell is tapped.
 - **Diverging bars** (What moved your money, Since you bought): centre line, mint right, rose left,
   value right-aligned in mono.
 - **Segmented choice** (settings): pill track on `--bg`, the chosen option filled `--ink` with plum
