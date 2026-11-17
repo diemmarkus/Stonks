@@ -1,5 +1,7 @@
 # stonks brand
 
+How to use all this in the app (colours, type, layout, components, copy): see [`DESIGN.md`](DESIGN.md).
+
 ## Logo
 
 A cartoon cloth money bag ("Sack"): hot-pink body, plum-black outline, electric-cyan neck band,

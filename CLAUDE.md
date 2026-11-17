@@ -6,3 +6,4 @@
   law). When a change adds a data source, a stored field or a browser-storage key, update `js/legal.js` too.
 - If a change removes or renames an element the scripts use, or the legal pages, update the test rather than
   deleting checks.
+- UI changes follow `DESIGN.md` (colours, type, layout, components, copy). Update it when a change sets a new rule.
