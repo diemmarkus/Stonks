@@ -14,7 +14,7 @@ export const CHARTS_KEY = "stonks-chart-range"; // the chart range you picked la
 // Browser storage. The first entries are strictly necessary (no consent needed, § 165 (3) TKG 2021).
 const STORAGE = [
   ["Firebase (IndexedDB)", "keeps you signed in and keeps a copy of your holdings on this device so the app opens quickly; removed when you sign out"],
-  ["stonks-session-v1", "your holdings and position names from your last visit, shown right away while fresh data loads; removed when you sign out"],
+  ["stonks-session-v1", "your holdings, position names and settings from your last visit, shown right away while fresh data loads; removed when you sign out"],
   ["stonks-prices-v1", "the last known prices of your positions, shown right away while fresh prices load; removed when you sign out"],
   [CHARTS_KEY, "remembers the chart range you picked last (1D, 1W, …)"],
   ["stonks-movers-range", "remembers the period you picked for the top movers on the start page (1D, 1W, 1M, 1Y or 5Y)"],
@@ -38,7 +38,7 @@ function imprint() {
       { h: "No investment advice", p: [
         "Nothing on this site is investment advice, a recommendation or an offer to buy or sell securities or crypto assets. The \"top movers\" are simply the largest price changes within a fixed watchlist over the period you pick.",
         "The Buy / Hold / Sell labels summarise analyst recommendations published by third parties (via Finnhub). They are not my opinion, are not tailored to you, and can be outdated or wrong.",
-        "Gains, losses and sold positions are calculated from what you enter (sells at the moving average buy price, as Austrian brokers use it) and are for your own overview only; they are not a tax calculation.",
+        "Gains, losses and sold positions are calculated from what you enter (sells at the moving average buy price or by FIFO, as you choose under You) and are for your own overview only; they are not a tax calculation.",
       ] },
       { h: "Liability", p: ["Prices come from Finnhub, onvista and CoinGecko and may be delayed or wrong; analyst ratings come from Finnhub; price charts use data from onvista and CoinGecko. All figures without guarantee. Operators of linked sites are responsible for their content."] },
     ],
@@ -57,6 +57,7 @@ function privacy() {
         "Holdings: for each buy or sell you enter, the ISIN (or crypto code), name, type (stock, ETF or crypto), quantity, price in EUR, date, whether it is a buy or a sell, and when you added or changed it.",
         "CSV import: a file you import (for example flatex Depotumsätze) is read in your browser only and never uploaded. Only the buys and sales you confirm are saved, with the same fields as above.",
         "Position settings: a name of your own for a position and the stock exchange it should be valued with, if you set them.",
+        "App settings: how the cost of what you sell is counted (moving average or FIFO), if you change it.",
         "Only you can read your holdings and position settings. We don't use them for anything other than showing you your portfolio.",
         "Visiting the site: the hosting provider processes technically necessary data such as your IP address and browser details.",
       ] },

@@ -27,7 +27,7 @@
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
   <link rel="preload" href="fonts/manrope.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=146" />
+  <link rel="stylesheet" href="css/style.css?v=147" />
   <!-- signed in last time? hide the sign-in button until the app knows (no flash of the start page) -->
   <script>try { if (localStorage.getItem("stonks-session-v1")) document.documentElement.classList.add("has-session"); } catch (e) {}</script>
 </head>
@@ -89,6 +89,14 @@
       <div class="you__id">
         <img class="you__avatar" id="you-avatar" alt="" referrerpolicy="no-referrer" />
         <div><div class="you__name" id="you-name"></div><div class="you__mail" id="you-mail"></div></div>
+      </div>
+      <div class="you__setting">
+        <div class="you__label" id="cost-label">Cost of what you sell</div>
+        <div class="seg" role="radiogroup" aria-labelledby="cost-label">
+          <button type="button" role="radio" data-cost-method="average" aria-checked="true">Moving average</button>
+          <button type="button" role="radio" data-cost-method="fifo" aria-checked="false">FIFO</button>
+        </div>
+        <p class="you__hint" id="cost-note"></p>
       </div>
       <p class="you__note">Your holdings and names are stored in your own Firestore account; only you can read them. Prices for your holdings are fetched by this browser from onvista; nothing public shows what you own.</p>
       <button class="btn btn--ghost" id="you-demo" type="button" hidden>Show demo portfolio</button>
@@ -181,6 +189,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=146"></script>
+  <script type="module" src="js/app.js?v=147"></script>
 </body>
 </html>

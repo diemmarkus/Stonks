@@ -95,6 +95,8 @@ in big totals (`€28,413.15`).
   fold into a tappable "Others (n)" tile (≥ 7 % of the area) that zooms in with "← All positions".
 - **Diverging bars** (What moved your money, Since you bought): centre line, mint right, rose left,
   value right-aligned in mono.
+- **Segmented choice** (settings): pill track on `--bg`, the chosen option filled `--ink` with plum
+  text, `role="radio"`; a one-line `--ink-3` note below says what the choice does.
 - **Toasts** float above the tab bar; actions (Undo) are underlined text.
 - **Add / edit sheet**: title left in Manrope, Save and ✕ right, no divider; the "Bought [10] for
   [€100] each [today]" sentence with pink pills; on phones the keyboard stays up while it's open.
@@ -102,9 +104,10 @@ in big totals (`€28,413.15`).
 ## Data and copy
 
 - Euros by default (`€1,234.56`); US tickers in dollars only where the source is in dollars.
-- Cost is the moving average (gleitender Durchschnittspreis, like flatex Austria): every buy blends
-  into one average per position; a sale takes units out at that average. Which buy rows show as
-  "sold" follows FIFO, for display only. Same-day sells that held units cover go before that day's buys.
+- Cost of a sale follows the setting on the You page: moving average by default (gleitender
+  Durchschnittspreis, like flatex Austria: every buy blends into one average per position; a sale
+  takes units out at that average) or FIFO (oldest buys first, as in Germany). Which buy rows show
+  as "sold" always follows FIFO. Same-day sells that held units cover go before that day's buys.
 - Returns per position = open gain + realised gain, divided by everything put in (still held + cost
   of what was sold). Totals follow the same rule.
 - Dates: "Today", "Yesterday", "Mon 9 Nov", "17 Sept 2026"; 24-hour times.

@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=146";
-import { legalDoc } from "./legal.js?v=146";
-import { isCryptoCode } from "./crypto.js?v=146";
-import { renderOverview2 } from "./overview2.js?v=146";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=147";
+import { legalDoc } from "./legal.js?v=147";
+import { isCryptoCode } from "./crypto.js?v=147";
+import { renderOverview2 } from "./overview2.js?v=147";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -52,13 +52,14 @@ const state = {
   pricesAt: null,
   names: {},           // your own names for positions: key (ISIN) → name
   venues: {},          // exchange to value a position with: key (ISIN) → venue name
+  costMethod: "average", // cost of what you sell: "average" (moving average, default) or "fifo"
   holdings: null,      // null = loading
   unsubHoldings: null,
   view: null,
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=146") : import("./store.js?v=146"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=147") : import("./store.js?v=147"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -142,6 +143,7 @@ function saveSession() {
     holdings: state.holdings.map(({ createdAt, updatedAt, ...h }) => h),
     names: state.names,
     venues: state.venues,
+    costMethod: state.costMethod,
   });
 }
 function clearDeviceCache() {
@@ -196,8 +198,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=146").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=146").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=147").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=147").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -493,8 +495,9 @@ function quoteFor(isin) {
 /* ======================================================================
    Valuation
    ====================================================================== */
-// Sells use the average buy price of the units held at that moment (Austrian-style
-// moving average). Precomputed per position in date order: id → { avg, realized }.
+// Cost of a sale, by your setting (You page): the moving average of the units held at that
+// moment (default, as Austrian brokers and tax use it) or FIFO (oldest buys first, as in
+// Germany). Precomputed per position in date order: id → { avg, realized }.
 let sellInfo = new Map();
 function computeSells(holdings) {
   sellInfo = new Map();
@@ -514,24 +517,25 @@ function computeSells(holdings) {
       if (!byDay.has(d)) byDay.set(d, []);
       byDay.get(d).push(h);
     }
-    // Cost: moving average (gleitender Durchschnittspreis, as Austrian brokers and tax use it).
-    // A sale takes units out at the average cost of everything held at that moment.
+    // Moving average (gleitender Durchschnittspreis): a sale takes units out at the average cost
+    // of everything held at that moment. FIFO: at the price of the oldest buys it uses up.
+    const fifo = state.costMethod === "fifo";
     let poolUnits = 0, poolCost = 0;
-    // Which rows show as sold: FIFO, the oldest buys go first (display only, cost comes from the pool)
+    // Which rows show as sold: FIFO, the oldest buys go first (with the average, display only)
     const open = []; // { id, left, px } in buy order
     const sell = (h) => {
       const px = h.isin ? h.buyPrice : h.buyPrice / usd;
       const q = Math.min(h.quantity, poolUnits);
-      const avg = poolUnits > 1e-9 ? poolCost / poolUnits : px;
-      const basis = q * avg;
-      poolUnits -= q; poolCost -= basis;
-      if (poolUnits <= 1e-9) { poolUnits = 0; poolCost = 0; }
-      let need = q;
+      let need = q, lotCost = 0;
       for (const lot of open) {
         if (need <= 1e-9) break;
         const take = Math.min(lot.left, need);
-        if (take > 0) { lot.left -= take; need -= take; }
+        if (take > 0) { lot.left -= take; need -= take; lotCost += take * lot.px; }
       }
+      const basis = fifo ? lotCost : (poolUnits > 1e-9 ? q * (poolCost / poolUnits) : 0);
+      const avg = q > 0 ? basis / q : px;
+      poolUnits -= q; poolCost -= basis;
+      if (poolUnits <= 1e-9) { poolUnits = 0; poolCost = 0; }
       sellInfo.set(h.id, { avg, realized: q * px - basis, soldCost: basis });
     };
     for (const d of [...byDay.keys()].sort()) {
@@ -1136,13 +1140,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=146");
+  const { CRYPTO } = await import("./crypto.js?v=147");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=146");
+    const { searchInstruments } = await import("./onvista.js?v=147");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1322,7 +1326,7 @@ $("f-file").addEventListener("change", async () => {
   if (!file) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=146");
+    const { decode, parseTrades } = await import("./import-csv.js?v=147");
     const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
@@ -1654,7 +1658,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=146").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=147").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1669,7 +1673,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=146").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=147").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1683,7 +1687,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=146");
+  const { mountPriceChart } = await import("./chart.js?v=147");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1768,11 +1772,11 @@ function yearsCard(rows) {
     if (r.sell) f.sales += r.quantity * r.sellPrice; else f.buys += r.quantity * r.buyEur;
   }
   // gains need price history: computed once in the background, then the card fills in
-  const sig = JSON.stringify([state.holdings.map((h) => [h.id, h.quantity, h.buyPrice, h.buyDate, h.side]), state.venues]);
+  const sig = JSON.stringify([state.holdings.map((h) => [h.id, h.quantity, h.buyPrice, h.buyDate, h.side]), state.venues, state.costMethod]);
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=146").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=147").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2160,6 +2164,30 @@ function renderYou() {
   $("you-mail").textContent = u.email || "";
   if (u.photoURL) $("you-avatar").src = u.photoURL;
   else $("you-avatar").removeAttribute("src");
+  renderCostMethod();
+}
+
+const COST_NOTES = {
+  average: "Every buy blends into one average price; a sale takes units out at that average. How Austrian brokers and tax count it.",
+  fifo: "A sale uses up your oldest buys first, at their own prices. How German brokers and tax count it.",
+};
+function renderCostMethod() {
+  for (const b of document.querySelectorAll("[data-cost-method]")) b.setAttribute("aria-checked", String(b.dataset.costMethod === state.costMethod));
+  $("cost-note").textContent = COST_NOTES[state.costMethod] || "";
+}
+for (const b of document.querySelectorAll("[data-cost-method]")) {
+  b.addEventListener("click", async () => {
+    const m = b.dataset.costMethod;
+    if (m === state.costMethod) return;
+    state.costMethod = m;
+    renderCostMethod();
+    saveSession();
+    if (!state.user) return;
+    try {
+      const { setSetting } = await loadStore();
+      await setSetting(state.user.uid, "costMethod", m);
+    } catch (e) { console.error(e); toast("Couldn't save the setting. Please try again."); }
+  });
 }
 
 /* ======================================================================
@@ -2207,6 +2235,7 @@ async function startHoldings(uid) {
     state.holdings = null;
     state.names = {};
     state.venues = {};
+    state.costMethod = "average";
   }
   state.cachedUid = null;
   let gotHoldings;
@@ -2254,6 +2283,15 @@ async function startHoldings(uid) {
   } catch (e) {
     console.warn("Custom names unavailable", e);
   }
+  try {
+    state.unsubSettings = await store.watchSettings?.(uid, (s) => {
+      state.costMethod = s.costMethod === "fifo" ? "fifo" : "average";
+      saveSession();
+      renderCurrent();
+    });
+  } catch (e) {
+    console.warn("Settings unavailable", e);
+  }
 }
 
 function applyUser(user) {
@@ -2278,6 +2316,8 @@ function applyUser(user) {
   state.unsubHoldings = null;
   state.unsubNames?.();
   state.unsubNames = null;
+  state.unsubSettings?.();
+  state.unsubSettings = null;
   if (user) {
     $("user-name").textContent = user.displayName || user.email || "";
     if (user.photoURL) $("user-avatar").src = user.photoURL;
@@ -2306,11 +2346,12 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=146");
+  const { resetDemo } = await import("./demo-store.js?v=147");
   resetDemo();
   state.demo = true;
   state.names = {};
   state.venues = {};
+  state.costMethod = "average";
   applyUser(DEMO_USER);
   location.hash = "#/overview";
   toast("Demo portfolio · sample data, nothing is saved");
@@ -2319,6 +2360,7 @@ function exitDemo() {
   state.demo = false;
   state.names = {};
   state.venues = {};
+  state.costMethod = "average";
   applyUser(state.realUser || null);
   location.hash = state.realUser ? "#/overview" : "#/";
 }
@@ -2368,6 +2410,7 @@ if (session?.uid && Array.isArray(session.holdings)) {
   state.holdings = session.holdings;
   state.names = session.names || {};
   state.venues = session.venues || {};
+  state.costMethod = session.costMethod === "fifo" ? "fifo" : "average";
   showCachedUser(session.user);
 }
 renderHome();

@@ -1,6 +1,6 @@
 // Firestore access for holdings.
 //   users/{uid}/holdings/{id}  → { isin, name, type, quantity, buyPrice (EUR), buyDate, currency, createdAt, updatedAt }
-import { getDb } from "./firebase.js?v=146";
+import { getDb } from "./firebase.js?v=147";
 
 export async function watchHoldings(uid, callback, onError) {
   const { db, collection, onSnapshot } = await getDb();
@@ -58,3 +58,14 @@ async function setPositionField(uid, key, field, value) {
 }
 export const setName = (uid, key, name) => setPositionField(uid, key, "name", name);
 export const setVenue = (uid, key, venue) => setPositionField(uid, key, "venue", venue);
+
+// Your app settings: users/{uid}/settings/app → { costMethod: "average" | "fifo" }
+export async function watchSettings(uid, callback) {
+  const { db, doc, onSnapshot } = await getDb();
+  return onSnapshot(doc(db, "users", uid, "settings", "app"), (snap) => callback(snap.data() || {}),
+    (e) => console.warn("Settings listener failed", e));
+}
+export async function setSetting(uid, field, value) {
+  const { db, doc, setDoc, serverTimestamp } = await getDb();
+  await setDoc(doc(db, "users", uid, "settings", "app"), { [field]: value, updatedAt: serverTimestamp() }, { merge: true });
+}

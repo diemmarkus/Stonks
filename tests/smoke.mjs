@@ -117,6 +117,14 @@ if (await demo.isVisible()) {
   await go("#/you");
   ok("demo: You page links to the Imprint", await page.locator('#view-you a[href="#/imprint"]').isVisible());
   ok("demo: You page links to the Privacy policy", await page.locator('#view-you a[href="#/privacy"]').isVisible());
+  const avgBtn = page.locator('#view-you [data-cost-method="average"]'), fifoBtn = page.locator('#view-you [data-cost-method="fifo"]');
+  ok("demo: cost method defaults to moving average", (await avgBtn.getAttribute("aria-checked")) === "true");
+  await fifoBtn.click();
+  await page.waitForTimeout(200);
+  ok("demo: cost method switches to FIFO", (await fifoBtn.getAttribute("aria-checked")) === "true" && (await avgBtn.getAttribute("aria-checked")) === "false");
+  ok("demo: cost method note shown", ((await page.locator("#cost-note").textContent()) || "").length > 20);
+  await shot("demo-you");
+  await avgBtn.click();
   for (const kind of ["imprint", "privacy"]) await checkLegal(kind, "demo");
 } else {
   ok("demo button is on the start page", false);

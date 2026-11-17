@@ -36,6 +36,7 @@ export function resetDemo() {
   holdings = SAMPLE();
   names = {};
   venues = {};
+  settings = {};
 }
 
 export async function watchHoldings(uid, callback) {
@@ -71,3 +72,15 @@ function setField(map, key, value) {
 }
 export const setName = async (uid, key, name) => setField(names, key, name);
 export const setVenue = async (uid, key, venue) => setField(venues, key, venue);
+
+let settings = {};
+const settingSubs = new Set();
+export async function watchSettings(uid, callback) {
+  settingSubs.add(callback);
+  setTimeout(() => callback({ ...settings }), 0);
+  return () => settingSubs.delete(callback);
+}
+export async function setSetting(uid, field, value) {
+  settings = { ...settings, [field]: value };
+  settingSubs.forEach((cb) => cb({ ...settings }));
+}
