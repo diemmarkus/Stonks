@@ -104,24 +104,24 @@ in big totals (`€28,413.15`).
 - **Tiles** (Overview): label, big mono value, optional split lines (Put in / Sold for, Open /
   Realised) under a hairline, aligned across both tiles.
 - **Treemap** (Today's map): size = value, colour = the move over the chosen range (rose → surface →
-  mint, saturating at ±3 % for 1D, ±6 / 10 / 30 / 60 % for 1W / 1M / 1Y / 5Y). Two filters behind a filter button (sliders icon, 32 px, `--ink-3`) at the right of the
-  head: tap it to unfold two segmented rows, the range (1D 1W 1M 1Y 5Y) and the asset class (All,
+  mint, saturating at ±3 % for 1D, ±6 / 10 / 20 / 30 / 60 / 100 % for 1W / 1M / 6M / 1Y / 5Y / All). Two filters behind a filter button (sliders icon, 32 px, `--ink-3`) at the right of the
+  head: tap it to unfold two segmented rows, the range (1D … All, see Time ranges) and the asset class (All,
   ETFs, Certs, Stocks, Crypto; only when there's more than one class). Every visit starts at
   1D · All; anything else puts a pink dot on the button and a mono summary ("1W · ETFs") beside it.
-  Over 1W … 5Y the title reads "Your map" and tiles show "…" while history loads,
+  Over 1W … All the title reads "Your map" and tiles show "…" while history loads,
   "—" where there's none. Labels are measured: shrink, then drop; never a one-letter "O…" stub. Positions under 2 %
   fold into a tappable "Others (n)" tile (≥ 7 % of the area) that zooms in with "← All positions".
 - **Month by month** (heatmap, Overview): positions you hold down (by value, 8 then "N more"),
   periods across, each cell coloured by that period's price change (rose → surface → mint). A filter
-  button in the head (as on the map) picks the range: 6M, 1Y (default), 2Y in months (±10 %), 5Y in
-  quarters (±20 %), 10Y in years (±40 %); the title follows ("Month by month", "Quarter by quarter",
-  "Year by year"). Periods you didn't own the position are dark (`--hm-off`: the page colour, darker than the card; ink at 10 % in light); no price is an empty
+  button in the head (as on the map) picks the range: 6M and 1Y (default) in months (±10 %), 5Y in quarters (±20 %), All from your first
+  buy (months up to 2 years, quarters up to ~6, years beyond); the title follows ("Month by month",
+  "Quarter by quarter", "Year by year"). Periods you didn't own the position are dark (`--hm-off`: the page colour, darker than the card; ink at 10 % in light); no price is an empty
   outline. Column heads: month initials with the year over January, Q1–Q4 with the year over Q1, or
   ’17-style years. No numbers in cells: tap one for the readout ("Name · Oct 2026 · +4.2%"); tap a
   name for its chart. Below the grid a −x % … +x % scale until a cell is tapped.
 - **Candlesticks** (price charts): You → Price charts: Line, Hybrid (default: candles for 1D and 1W,
   a line for longer ranges) or Candles everywhere; stored in `stonks-chart-style` unless Hybrid; the portfolio chart stays a line. One candle per 15 min (1D), 2 h (1W), day
-  (1M), week (1Y), month (5Y), quarter or year (Max), at most ~90. Body open → close, mint if it
+  (1M), week (6M, 1Y), month (5Y), quarter or year (All), at most ~90. Body open → close, mint if it
   closed at or above its open, rose if below; a 1 px wick low → high in the same colour. Tap or hover
   a candle: a faint band marks it, the readout shows close, its % and when, with "O · H · L" under it.
 - **Diverging bars** (What moved your money, Since you bought): centre line, mint right, rose left,
@@ -150,6 +150,12 @@ in big totals (`€28,413.15`).
 - Never invent numbers; missing prices say so ("no live price") and are valued at buy price.
 - Keep labels short and literal: "Biggest winner", "Net today", "Sold for". No "for you", no
   "incl. …" hints when the number already includes it.
+
+## Time ranges
+
+One set everywhere: **1D · 1W · 1M · 6M · 1Y · 5Y · All** (price and portfolio charts, top movers,
+the map). "All" reads "all time" in readouts. Month by month uses the part that has months: 6M, 1Y,
+5Y and All. Crypto has no history past a year (CoinGecko's free plan), so its 5Y and All show "—".
 
 ## Motion and interaction
 

@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=170";
-import { legalDoc } from "./legal.js?v=170";
-import { isCryptoCode } from "./crypto.js?v=170";
-import { renderOverview2 } from "./overview2.js?v=170";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=172";
+import { legalDoc } from "./legal.js?v=172";
+import { isCryptoCode } from "./crypto.js?v=172";
+import { renderOverview2 } from "./overview2.js?v=172";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,7 +59,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=170") : import("./store.js?v=170"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=172") : import("./store.js?v=172"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -198,8 +198,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=170").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=170").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=172").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=172").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -411,7 +411,9 @@ document.addEventListener("click", (e) => {
 });
 
 
-// Movers over 1D (Finnhub) or 1W … 5Y (from onvista's history, added by the hourly job)
+// Movers over 1D (Finnhub) or 1W … All (from onvista's history, added by the hourly job)
+// The time ranges, the same everywhere (charts, movers, the map)
+const RANGES_ALL = ["1D", "1W", "1M", "6M", "1Y", "5Y", "All"];
 const MOVER_RANGE_KEY = "stonks-movers-range";
 let moverRange = (() => { try { return localStorage.getItem(MOVER_RANGE_KEY) || "1D"; } catch { return "1D"; } })();
 function moversFor(data, kind) {
@@ -430,7 +432,7 @@ function moversFor(data, kind) {
 // a small drop-down in each movers card, where the "1D change" hint used to be
 const rangePicker = () => `
   <label class="card__range">
-    <select data-mover-range aria-label="Time range">${["1D", "1W", "1M", "1Y", "5Y"].map((r) => `<option value="${r}"${r === moverRange ? " selected" : ""}>${r} change</option>`).join("")}</select>
+    <select data-mover-range aria-label="Time range">${RANGES_ALL.map((r) => `<option value="${r}"${r === moverRange ? " selected" : ""}>${r} change</option>`).join("")}</select>
   </label>`;
 document.addEventListener("change", (e) => {
   if (!e.target.matches?.("[data-mover-range]")) return;
@@ -1143,13 +1145,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=170");
+  const { CRYPTO } = await import("./crypto.js?v=172");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=170");
+    const { searchInstruments } = await import("./onvista.js?v=172");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1338,10 +1340,10 @@ async function importFiles(files) {
         const pdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf" || new TextDecoder().decode(buf.slice(0, 5)) === "%PDF-";
         let r;
         if (pdf) {
-          const { pdfLines, parseFlatexPdf } = await import("./import-pdf.js?v=170");
+          const { pdfLines, parseFlatexPdf } = await import("./import-pdf.js?v=172");
           r = parseFlatexPdf(await pdfLines(buf));
         } else {
-          const { decode, parseTrades } = await import("./import-csv.js?v=170");
+          const { decode, parseTrades } = await import("./import-csv.js?v=172");
           r = parseTrades(decode(buf));
         }
         trades.push(...r.trades); skipped.push(...r.skipped);
@@ -1693,7 +1695,7 @@ function placeDeskChart(body, kept) {
   node.dataset.sig = sig;
   node.innerHTML = `<div class="pos__chart"></div>`;
   hero.after(node);
-  import("./chart.js?v=170").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+  import("./chart.js?v=172").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
 }
 function togglePortfolioChart() {
   if (!state.holdings?.length || isDesk()) return; // on desktop it's always open
@@ -1702,7 +1704,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=170").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=172").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1717,7 +1719,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=170").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=172").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1731,7 +1733,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=170");
+  const { mountPriceChart } = await import("./chart.js?v=172");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1790,9 +1792,9 @@ function ov2Ctx(rows, t, pos) {
   }).filter((k) => k.base > 0.005 && (k.live || k.closed));
   return { rows, t, pos, returns, alloc: allocationParts(rows, t), esc, fmtEur, fmtEurSigned, fmtPct, dir, typeLabel,
     stamp: state.pricesAt ? stampOf(state.pricesAt) : "", events: ov2Events(pos),
-    // the map over 1W … 5Y: each position's price change over that range (onvista / CoinGecko history)
+    // the map over 1W … All: each position's price change over that range (onvista / CoinGecko history)
     mapChanges: async (list, range) => {
-      const { changesOver } = await import("./chart.js?v=170");
+      const { changesOver } = await import("./chart.js?v=172");
       return changesOver(list.map((p) => {
         const q = p.isin ? null : state.prices.get(p.key);
         return { key: p.key, id: p.isin || p.key, currency: p.isin ? "EUR" : "USD", venue: p.isin ? state.venues[p.isin] : undefined, hint: p.isin ? undefined : { name: q?.name, price: q?.price } };
@@ -1800,12 +1802,15 @@ function ov2Ctx(rows, t, pos) {
     },
     // month by month (or quarter / year): price change per calendar period
     monthChanges: async (list, opts) => {
-      const { periodChanges } = await import("./chart.js?v=170");
+      const { periodChanges } = await import("./chart.js?v=172");
       return periodChanges(list.map((p) => {
         const q = p.isin ? null : state.prices.get(p.key);
         return { key: p.key, id: p.isin || p.key, currency: p.isin ? "EUR" : "USD", venue: p.isin ? state.venues[p.isin] : undefined, hint: p.isin ? undefined : { name: q?.name, price: q?.price } };
       }), opts);
     },
+    // your first buy of any of these positions ("YYYY-MM-DD", "" when none is dated)
+    firstBuy: (keys) => (state.holdings || []).filter((h) => keys.includes(h.isin || h.symbol) && h.side !== "sell" && h.buyDate)
+      .reduce((min, h) => (!min || h.buyDate < min ? h.buyDate : min), ""),
     // did you hold any of this position between two months ("YYYY-MM", inclusive)?
     // Units at the start of the period, or a buy inside it. Undated buys count as always held.
     heldIn: (key, from, to) => {
@@ -1845,7 +1850,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=170").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=172").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2565,7 +2570,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=170");
+  const { resetDemo } = await import("./demo-store.js?v=172");
   resetDemo();
   state.demo = true;
   state.names = {};

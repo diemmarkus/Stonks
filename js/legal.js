@@ -9,7 +9,7 @@ export const OPERATOR = {
   email: "diemmarkus@gmail.com",
 };
 
-export const CHARTS_KEY = "stonks-chart-range"; // the chart range you picked last (1D … Max)
+export const CHARTS_KEY = "stonks-chart-range"; // the chart range you picked last (1D … All)
 
 // Browser storage. The first entries are strictly necessary (no consent needed, § 165 (3) TKG 2021).
 const STORAGE = [
@@ -17,7 +17,7 @@ const STORAGE = [
   ["stonks-session-v1", "your holdings, position names and settings from your last visit, shown right away while fresh data loads; removed when you sign out"],
   ["stonks-prices-v1", "the last known prices of your positions, shown right away while fresh prices load; removed when you sign out"],
   [CHARTS_KEY, "remembers the chart range you picked last (1D, 1W, …)"],
-  ["stonks-movers-range", "remembers the period you picked for the top movers on the start page (1D, 1W, 1M, 1Y or 5Y)"],
+  ["stonks-movers-range", "remembers the period you picked for the top movers on the start page (1D, 1W, 1M, 6M, 1Y, 5Y or All)"],
   ["stonks-chart-style", "remembers if you picked Line or Candles for price charts on the You page (not set for the default Hybrid)"],
   ["stonks-theme", "remembers if you picked Light or Dark on the You page (not set when following your system)"],
   ["stonks-share (Cache Storage) and a service worker", "only when you share a file to the installed app: keeps the file on this device until stonks has read it, then deletes it; the file is read in this browser and never uploaded"],

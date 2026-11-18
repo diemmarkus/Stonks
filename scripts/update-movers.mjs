@@ -55,13 +55,13 @@ async function collect(list, kind) {
   return out;
 }
 
-// --- longer ranges (1W, 1M, 1Y, 5Y) from onvista's daily history -----------------
+// --- longer ranges (1W, 1M, 6M, 1Y, 5Y, All) from onvista's history ----------------
 // A bare ticker search on onvista finds the wrong things ("NVDA" → a Nvidia bond), so we search
 // by name and keep the US listing whose price matches Finnhub's. Found listings are cached.
 const OV = "https://api.onvista.de/api/v1";
 const US_HOME = /nasdaq|nyse|new york|amex|arca|cboe|bats/i;
 const SNAP_PATH = { STOCK: "stocks", FUND: "funds", ETF: "funds" };
-const RANGES = { "1W": { days: 7 }, "1M": { months: 1 }, "1Y": { years: 1 }, "5Y": { years: 5 } };
+const RANGES = { "1W": { days: 7 }, "1M": { months: 1 }, "6M": { months: 6 }, "1Y": { years: 1 }, "5Y": { years: 5 } };
 const getJson = async (url) => { const r = await fetch(url); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); };
 
 async function ovSource(symbol, name, price) {
@@ -107,6 +107,15 @@ async function addPerformance(items, cache) {
       if (!src) { src = await ovSource(q.symbol, q.name, q.price); if (src) cache[q.symbol] = src; }
       if (!src) continue;
       const perf = await performance(src, q.price);
+      // All: against the first price onvista has; that never changes, so it's fetched once and cached
+      if (src.first == null) {
+        try {
+          const d = await getJson(`${OV}/instruments/${src.type}/${src.id}/simple_chart_history?${new URLSearchParams({ chartType: "PRICE", interval: "MAX", idNotation: src.notation, withEarnings: "false" })}`);
+          const vs = (Array.isArray(d.tick) ? d.tick : d.last || []).filter((v) => v > 0);
+          src.first = vs.length ? vs[0] : 0;
+        } catch { /* try again next run */ }
+      }
+      if (perf && src.first > 0) perf.All = round((q.price / src.first - 1) * 100);
       if (perf) { q.perf = perf; found++; }
     } catch (e) { console.warn(`${q.symbol}: history ${e.message}`); }
   }
@@ -153,7 +162,7 @@ const data = {
   stocks: rank(stocks),
   etfs: rank(etfs),
   quotes: [...stocks, ...etfs].map(({ symbol, name, kind, price, change, changePct, perf }) => ({ symbol, name, kind, price, change, changePct, ...(perf ? { perf } : {}) })),
-  sources, // onvista listing per ticker (for the 1W … 5Y changes)
+  sources, // onvista listing per ticker (for the 1W … All changes), with its first price
   tracked: tracked.map(({ symbol, name, kind, price, change, changePct }) => ({ symbol, name, kind, price, change, changePct })),
 };
 
