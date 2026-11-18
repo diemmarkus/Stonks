@@ -128,6 +128,10 @@ in big totals (`€28,413.15`).
   value right-aligned in mono.
 - **Segmented choice** (settings): pill track on `--bg`, the chosen option filled `--ink` with plum
   text, `role="radio"`; a one-line `--ink-3` note below says what the choice does.
+- **Import** (add sheet, ↑ button): flatex Depotumsätze CSV or PDF confirmations (Wertpapierabrechnung,
+  Sammelabrechnung; several files at once), read in the browser with the self-hosted pdf.js in
+  `js/vendor/pdfjs`. On Android the installed app is a share target: sharing a PDF to "Stonks" opens
+  the same list (via `sw.js`, which caches nothing else). Trades already in stonks are greyed out.
 - **Toasts** float above the tab bar; actions (Undo) are underlined text.
 - **Add / edit sheet**: title left in Manrope, Save and ✕ right, no divider; the "Bought [10] for
   [€100] each [today]" sentence with pink pills; on phones the keyboard stays up while it's open.

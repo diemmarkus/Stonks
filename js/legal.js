@@ -20,6 +20,7 @@ const STORAGE = [
   ["stonks-movers-range", "remembers the period you picked for the top movers on the start page (1D, 1W, 1M, 1Y or 5Y)"],
   ["stonks-chart-style", "remembers if you picked Candlesticks for price charts on the You page (not set for the default line)"],
   ["stonks-theme", "remembers if you picked Light or Dark on the You page (not set when following your system)"],
+  ["stonks-share (Cache Storage) and a service worker", "only when you share a file to the installed app: keeps the file on this device until stonks has read it, then deletes it; the file is read in this browser and never uploaded"],
   ["stonks-reloaded-…", "session only: makes sure a new app version is loaded once, not in a loop"],
 ];
 
@@ -57,7 +58,7 @@ function privacy() {
       { h: "What data we process", p: [
         "Account: when you sign in with Google, we receive your name, email address, profile picture and a technical user ID from Google.",
         "Holdings: for each buy or sell you enter, the ISIN (or crypto code), name, type (stock, ETF or crypto), quantity, price in EUR, date, whether it is a buy or a sell, and when you added or changed it.",
-        "CSV import: a file you import (for example flatex Depotumsätze) is read in your browser only and never uploaded. Only the buys and sales you confirm are saved, with the same fields as above.",
+        "Import: a file you import (a flatex Depotumsätze CSV or PDF trade confirmations, picked or shared to the app) is read in your browser only and never uploaded. Only the buys and sales you confirm are saved, with the same fields as above.",
         "Position settings: a name of your own for a position and the stock exchange it should be valued with, if you set them.",
         "App settings: how the cost of what you sell is counted (moving average or FIFO), if you change it.",
         "Only you can read your holdings and position settings. We don't use them for anything other than showing you your portfolio.",
