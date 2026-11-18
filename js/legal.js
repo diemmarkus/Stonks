@@ -18,7 +18,7 @@ const STORAGE = [
   ["stonks-prices-v1", "the last known prices of your positions, shown right away while fresh prices load; removed when you sign out"],
   [CHARTS_KEY, "remembers the chart range you picked last (1D, 1W, …)"],
   ["stonks-movers-range", "remembers the period you picked for the top movers on the start page (1D, 1W, 1M, 1Y or 5Y)"],
-  ["stonks-chart-style", "remembers if you picked Candlesticks for price charts on the You page (not set for the default line)"],
+  ["stonks-chart-style", "remembers if you picked Line or Candles for price charts on the You page (not set for the default Hybrid)"],
   ["stonks-theme", "remembers if you picked Light or Dark on the You page (not set when following your system)"],
   ["stonks-share (Cache Storage) and a service worker", "only when you share a file to the installed app: keeps the file on this device until stonks has read it, then deletes it; the file is read in this browser and never uploaded"],
   ["stonks-reloaded-…", "session only: makes sure a new app version is loaded once, not in a loop"],

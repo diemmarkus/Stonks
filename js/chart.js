@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=169";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=170";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -14,9 +14,11 @@ const RANGES = {
   "Max": { ov: "MAX", back: { years: 40 }, cg: null, res: "1D" }, // default would be monthly
 };
 const RANGE_KEY = "stonks-chart-range";
-// Price charts as a line (default) or as candlesticks; picked on the You page, kept on this device
+// Price charts: "hybrid" (default: candlesticks for 1D and 1W, a line for longer ranges), "line" or
+// "candles" everywhere; picked on the You page, kept on this device (not stored for the default)
 export const STYLE_KEY = "stonks-chart-style";
-const chartStyle = () => { try { return localStorage.getItem(STYLE_KEY) === "candles" ? "candles" : "line"; } catch { return "line"; } };
+const chartStyle = () => { try { const v = localStorage.getItem(STYLE_KEY); return v === "candles" || v === "line" ? v : "hybrid"; } catch { return "hybrid"; } };
+const candlesFor = (range) => { const st = chartStyle(); return st === "candles" || (st === "hybrid" && (range === "1D" || range === "1W")); };
 
 const iso = (d) => d.toISOString().slice(0, 10);
 function startDate(back) {
@@ -294,8 +296,9 @@ function drawCandles(plot, pts, range, currency) {
 }
 
 function draw(plot, pts, range, currency, opts = {}) {
-  // a single security's price, when you picked candlesticks (the portfolio chart stays a line)
-  if (opts.candles && chartStyle() === "candles" && pts.length >= 2) return drawCandles(plot, pts, range, currency);
+  // a single security's price, as candlesticks when the setting asks for them at this range
+  // (the portfolio chart stays a line)
+  if (opts.candles && candlesFor(range) && pts.length >= 2) return drawCandles(plot, pts, range, currency);
   const ref = opts.ref || null; // e.g. invested amount, drawn dashed
   const W = plot.clientWidth || 320, H = plot.clientHeight || 220;
   // --chart-inset (CSS): the line runs edge to edge, while labels keep this margin
