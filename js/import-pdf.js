@@ -11,8 +11,8 @@
 // Crypto confirmations name the coin without an ISIN ("Nr.…/1 Kauf BITCOIN"); the coin is found
 // in the flatex crypto list (js/crypto.js).
 
-import { num, isoDate } from "./import-csv.js?v=168";
-import { CRYPTO } from "./crypto.js?v=168";
+import { num, isoDate } from "./import-csv.js?v=169";
+import { CRYPTO } from "./crypto.js?v=169";
 
 const ISIN = /\b([A-Z]{2}[A-Z0-9]{9}\d)\b/;
 
@@ -57,14 +57,17 @@ const cryptoByName = (name) => {
 export function parseFlatexPdf(lines) {
   const text = lines.join("\n");
   if (!/flatex/i.test(text)) throw new Error("This PDF doesn't look like a flatex document.");
-  if (!/abrechnung/i.test(text)) throw new Error("This flatex PDF isn't a trade confirmation (Wertpapierabrechnung).");
   // the trade date is in the head of the document, once for all orders
   const docDate = date(text, "Schlusstag") || date(text, "Handelstag") || date(text, "Ausf(?:ü|ue)hrungstag") || date(text, "Valuta");
   const docSide = /abrechnung\s+verkauf/i.test(text) ? "sell" : /abrechnung\s+kauf/i.test(text) ? "buy" : "";
 
   // one block per order ("Nr. 319801760/1 Kauf …")
+  // (anywhere on its line: a barcode number or label may sit on the same baseline, left of it)
   const starts = [];
-  lines.forEach((l, i) => { if (/^Nr\.\s*\d+\/\d+/.test(l)) starts.push(i); });
+  lines.forEach((l, i) => {
+    const at = l.search(/(?:^|\s)Nr\.\s*\d{5,}\/\d+\s+(?:Kauf|Verkauf)\b/i);
+    if (at >= 0) { lines[i] = l.slice(at).trim(); starts.push(i); }
+  });
   const trades = [], skipped = [];
   starts.forEach((s, k) => {
     const block = lines.slice(s, starts[k + 1] ?? lines.length).join("\n");
@@ -100,6 +103,10 @@ export function parseFlatexPdf(lines) {
       side, row,
     });
   });
-  if (!trades.length && !skipped.length) throw new Error("No order found in this PDF (expected a line like “Nr. 123456789/1 Kauf …”).");
+  if (!trades.length && !skipped.length) {
+    // say which document it is: dividends, tax and account statements have no orders to import
+    const kind = lines.find((l) => /abrechnung|gutschrift|aussch(ü|ue)ttung|dividende|vorabpauschale|kontoauszug|depotauszug|steuer/i.test(l) && l.length < 90) || "";
+    throw new Error(kind ? `“${kind}” has no buy or sale to import. Pick a Wertpapierabrechnung (Kauf / Verkauf).` : "No buy or sale found in this PDF. Pick a Wertpapierabrechnung (Kauf / Verkauf).");
+  }
   return { trades, skipped };
 }
