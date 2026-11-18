@@ -149,6 +149,16 @@ if (await demo.isVisible()) {
   ok("demo: month cell shows a readout", ((await page.locator("#ov2-months .ov2-hm__read").textContent()) || "").includes("·"));
   await page.locator("#ov2-months").scrollIntoViewIfNeeded();
   await shot("demo-months");
+  // import: a flatex PDF confirmation (made-up sample, two orders) is read in the browser
+  await go("#/add");
+  await page.locator("#f-file").setInputFiles(path.join(ROOT, "tests", "fixtures", "flatex-sample.pdf"));
+  await page.locator("#f-import:not([hidden]) .import__list li").first().waitFor({ timeout: 15000 }).catch(() => {});
+  const imported = await page.locator("#f-import .import__list li").count();
+  ok("demo: flatex PDF import finds both orders", imported === 2, `${imported} rows; ${await page.locator("#f-error").textContent()}`);
+  await shot("demo-import-pdf");
+  await page.locator("#f-import [data-import-cancel]").click().catch(() => {});
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
   await go("#/portfolio");
   ok("demo: portfolio renders", await page.locator("#view-portfolio").isVisible());
   await shot("demo-portfolio");

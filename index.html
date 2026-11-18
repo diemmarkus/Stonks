@@ -35,7 +35,7 @@
   <link rel="manifest" href="site.webmanifest" />
   <link rel="preload" href="fonts/inter-tight.woff" as="font" type="font/woff" crossorigin />
   <link rel="preload" href="fonts/manrope.woff" as="font" type="font/woff" crossorigin />
-  <link rel="stylesheet" href="css/style.css?v=167" />
+  <link rel="stylesheet" href="css/style.css?v=168" />
   <!-- signed in last time? hide the sign-in button until the app knows (no flash of the start page) -->
   <script>try { if (localStorage.getItem("stonks-session-v1")) document.documentElement.classList.add("has-session"); } catch (e) {}</script>
 </head>
@@ -167,10 +167,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
         <h2 id="add-title">Add holding</h2>
-        <button class="addsheet__import" type="button" id="f-import-btn" aria-label="Import a CSV from flatex" title="Import a CSV from flatex">
+        <button class="addsheet__import" type="button" id="f-import-btn" aria-label="Import from flatex (CSV or PDF confirmations)" title="Import from flatex (CSV or PDF confirmations)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 19h14"/></svg>
         </button>
-        <input type="file" id="f-file" accept=".csv,text/csv,text/plain" hidden />
+        <input type="file" id="f-file" accept=".csv,text/csv,text/plain,.pdf,application/pdf" multiple hidden />
         <button class="btn btn--primary addsheet__save" type="submit" id="f-submit">Add</button>
       </div>
       <p class="form__error" id="f-error" role="alert" hidden></p>
@@ -214,6 +214,6 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
 
-  <script type="module" src="js/app.js?v=167"></script>
+  <script type="module" src="js/app.js?v=168"></script>
 </body>
 </html>

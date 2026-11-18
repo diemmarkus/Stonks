@@ -32,5 +32,23 @@
       "purpose": "maskable"
     }
   ],
-  "description": "See what moved today and what your stocks, ETFs and crypto are worth — no trading, no tips, just your numbers."
+  "description": "See what moved today and what your stocks, ETFs and crypto are worth — no trading, no tips, just your numbers.",
+  "share_target": {
+    "action": "./share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "files",
+          "accept": [
+            "application/pdf",
+            ".pdf",
+            "text/csv",
+            ".csv"
+          ]
+        }
+      ]
+    }
+  }
 }

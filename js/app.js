@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=167";
-import { legalDoc } from "./legal.js?v=167";
-import { isCryptoCode } from "./crypto.js?v=167";
-import { renderOverview2 } from "./overview2.js?v=167";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=168";
+import { legalDoc } from "./legal.js?v=168";
+import { isCryptoCode } from "./crypto.js?v=168";
+import { renderOverview2 } from "./overview2.js?v=168";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,7 +59,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=167") : import("./store.js?v=167"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=168") : import("./store.js?v=168"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -198,8 +198,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=167").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=167").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=168").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=168").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1143,13 +1143,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=167");
+  const { CRYPTO } = await import("./crypto.js?v=168");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=167");
+    const { searchInstruments } = await import("./onvista.js?v=168");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1324,13 +1324,34 @@ function endImport() {
   $("f-file").value = "";
 }
 $("f-import-btn").addEventListener("click", () => $("f-file").click());
-$("f-file").addEventListener("change", async () => {
-  const file = $("f-file").files?.[0];
-  if (!file) return;
+$("f-file").addEventListener("change", () => importFiles([...($("f-file").files || [])]));
+// CSV exports and flatex PDF confirmations (several at once, or shared to stonks from another app)
+async function importFiles(files) {
+  if (!files.length) return;
   $("f-error").hidden = true;
   try {
-    const { decode, parseTrades } = await import("./import-csv.js?v=167");
-    const { trades, skipped } = parseTrades(decode(await file.arrayBuffer()));
+    let trades = [], skipped = [];
+    const errors = [];
+    for (const file of files) {
+      try {
+        const buf = await file.arrayBuffer();
+        const pdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf" || new TextDecoder().decode(buf.slice(0, 5)) === "%PDF-";
+        let r;
+        if (pdf) {
+          const { pdfLines, parseFlatexPdf } = await import("./import-pdf.js?v=168");
+          r = parseFlatexPdf(await pdfLines(buf));
+        } else {
+          const { decode, parseTrades } = await import("./import-csv.js?v=168");
+          r = parseTrades(decode(buf));
+        }
+        trades.push(...r.trades); skipped.push(...r.skipped);
+      } catch (e) { errors.push(files.length > 1 ? `${file.name}: ${e.message}` : e.message); }
+    }
+    if (!trades.length && errors.length) throw new Error(errors.join(" · "));
+    // the same confirmation picked twice counts once
+    const key = (t) => [t.isin, t.side, t.date, t.quantity, t.price].join("|");
+    trades = trades.filter((t, i) => trades.findIndex((u) => key(u) === key(t)) === i);
+    trades.sort((a, b) => a.date.localeCompare(b.date) || (a.side === "sell") - (b.side === "sell"));
     // already in stonks? same ISIN, side, date, units and price
     const same = (t) => (state.holdings || []).some((h) => h.isin === t.isin && (h.side === "sell") === (t.side === "sell")
       && (h.buyDate || "") === t.date && Math.abs(h.quantity - t.quantity) < 1e-6 && Math.abs(h.buyPrice - t.price) < 0.01);
@@ -1344,13 +1365,14 @@ $("f-file").addEventListener("change", async () => {
       else held[t.isin] += t.quantity;
     }
     importTrades = trades;
-    showImport(file.name, trades, skipped);
+    showImport(files.length > 1 ? `${files.length} files` : files[0].name, trades, skipped);
+    if (errors.length) showError(`Not read: ${errors.join(" · ")}`);
   } catch (e) {
     console.warn(e);
     showError(e.message || "Couldn't read this file.");
-    $("f-file").value = "";
   }
-});
+  $("f-file").value = "";
+}
 function showImport(fileName, trades, skipped) {
   const fresh = trades.filter((t) => !t.dupe);
   const buys = fresh.filter((t) => t.side === "buy").length, sells = fresh.length - buys;
@@ -1671,7 +1693,7 @@ function placeDeskChart(body, kept) {
   node.dataset.sig = sig;
   node.innerHTML = `<div class="pos__chart"></div>`;
   hero.after(node);
-  import("./chart.js?v=167").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+  import("./chart.js?v=168").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
 }
 function togglePortfolioChart() {
   if (!state.holdings?.length || isDesk()) return; // on desktop it's always open
@@ -1680,7 +1702,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=167").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
+    import("./chart.js?v=168").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions }));
     return node;
   });
 }
@@ -1695,7 +1717,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=167").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
+  import("./chart.js?v=168").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()] }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1709,7 +1731,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=167");
+  const { mountPriceChart } = await import("./chart.js?v=168");
   mountPriceChart(host, { id, currency, venue, hint, credit });
 }
 
@@ -1770,7 +1792,7 @@ function ov2Ctx(rows, t, pos) {
     stamp: state.pricesAt ? stampOf(state.pricesAt) : "", events: ov2Events(pos),
     // the map over 1W … 5Y: each position's price change over that range (onvista / CoinGecko history)
     mapChanges: async (list, range) => {
-      const { changesOver } = await import("./chart.js?v=167");
+      const { changesOver } = await import("./chart.js?v=168");
       return changesOver(list.map((p) => {
         const q = p.isin ? null : state.prices.get(p.key);
         return { key: p.key, id: p.isin || p.key, currency: p.isin ? "EUR" : "USD", venue: p.isin ? state.venues[p.isin] : undefined, hint: p.isin ? undefined : { name: q?.name, price: q?.price } };
@@ -1778,7 +1800,7 @@ function ov2Ctx(rows, t, pos) {
     },
     // month by month (or quarter / year): price change per calendar period
     monthChanges: async (list, opts) => {
-      const { periodChanges } = await import("./chart.js?v=167");
+      const { periodChanges } = await import("./chart.js?v=168");
       return periodChanges(list.map((p) => {
         const q = p.isin ? null : state.prices.get(p.key);
         return { key: p.key, id: p.isin || p.key, currency: p.isin ? "EUR" : "USD", venue: p.isin ? state.venues[p.isin] : undefined, hint: p.isin ? undefined : { name: q?.name, price: q?.price } };
@@ -1823,7 +1845,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=167").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=168").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2134,15 +2156,20 @@ function renderCurrentNow() {
   });
 }
 
+let pendingShare = false; // #/share: files shared to the app wait to be imported (takeShared)
+const SHARE_CACHE = "stonks-share";
 function route() {
   let [name, arg] = location.hash.replace(/^#\/?/, "").split("/");
   if (name === "overview2") { name = "overview"; history.replaceState(null, "", "#/overview"); } // the preview became the Overview
+
+  // Files shared to the installed app (sw.js keeps them): open the add sheet and import them
+  if (name === "share") { pendingShare = true; name = "add"; }
 
   // Add / edit open as a sheet on top of the current screen.
   if (name === "add" || name === "edit") {
     const under = state.view && state.view !== "home" ? state.view : "overview";
     history.replaceState(null, "", `#/${under}`);
-    if (state.user) openAdd(name === "edit" ? decodeURIComponent(arg || "") : null);
+    if (state.user) { openAdd(name === "edit" ? decodeURIComponent(arg || "") : null); takeShared(); }
     else if (!state.authReady) pendingRoute = [name, arg];
     name = under;
   }
@@ -2176,6 +2203,27 @@ function route() {
 }
 let pendingRoute = null;
 window.addEventListener("hashchange", route);
+
+/* Share to stonks: the installed app shows up in the phone's share menu (site.webmanifest
+   share_target); sw.js keeps the shared files in Cache Storage until we import them here. */
+async function takeShared() {
+  // wait for your holdings, so trades already in stonks are recognised
+  if (!pendingShare || !state.user || state.holdings === null || typeof caches === "undefined") return;
+  pendingShare = false;
+  try {
+    const cache = await caches.open(SHARE_CACHE);
+    const files = await Promise.all((await cache.keys()).map(async (k) => {
+      const r = await cache.match(k), b = await r.blob();
+      return new File([b], decodeURIComponent(r.headers.get("x-name") || "shared"), { type: b.type });
+    }));
+    await caches.delete(SHARE_CACHE);
+    if (files.length) importFiles(files);
+    else showError("Nothing arrived from the share. Try again, or pick the file with the import button.");
+  } catch (e) { console.warn("Shared files", e); showError("Couldn't read the shared file."); }
+}
+if ("serviceWorker" in navigator && window.isSecureContext) {
+  navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch((e) => console.warn("Service worker", e));
+}
 
 /* Swipe left/right to switch between Overview and Portfolio. The page follows your finger;
    let go past a quarter of the width (or flick) and it slides out while the next one slides in
@@ -2428,6 +2476,7 @@ async function startHoldings(uid) {
       priceMissingHoldings();
       if (pendingEditId) openAdd(pendingEditId);
       renderCurrent();
+      takeShared();
     }, (e) => {
       console.error("Holdings listener failed", e);
       state.holdings = [];
@@ -2496,7 +2545,7 @@ function applyUser(user) {
     state.holdings = null;
   }
   route();
-  if (user && pendingRoute) { const [n, a] = pendingRoute; pendingRoute = null; openAdd(n === "edit" ? decodeURIComponent(a || "") : null); }
+  if (user && pendingRoute) { const [n, a] = pendingRoute; pendingRoute = null; openAdd(n === "edit" ? decodeURIComponent(a || "") : null); takeShared(); }
 }
 
 function showCachedUser(user) {
@@ -2515,7 +2564,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=167");
+  const { resetDemo } = await import("./demo-store.js?v=168");
   resetDemo();
   state.demo = true;
   state.names = {};
