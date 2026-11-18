@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=172";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=173";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -240,7 +240,40 @@ function toCandles(pts, range) {
   return out;
 }
 
-function drawCandles(plot, pts, range, currency) {
+// Your buys and sales on a chart: a thin dashed line at the day of each, cyan for buys and pink for
+// sales (as in the Latest feed). trades: [{ date: "YYYY-MM-DD", side: "buy" | "sell", qty, price, name? }].
+// slotDay(i) is the local day ("YYYY-MM-DD") of slot i (a point or a candle); a trade goes on the first
+// slot on or after its day, and only when that day is inside the chart.
+const localDay = (t) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+function placeTrades(trades, count, slotDay) {
+  if (!trades?.length || !count) return [];
+  const first = slotDay(0), last = slotDay(count - 1), out = [];
+  for (const tr of trades) {
+    if (!tr.date || tr.date < first || tr.date > last) continue;
+    let lo = 0, hi = count - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (slotDay(m) >= tr.date) hi = m; else lo = m + 1; }
+    out.push({ ...tr, i: lo });
+  }
+  return out;
+}
+const fmtQtyT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
+function tradeMarkup(marks, x, top, bottom) {
+  const seen = new Set();
+  return marks.filter((m) => { const k = `${m.i}|${m.side}`; if (seen.has(k)) return false; seen.add(k); return true; })
+    .map((m) => `<g class="pchart__trade pchart__trade--${m.side}"><line x1="${x(m.i).toFixed(1)}" x2="${x(m.i).toFixed(1)}" y1="${top}" y2="${bottom}"/><circle cx="${x(m.i).toFixed(1)}" cy="${bottom}" r="3.5"/></g>`).join("");
+}
+// readout line for the trades near slot i (within `near` slots)
+function tradeNote(marks, i, near, currency) {
+  const hit = marks.filter((m) => Math.abs(m.i - i) <= near);
+  if (!hit.length) return "";
+  return `<span class="pchart__tradenote">${hit.slice(0, 3).map((m) => `<span class="pchart__tradenote--${m.side}">${m.side === "sell" ? "Sold" : "Bought"}</span> ${m.name ? `${m.name} · ` : ""}${fmtQtyT.format(m.qty)} × ${fmtMoney(m.price, currency)}`).join(" · ")}${hit.length > 3 ? ` · +${hit.length - 3} more` : ""}</span>`;
+}
+const tradeAria = (marks) => {
+  const b = marks.filter((m) => m.side !== "sell").length, s2 = marks.length - b;
+  return marks.length ? `; your ${b ? `${b} ${b === 1 ? "buy" : "buys"}` : ""}${b && s2 ? " and " : ""}${s2 ? `${s2} ${s2 === 1 ? "sale" : "sales"}` : ""} marked` : "";
+};
+
+function drawCandles(plot, pts, range, currency, opts = {}) {
   const cs = toCandles(pts, range);
   const W = plot.clientWidth || 320, H = plot.clientHeight || 220;
   const inset = parseFloat(getComputedStyle(plot).getPropertyValue("--chart-inset")) || 0;
@@ -264,12 +297,14 @@ function drawCandles(plot, pts, range, currency) {
       + `<rect x="${(x - bw / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${bw > 4 ? 1 : 0}" fill="${col}"/>`;
   }).join("");
   const when = (t) => fmtWhen(t, range === "1D" || range === "1W" ? "1W+time" : range);
+  const marks = placeTrades(opts.trades, cs.length, (i) => localDay(cs[i].t1));
   plot.innerHTML = `
     <svg class="pchart__svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
-      aria-label="Candlesticks over ${range}: from ${fmtMoney(first, currency)} to ${fmtMoney(lastV, currency)}, ${sign}${Math.abs(pct).toFixed(2)}%, high ${fmtMoney(hi, currency)}, low ${fmtMoney(lo, currency)}">
+      aria-label="Candlesticks over ${range}: from ${fmtMoney(first, currency)} to ${fmtMoney(lastV, currency)}, ${sign}${Math.abs(pct).toFixed(2)}%, high ${fmtMoney(hi, currency)}, low ${fmtMoney(lo, currency)}${tradeAria(marks)}">
       <line x1="0" x2="${W}" y1="${y(hi)}" y2="${y(hi)}" class="pchart__grid"/>
       <line x1="0" x2="${W}" y1="${y(lo)}" y2="${y(lo)}" class="pchart__grid"/>
       <rect class="pchart__band" y="${padT - 6}" height="${H - padB - padT + 12}" width="${slot.toFixed(1)}" style="display:none"/>
+      ${tradeMarkup(marks, xc, padT - 6, H - padB + 6)}
       ${bars}
       <text x="${labR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
       <text x="${labR}" y="${y(lo) + 13}" text-anchor="end" class="pchart__axis">${fmtMoney(lo, currency)}</text>
@@ -288,7 +323,7 @@ function drawCandles(plot, pts, range, currency) {
     band.style.display = ""; band.setAttribute("x", (x0 + i * slot).toFixed(1));
     const m = (v) => fmtMoney(v, currency);
     read.innerHTML = `<b>${m(c.c)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${when(c.t)}</span>`
-      + `<span class="pchart__ohlc">O ${m(c.o)} · H ${m(c.h)} · L ${m(c.l)}</span>`;
+      + `<span class="pchart__ohlc">O ${m(c.o)} · H ${m(c.h)} · L ${m(c.l)}</span>` + tradeNote(marks, i, 0, currency);
   };
   const hide = () => { band.style.display = "none"; read.innerHTML = resting; };
   svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
@@ -301,7 +336,7 @@ function drawCandles(plot, pts, range, currency) {
 function draw(plot, pts, range, currency, opts = {}) {
   // a single security's price, as candlesticks when the setting asks for them at this range
   // (the portfolio chart stays a line)
-  if (opts.candles && candlesFor(range) && pts.length >= 2) return drawCandles(plot, pts, range, currency);
+  if (opts.candles && candlesFor(range) && pts.length >= 2) return drawCandles(plot, pts, range, currency, opts);
   const ref = opts.ref || null; // e.g. invested amount, drawn dashed
   const W = plot.clientWidth || 320, H = plot.clientHeight || 220;
   // --chart-inset (CSS): the line runs edge to edge, while labels keep this margin
@@ -325,16 +360,19 @@ function draw(plot, pts, range, currency, opts = {}) {
   const refLine = ref ? ref.map((v, i) => `${i ? "L" : "M"}${xi(i).toFixed(1)},${y(v).toFixed(1)}`).join("") : "";
   const gid = `g${Math.random().toString(36).slice(2, 8)}`;
   const sign = pct > 0 ? "+" : pct < 0 ? "−" : "";
+  const marks = placeTrades(opts.trades, pts.length, (i) => localDay(pts[i].t));
+  const near = Math.max(1, Math.round(n / 60)); // the readout names a trade when the finger is this close
 
   plot.innerHTML = `
     <svg class="pchart__svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
-      aria-label="Price over ${range}: from ${fmtMoney(vals[0], currency)} to ${fmtMoney(vals[vals.length - 1], currency)}, ${sign}${Math.abs(pct).toFixed(2)}%">
+      aria-label="${ref ? "Value" : "Price"} over ${range}: from ${fmtMoney(vals[0], currency)} to ${fmtMoney(vals[vals.length - 1], currency)}, ${sign}${Math.abs(pct).toFixed(2)}%${tradeAria(marks)}">
       <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/>
       </linearGradient></defs>
       <line x1="0" x2="${W}" y1="${y(hi)}" y2="${y(hi)}" class="pchart__grid"/>
       <line x1="0" x2="${W}" y1="${y(lo)}" y2="${y(lo)}" class="pchart__grid"/>
       <path d="${area}" fill="url(#${gid})"/>
+      ${tradeMarkup(marks, xi, padT - 6, H - padB)}
       ${ref ? `<path d="${refLine}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/>` : ""}
       <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
       <text x="${labR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
@@ -364,9 +402,10 @@ function draw(plot, pts, range, currency, opts = {}) {
     hover.style.display = "";
     cross.setAttribute("x1", px); cross.setAttribute("x2", px);
     dot.setAttribute("cx", px); dot.setAttribute("cy", py);
-    if (opts.hover) { read.innerHTML = opts.hover(p, i, fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)); return; }
+    const note = tradeNote(marks, i, near, opts.tradeCurrency || currency);
+    if (opts.hover) { read.innerHTML = opts.hover(p, i, fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)) + note; return; }
     const d = p.v - vals[0], dp = vals[0] ? (d / vals[0]) * 100 : 0;
-    read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)}</span>`;
+    read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)}</span>` + note;
   };
   const hide = () => { hover.style.display = "none"; read.innerHTML = resting; };
   svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
@@ -425,19 +464,21 @@ function mountRanged(host, ranges, loader) {
 }
 
 // One security. opts: { id: ISIN / crypto code / US ticker, currency: "EUR" | "USD", venue }
-export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credit = true }) {
+// trades: your buys and sales of it, marked on the chart (see placeTrades)
+export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credit = true, trades = [] }) {
   const ranges = Object.keys(RANGES).filter((r) => !isCryptoCode(id) || RANGES[r].cg);
   mountRanged(host, ranges, async (range) => {
     const src = await resolve(id, currency, venue, hint);
     const pts = await history(src, range);
-    return { pts, currency: src.currency || currency, credit: credit ? `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` : "", opts: { candles: true } };
+    return { pts, currency: src.currency || currency, credit: credit ? `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` : "", opts: { candles: true, trades } };
   });
 }
 
 // Your whole portfolio: Σ units held at each moment × that position's price, in EUR,
 // with the amount invested so far as a dashed line.
 // positions: [{ id, currency, venue, toEur, lots: [{ qty, buyEur, date: "YYYY-MM-DD" | "" }] }]
-export function mountPortfolioChart(host, { positions, vsInvested = true }) {
+// trades: every buy and sale ({ date, side, qty, price in EUR, name }), marked on the chart
+export function mountPortfolioChart(host, { positions, vsInvested = true, trades = [] }) {
   const fmt = (v) => fmtMoney(v, "EUR");
   mountRanged(host, Object.keys(RANGES), async (range) => {
     const loaded = await Promise.allSettled(positions.map(async (p) => {
@@ -486,6 +527,7 @@ export function mountPortfolioChart(host, { positions, vsInvested = true }) {
       credit: `Price data: onvista, CoinGecko${missing ? ` · ${missing} position${missing === 1 ? "" : "s"} without history left out` : ""}`,
       opts: {
         ref: refThin,
+        trades, tradeCurrency: "EUR",
         rest: vsInvested
           ? ({ change, pct, sign }) => `<b class="${change >= 0 ? "up" : "down"}">${sign}${fmt(Math.abs(change)).replace(/^-/, "")}</b> <span class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</span>`
           : () => "",
