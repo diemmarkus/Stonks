@@ -8,16 +8,26 @@ let mapZoom = false; // map shows only the "Others" (kept across re-renders)
 // the map's two filters, kept across re-renders (not stored: a fresh visit starts at 1D · All)
 let mapRange = "1D", mapType = "all";
 let filtersOpen = false; // the filter panel under the map's head
-const MAP_RANGES = ["1D", "1W", "1M", "1Y", "5Y"];
+const MAP_RANGES = ["1D", "1W", "1M", "6M", "1Y", "5Y", "All"];
 // colour saturates at this move (%), wider for longer ranges
-const MAP_SAT = { "1D": 3, "1W": 6, "1M": 10, "1Y": 30, "5Y": 60 };
+const MAP_SAT = { "1D": 3, "1W": 6, "1M": 10, "6M": 20, "1Y": 30, "5Y": 60, "All": 100 };
 const SHORT_TYPE = { etf: "ETFs", certificate: "Certs", stock: "Stocks", crypto: "Crypto" };
 const monthCache = new Map(); // range + positions → Promise<{ periods, byKey }>
-// month by month: range → periods (5Y in quarters, 10Y in years, so cells stay tappable on a phone)
+// month by month: range → periods (5Y in quarters so cells stay tappable on a phone). The shorter
+// ranges of the rest of the app (1D … 1M) have no months to show. All starts at your first buy:
+// months up to 2 years, quarters up to ~6 years, years beyond.
 const HM_RANGES = {
-  "6M": { count: 6, step: 1, sat: 10 }, "1Y": { count: 12, step: 1, sat: 10 }, "2Y": { count: 24, step: 1, sat: 10 },
-  "5Y": { count: 20, step: 3, sat: 20 }, "10Y": { count: 10, step: 12, sat: 40 },
+  "6M": { count: 6, step: 1, sat: 10 }, "1Y": { count: 12, step: 1, sat: 10 },
+  "5Y": { count: 20, step: 3, sat: 20 }, "All": null,
 };
+function hmAll(first) {
+  const now = new Date(), cm = now.getFullYear() * 12 + now.getMonth();
+  const f = first ? Number(first.slice(0, 4)) * 12 + Number(first.slice(5, 7)) - 1 : cm - 11;
+  const span = Math.max(6, cm - f + 1);
+  if (span <= 24) return { count: span, step: 1, sat: 10 };
+  if (span <= 76) return { count: Math.floor(cm / 3) - Math.floor(f / 3) + 1, step: 3, sat: 20 };
+  return { count: Math.floor(cm / 12) - Math.floor(f / 12) + 1, step: 12, sat: 40 };
+}
 let hmRange = "1Y", hmFiltersOpen = false;
 let monthsOpen = false; // month-by-month: all rows shown (kept across re-renders)
 const MONTH_ROWS = 8;
@@ -115,12 +125,12 @@ function watchRows(grid) {
 }
 
 export function renderOverview2(body, ctx) {
-  const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel, mapChanges, monthChanges, heldIn } = ctx;
+  const { rows, t, pos, returns, alloc, esc, fmtEur, fmtEurSigned, fmtPct, dir, stamp, events, typeLabel, mapChanges, monthChanges, heldIn, firstBuy } = ctx;
   const live = pos.filter((p) => p.live);
   const share = (v) => (t.value ? (v / t.value) * 100 : 0);
   const [whole, cents] = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(t.value).split(".");
 
-  /* 1 · today's map (or over 1W … 5Y), all positions or one class */
+  /* 1 · today's map (or over 1W … All), all positions or one class */
   const mapAll = pos.filter((p) => p.value > 0.005).sort((a, b) => b.value - a.value);
   const mapTypes = alloc.byType.map((x) => x.key).filter((k) => mapAll.some((p) => p.type === k));
   if (mapType !== "all" && !mapTypes.includes(mapType)) mapType = "all";
@@ -225,14 +235,14 @@ export function renderOverview2(body, ctx) {
 
   // treemap needs the real width
   const host = body.querySelector("#ov2-map");
-  let changes = null; // 1W … 5Y: key → % once loaded (null while loading)
+  let changes = null; // 1W … All: key → % once loaded (null while loading)
   // per position: { live, pct } for the chosen range
   const moveOf = (p) => {
     if (mapRange === "1D") return { live: p.live, pct: p.dayPct };
     const v = changes?.get(p.key);
     return v == null ? { live: false, pct: 0, loading: !changes } : { live: true, pct: v };
   };
-  const when = () => (mapRange === "1D" ? "today" : `over ${mapRange}`);
+  const when = () => (mapRange === "1D" ? "today" : mapRange === "All" ? "all time" : `over ${mapRange}`);
   const layout = () => {
     const W = host.clientWidth, H = host.clientHeight;
     if (!W) return;
@@ -278,7 +288,7 @@ export function renderOverview2(body, ctx) {
     }).join("");
     host.querySelectorAll(".ov2-tile").forEach(fitTile);
   };
-  // 1W … 5Y: price history per position (loaded once per range and visit)
+  // 1W … All: price history per position (loaded once per range and visit)
   const loadChanges = () => {
     changes = null;
     if (mapRange === "1D" || !mapChanges) return;
@@ -308,8 +318,9 @@ export function renderOverview2(body, ctx) {
       return Array.from({ length: R.count }, (_, i) => { const a = cur - (R.count - 1 - i) * R.step; return { from: ym(a), to: ym(Math.min(a + R.step - 1, cm)) }; });
     };
     let data = null, token = 0;
+    const hmSpec = () => HM_RANGES[hmRange] || hmAll(firstBuy?.(mapAll.map((p) => p.key)));
     const draw = () => {
-      const R = HM_RANGES[hmRange];
+      const R = hmSpec();
       const ps = data?.periods || fallback(R);
       const extra = mapAll.length - MONTH_ROWS, fold = extra >= 2;
       const shown = fold && !monthsOpen ? mapAll.slice(0, MONTH_ROWS) : mapAll;
@@ -339,7 +350,7 @@ export function renderOverview2(body, ctx) {
       data = null; draw();
       const range = hmRange, my = ++token;
       const key = `${range}|${mapAll.map((p) => p.key).join(",")}`;
-      if (!monthCache.has(key)) monthCache.set(key, monthChanges(mapAll, HM_RANGES[range]).catch(() => null));
+      if (!monthCache.has(key)) monthCache.set(key, monthChanges(mapAll, hmSpec()).catch(() => null));
       monthCache.get(key).then((d) => { if (d && my === token && grid.isConnected) { data = d; draw(); } });
     };
     load();

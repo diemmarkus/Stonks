@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=170";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=172";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -9,9 +9,10 @@ const RANGES = {
   "1D": { ov: "D1", back: { days: 6 }, cg: 1, res: "1m" },
   "1W": { ov: "W1", back: { days: 7 }, cg: 7, res: "15m" },
   "1M": { ov: "M1", back: { months: 1 }, cg: 30, res: "60m" },
+  "6M": { ov: "Y1", back: { months: 6 }, cg: 180, res: "1D", trim: true }, // a year's daily history, cut to 6 months
   "1Y": { ov: "Y1", back: { years: 1 }, cg: 365, res: "1D" },
   "5Y": { ov: "Y5", back: { years: 5 }, cg: null, res: "1D" },   // default would be weekly
-  "Max": { ov: "MAX", back: { years: 40 }, cg: null, res: "1D" }, // default would be monthly
+  "All": { ov: "MAX", back: { years: 40 }, cg: null, res: "1D" }, // default would be monthly
 };
 const RANGE_KEY = "stonks-chart-range";
 // Price charts: "hybrid" (default: candlesticks for 1D and 1W, a line for longer ranges), "line" or
@@ -129,6 +130,7 @@ async function history(src, range) {
     const ohlc = !ticks && [d.first, d.high, d.low].every((a) => Array.isArray(a) && a.length === vs.length);
     const num = (x) => (typeof x === "number" && isFinite(x) && x > 0 ? x : undefined);
     pts = clean(ts.map((t, i) => (ohlc ? { t: toMs(t), v: vs[i], o: num(d.first[i]), h: num(d.high[i]), l: num(d.low[i]) } : { t: toMs(t), v: vs[i] })));
+    if (R.trim) { const from = new Date(`${startDate(R.back)}T00:00:00`).getTime(); pts = pts.filter((p) => p.t >= from); }
     if (range === "1D" && pts.length) {
       // only the last trading day
       const lastDay = new Date(pts[pts.length - 1].t).toDateString();
@@ -206,7 +208,7 @@ function fmtWhen(t, range) {
 }
 
 // Points → candles: one per time bucket (15 min for 1D, 2 h for 1W, a day for 1M, a week for 1Y,
-// a month for 5Y, a quarter or a year for Max); at most ~90, merging neighbours when there are more.
+// a week for 6M, a month for 5Y, a quarter or a year for All); at most ~90, merging neighbours when there are more.
 // open = the bucket's first price (or the bar's own open), close = its last, high / low = its extremes.
 function toCandles(pts, range) {
   const H = 36e5, D = 864e5;
@@ -215,9 +217,10 @@ function toCandles(pts, range) {
     "1D": (t) => Math.floor(t / (15 * 6e4)),
     "1W": (t) => Math.floor(t / (2 * H)),
     "1M": (t) => local(t).toDateString(),
-    "1Y": (t) => Math.floor((t + 3 * D) / (7 * D)), // weeks starting Monday
+    "6M": (t) => Math.floor((t + 3 * D) / (7 * D)), // weeks starting Monday
+    "1Y": (t) => Math.floor((t + 3 * D) / (7 * D)),
     "5Y": (t) => { const d = local(t); return d.getFullYear() * 12 + d.getMonth(); },
-    "Max": (t) => { const d = local(t); return pts.length && pts[pts.length - 1].t - pts[0].t > 20 * 365 * D ? d.getFullYear() : d.getFullYear() * 4 + Math.floor(d.getMonth() / 3); },
+    "All": (t) => { const d = local(t); return pts.length && pts[pts.length - 1].t - pts[0].t > 20 * 365 * D ? d.getFullYear() : d.getFullYear() * 4 + Math.floor(d.getMonth() / 3); },
   }[range] || ((t) => Math.floor(t / D));
   let out = [];
   for (const p of pts) {
@@ -273,7 +276,7 @@ function drawCandles(plot, pts, range, currency) {
       <text x="${inset}" y="${H - 4}" class="pchart__axis">${fmtWhen(pts[0].t, range)}</text>
       <text x="${labR}" y="${H - 4}" text-anchor="end" class="pchart__axis">${fmtWhen(pts[pts.length - 1].t, range)}</text>
     </svg>
-    <div class="pchart__read"><b class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</b> <span>${range === "Max" ? "all time" : `over ${range}`}</span></div>`;
+    <div class="pchart__read"><b class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</b> <span>${range === "All" ? "all time" : `over ${range}`}</span></div>`;
 
   // tap or hover a candle: its open, high, low and close
   const svg = plot.querySelector("svg"), band = svg.querySelector(".pchart__band"), read = plot.querySelector(".pchart__read");
@@ -343,7 +346,7 @@ function draw(plot, pts, range, currency, opts = {}) {
         <circle r="4.5" class="pchart__dot" fill="${color}"/>
       </g>
     </svg>
-    <div class="pchart__read">${opts.rest ? opts.rest({ change, pct, sign }) : `<b class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</b> <span>${range === "Max" ? "all time" : `over ${range}`}</span>`}</div>`;
+    <div class="pchart__read">${opts.rest ? opts.rest({ change, pct, sign }) : `<b class="${change >= 0 ? "up" : "down"}">${sign}${Math.abs(pct).toFixed(2)}%</b> <span>${range === "All" ? "all time" : `over ${range}`}</span>`}</div>`;
 
   // crosshair: finger or mouse anywhere on the plot
   const svg = plot.querySelector("svg"), hover = svg.querySelector(".pchart__hover");
@@ -377,7 +380,7 @@ function draw(plot, pts, range, currency, opts = {}) {
 // Range buttons + loading/error states; `loader(range)` returns { pts, currency, credit, opts }.
 function mountRanged(host, ranges, loader) {
   let range = "1M";
-  try { const saved = localStorage.getItem(RANGE_KEY); if (ranges.includes(saved)) range = saved; } catch {}
+  try { const saved = localStorage.getItem(RANGE_KEY) === "Max" ? "All" : localStorage.getItem(RANGE_KEY); if (ranges.includes(saved)) range = saved; } catch {}
   if (!ranges.includes(range)) range = ranges[Math.min(2, ranges.length - 1)];
 
   host.innerHTML = `
@@ -451,7 +454,7 @@ export function mountPortfolioChart(host, { positions, vsInvested = true }) {
     if (!series.length) return { pts: [] };
 
     // time grid: all timestamps inside the range (the 1D window follows the securities, not crypto's 24h)
-    // The portfolio only exists from its first buy: long ranges (Max, 5Y) start there instead of
+    // The portfolio only exists from its first buy: long ranges (All, 5Y) start there instead of
     // decades back. Buys without a date count from that first dated buy.
     const dayStart = (d) => (d ? new Date(`${d}T00:00:00`).getTime() : NaN);
     const dated = positions.flatMap((p) => p.lots.map((l) => dayStart(l.date))).filter((t) => isFinite(t));
@@ -501,7 +504,7 @@ export function mountPortfolioChart(host, { positions, vsInvested = true }) {
 export async function portfolioYears(positions) {
   const loaded = await Promise.allSettled(positions.map(async (p) => {
     const src = await resolve(p.id, p.currency, p.venue);
-    return { p, pts: await history(src, isCryptoCode(p.id) ? "1Y" : "Max") };
+    return { p, pts: await history(src, isCryptoCode(p.id) ? "1Y" : "All") };
   }));
   const series = loaded.filter((r) => r.status === "fulfilled" && r.value.pts.length).map((r) => r.value);
   const dayStart = (d) => (d ? new Date(`${d}T00:00:00`).getTime() : NaN);
@@ -561,7 +564,7 @@ export async function periodChanges(items, { count = 12, step = 1 } = {}) {
   // end of month n (the current month: now)
   const endOf = (n) => (n >= cm ? Date.now() : new Date(Math.floor((n + 1) / 12), (n + 1) % 12, 1).getTime() - 1);
   const back = cm - periods[0].a + 1; // months of history needed
-  const range = back <= 12 ? "1Y" : back <= 59 ? "5Y" : "Max";
+  const range = back <= 12 ? "1Y" : back <= 59 ? "5Y" : "All";
   const byKey = new Map();
   await Promise.all(items.map(async (it) => {
     try {
