@@ -458,6 +458,8 @@ body.sheet-open { overflow: hidden; }
 .pchart__trade circle { stroke: var(--bg-2); stroke-width: 1.5; }
 .pchart__tradenote { display: block; margin-top: 3px; font-size: 11px; color: var(--ink-2); }
 .pchart__tradenote--buy { color: var(--accent-2); font-weight: 600; } .pchart__tradenote--sell { color: var(--accent-text, var(--accent)); font-weight: 600; }
+.pchart__costnote { display: block; margin-top: 3px; font-size: 11px; color: var(--ink-3); }
+.pchart__costlabel { fill: var(--ink-3); }
 .pchart__ohlc { display: block; margin-top: 3px; font-size: 11px; color: var(--ink-3); }
 .pchart__band { fill: color-mix(in srgb, var(--ink) 8%, transparent); }
 .pchart__read .up { color: var(--up); } .pchart__read .down { color: var(--down); }
