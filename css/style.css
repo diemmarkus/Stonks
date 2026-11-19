@@ -451,7 +451,7 @@ body.sheet-open { overflow: hidden; }
 .pchart__read { position: absolute; top: 0; left: 0; font: 400 13px/1.2 var(--mono); color: var(--ink-3); pointer-events: none; }
 .pchart__read b { color: var(--ink); font-weight: 600; }
 /* your buys (cyan) and sales (pink) on the charts */
-.pchart__trades[hidden] { display: none; }
+.pchart__mine[hidden] { display: none; }
 .pchart__trade line { stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: .75; }
 .pchart__trade--buy line { stroke: var(--accent-2); } .pchart__trade--buy circle { fill: var(--accent-2); }
 .pchart__trade--sell line { stroke: var(--accent); } .pchart__trade--sell circle { fill: var(--accent); }
