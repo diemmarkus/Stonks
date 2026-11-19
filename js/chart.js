@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=175";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=176";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -262,18 +262,19 @@ const fmtQtyT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
 let tradesShown = false;
 function tradeMarkup(marks, x, top, bottom) {
   const seen = new Set();
-  return `<g class="pchart__trades"${tradesShown ? "" : " hidden"}>` + marks.filter((m) => { const k = `${m.i}|${m.side}`; if (seen.has(k)) return false; seen.add(k); return true; })
+  return `<g class="pchart__trades pchart__mine"${tradesShown ? "" : " hidden"}>` + marks.filter((m) => { const k = `${m.i}|${m.side}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .map((m) => `<g class="pchart__trade pchart__trade--${m.side}"><line x1="${x(m.i).toFixed(1)}" x2="${x(m.i).toFixed(1)}" y1="${top}" y2="${bottom}"/><circle cx="${x(m.i).toFixed(1)}" cy="${bottom}" r="3.5"/></g>`).join("") + "</g>";
 }
 // a tap (not a drag) on the chart shows or hides your trades
-function tapToggleTrades(svg, marks) {
-  if (!marks.length) return;
+// (your average line too: everything about your own trades comes and goes together)
+function tapToggleTrades(svg, marks, cost) {
+  if (!marks.length && !cost) return;
   let down = null;
   svg.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: Date.now() }; });
   svg.addEventListener("pointerup", (e) => {
     if (!down || Date.now() - down.t > 350 || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) return;
     tradesShown = !tradesShown;
-    svg.querySelector(".pchart__trades")?.toggleAttribute("hidden", !tradesShown);
+    svg.querySelectorAll(".pchart__mine").forEach((g) => g.toggleAttribute("hidden", !tradesShown));
   });
 }
 // readout line for the trades near slot i (within `near` slots)
@@ -313,7 +314,7 @@ function costPath(cost, x, y) {
   });
   return d;
 }
-const costNote = (cost, i, currency) => (cost?.[i] != null ? `<span class="pchart__costnote">Your average ${fmtMoney(cost[i], currency)}</span>` : "");
+const costNote = (cost, i, currency) => (tradesShown && cost?.[i] != null ? `<span class="pchart__costnote">Your average ${fmtMoney(cost[i], currency)}</span>` : "");
 // the label at the right end of the line, unless it would sit on the high / low labels
 function costLabel(cost, x, y, labR, hiY, loY, currency) {
   const last = cost?.[cost.length - 1];
@@ -357,9 +358,9 @@ function drawCandles(plot, pts, range, currency, opts = {}) {
       <line x1="0" x2="${W}" y1="${y(lo)}" y2="${y(lo)}" class="pchart__grid"/>
       <rect class="pchart__band" y="${padT - 6}" height="${H - padB - padT + 12}" width="${slot.toFixed(1)}" style="display:none"/>
       ${tradeMarkup(marks, xc, padT - 6, H - padB + 6)}
-      ${cost ? `<path d="${costPath(cost, xc, y)}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/>` : ""}
+      ${cost ? `<g class="pchart__mine"${tradesShown ? "" : " hidden"}><path d="${costPath(cost, xc, y)}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/></g>` : ""}
       ${bars}
-      ${cost ? costLabel(cost, xc, y, labR, y(hi) - 6, y(lo) + 13, currency) : ""}
+      ${cost ? `<g class="pchart__mine"${tradesShown ? "" : " hidden"}>${costLabel(cost, xc, y, labR, y(hi) - 6, y(lo) + 13, currency)}</g>` : ""}
       <text x="${labR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
       <text x="${labR}" y="${y(lo) + 13}" text-anchor="end" class="pchart__axis">${fmtMoney(lo, currency)}</text>
       <text x="${inset}" y="${H - 4}" class="pchart__axis">${fmtWhen(pts[0].t, range)}</text>
@@ -380,7 +381,7 @@ function drawCandles(plot, pts, range, currency, opts = {}) {
       + `<span class="pchart__ohlc">O ${m(c.o)} · H ${m(c.h)} · L ${m(c.l)}</span>` + costNote(cost, i, currency) + tradeNote(marks, i, 0, currency);
   };
   const hide = () => { band.style.display = "none"; read.innerHTML = resting; };
-  tapToggleTrades(svg, marks);
+  tapToggleTrades(svg, marks, cost);
   svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
   svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) show(e); });
   svg.addEventListener("pointerup", hide);
@@ -430,11 +431,11 @@ function draw(plot, pts, range, currency, opts = {}) {
       <path d="${area}" fill="url(#${gid})"/>
       ${tradeMarkup(marks, xi, padT - 6, H - padB)}
       ${ref ? `<path d="${refLine}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/>` : ""}
-      ${cost ? `<path d="${costPath(cost, xi, y)}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/>` : ""}
+      ${cost ? `<g class="pchart__mine"${tradesShown ? "" : " hidden"}><path d="${costPath(cost, xi, y)}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/></g>` : ""}
       <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
       <text x="${labR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
       <text x="${labR}" y="${y(lo) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(lo, currency)}</text>
-      ${cost ? costLabel(cost, xi, y, labR, y(hi) - 6, y(lo) - 6, currency) : ""}
+      ${cost ? `<g class="pchart__mine"${tradesShown ? "" : " hidden"}>${costLabel(cost, xi, y, labR, y(hi) - 6, y(lo) - 6, currency)}</g>` : ""}
       <text x="${inset}" y="${H - 4}" class="pchart__axis">${fmtWhen(t0, range)}</text>
       <text x="${labR}" y="${H - 4}" text-anchor="end" class="pchart__axis">${fmtWhen(t1, range)}</text>
       <g class="pchart__hover" style="display:none">
@@ -466,7 +467,7 @@ function draw(plot, pts, range, currency, opts = {}) {
     read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)}</span>` + costNote(cost, i, currency) + note;
   };
   const hide = () => { hover.style.display = "none"; read.innerHTML = resting; };
-  tapToggleTrades(svg, marks);
+  tapToggleTrades(svg, marks, cost);
   svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
   svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) show(e); });
   svg.addEventListener("pointerup", hide);
