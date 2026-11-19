@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=174";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=175";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -288,13 +288,50 @@ const tradeAria = (marks) => {
   return marks.length ? `; your ${b ? `${b} ${b === 1 ? "buy" : "buys"}` : ""}${b && s2 ? " and " : ""}${s2 ? `${s2} ${s2 === 1 ? "sale" : "sales"}` : ""} marked` : "";
 };
 
+// Your average buy price as a dashed line on a position's chart. steps: [{ date: "YYYY-MM-DD", avg | null }]
+// in date order (null: none held); slotDay(i) as for placeTrades → one value (or null) per slot.
+function costSeries(steps, count, slotDay) {
+  if (!steps?.length) return null;
+  const out = [];
+  let k = -1;
+  for (let i = 0; i < count; i++) {
+    const d = slotDay(i);
+    while (k + 1 < steps.length && steps[k + 1].date <= d) k++;
+    out.push(k >= 0 ? steps[k].avg : null);
+  }
+  return out.some((v) => v != null) ? out : null;
+}
+// dashed path through the non-null values; a gap where you held none
+function costPath(cost, x, y) {
+  let d = "", on = false;
+  cost.forEach((v, i) => {
+    if (v == null) { on = false; return; }
+    // flat steps: the average changes on the day of a buy, not in between
+    if (on && v !== cost[i - 1]) d += `L${x(i).toFixed(1)},${y(cost[i - 1]).toFixed(1)}`;
+    d += `${on ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`;
+    on = true;
+  });
+  return d;
+}
+const costNote = (cost, i, currency) => (cost?.[i] != null ? `<span class="pchart__costnote">Your average ${fmtMoney(cost[i], currency)}</span>` : "");
+// the label at the right end of the line, unless it would sit on the high / low labels
+function costLabel(cost, x, y, labR, hiY, loY, currency) {
+  const last = cost?.[cost.length - 1];
+  if (last == null) return "";
+  const ly = y(last) - 6;
+  if (Math.abs(ly - hiY) < 14 || Math.abs(ly - loY) < 14) return "";
+  return `<text x="${labR}" y="${ly.toFixed(1)}" text-anchor="end" class="pchart__axis pchart__costlabel">avg ${fmtMoney(last, currency)}</text>`;
+}
+
 function drawCandles(plot, pts, range, currency, opts = {}) {
   const cs = toCandles(pts, range);
   const W = plot.clientWidth || 320, H = plot.clientHeight || 220;
   const inset = parseFloat(getComputedStyle(plot).getPropertyValue("--chart-inset")) || 0;
   const padT = 42, padB = 36, padR = inset ? 0 : 4; // room for the low label under its line
   const labR = W - padR - inset;
-  let lo = Math.min(...cs.map((c) => c.l)), hi = Math.max(...cs.map((c) => c.h));
+  const cost = costSeries(opts.costSteps, cs.length, (i) => localDay(cs[i].t1));
+  const costVals = cost ? cost.filter((v) => v != null) : [];
+  let lo = Math.min(...cs.map((c) => c.l), ...costVals), hi = Math.max(...cs.map((c) => c.h), ...costVals);
   if (hi === lo) { hi += hi * 0.01 || 1; lo -= lo * 0.01 || 1; }
   // even slots, like the line (nights and weekends take no room); a little air at both ends
   const slot = (W - padR - 2 * Math.max(inset, 4)) / cs.length, x0 = Math.max(inset, 4);
@@ -320,7 +357,9 @@ function drawCandles(plot, pts, range, currency, opts = {}) {
       <line x1="0" x2="${W}" y1="${y(lo)}" y2="${y(lo)}" class="pchart__grid"/>
       <rect class="pchart__band" y="${padT - 6}" height="${H - padB - padT + 12}" width="${slot.toFixed(1)}" style="display:none"/>
       ${tradeMarkup(marks, xc, padT - 6, H - padB + 6)}
+      ${cost ? `<path d="${costPath(cost, xc, y)}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/>` : ""}
       ${bars}
+      ${cost ? costLabel(cost, xc, y, labR, y(hi) - 6, y(lo) + 13, currency) : ""}
       <text x="${labR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
       <text x="${labR}" y="${y(lo) + 13}" text-anchor="end" class="pchart__axis">${fmtMoney(lo, currency)}</text>
       <text x="${inset}" y="${H - 4}" class="pchart__axis">${fmtWhen(pts[0].t, range)}</text>
@@ -338,7 +377,7 @@ function drawCandles(plot, pts, range, currency, opts = {}) {
     band.style.display = ""; band.setAttribute("x", (x0 + i * slot).toFixed(1));
     const m = (v) => fmtMoney(v, currency);
     read.innerHTML = `<b>${m(c.c)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${when(c.t)}</span>`
-      + `<span class="pchart__ohlc">O ${m(c.o)} · H ${m(c.h)} · L ${m(c.l)}</span>` + tradeNote(marks, i, 0, currency);
+      + `<span class="pchart__ohlc">O ${m(c.o)} · H ${m(c.h)} · L ${m(c.l)}</span>` + costNote(cost, i, currency) + tradeNote(marks, i, 0, currency);
   };
   const hide = () => { band.style.display = "none"; read.innerHTML = resting; };
   tapToggleTrades(svg, marks);
@@ -360,7 +399,8 @@ function draw(plot, pts, range, currency, opts = {}) {
   const padT = 26, padB = 22, padR = inset ? 0 : 4;
   const labR = W - padR - inset;
   const vals = pts.map((p) => p.v);
-  const all = ref ? vals.concat(ref) : vals;
+  const cost = ref ? null : costSeries(opts.costSteps, pts.length, (i) => localDay(pts[i].t));
+  const all = ref ? vals.concat(ref) : cost ? vals.concat(cost.filter((v) => v != null)) : vals;
   let lo = Math.min(...all), hi = Math.max(...all);
   if (hi === lo) { hi += hi * 0.01 || 1; lo -= lo * 0.01 || 1; }
   const t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1;
@@ -390,9 +430,11 @@ function draw(plot, pts, range, currency, opts = {}) {
       <path d="${area}" fill="url(#${gid})"/>
       ${tradeMarkup(marks, xi, padT - 6, H - padB)}
       ${ref ? `<path d="${refLine}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/>` : ""}
+      ${cost ? `<path d="${costPath(cost, xi, y)}" fill="none" class="pchart__ref" vector-effect="non-scaling-stroke"/>` : ""}
       <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
       <text x="${labR}" y="${y(hi) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(hi, currency)}</text>
       <text x="${labR}" y="${y(lo) - 6}" text-anchor="end" class="pchart__axis">${fmtMoney(lo, currency)}</text>
+      ${cost ? costLabel(cost, xi, y, labR, y(hi) - 6, y(lo) - 6, currency) : ""}
       <text x="${inset}" y="${H - 4}" class="pchart__axis">${fmtWhen(t0, range)}</text>
       <text x="${labR}" y="${H - 4}" text-anchor="end" class="pchart__axis">${fmtWhen(t1, range)}</text>
       <g class="pchart__hover" style="display:none">
@@ -421,7 +463,7 @@ function draw(plot, pts, range, currency, opts = {}) {
     const note = tradeNote(marks, i, near, opts.tradeCurrency || currency);
     if (opts.hover) { read.innerHTML = opts.hover(p, i, fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)) + note; return; }
     const d = p.v - vals[0], dp = vals[0] ? (d / vals[0]) * 100 : 0;
-    read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)}</span>` + note;
+    read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)}</span>` + costNote(cost, i, currency) + note;
   };
   const hide = () => { hover.style.display = "none"; read.innerHTML = resting; };
   tapToggleTrades(svg, marks);
@@ -482,12 +524,13 @@ function mountRanged(host, ranges, loader) {
 
 // One security. opts: { id: ISIN / crypto code / US ticker, currency: "EUR" | "USD", venue }
 // trades: your buys and sales of it, marked on the chart (see placeTrades)
-export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credit = true, trades = [] }) {
+// costSteps: your average buy price over time ([{ date, avg | null }]), drawn as a dashed line
+export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credit = true, trades = [], costSteps = [] }) {
   const ranges = Object.keys(RANGES).filter((r) => !isCryptoCode(id) || RANGES[r].cg);
   mountRanged(host, ranges, async (range) => {
     const src = await resolve(id, currency, venue, hint);
     const pts = await history(src, range);
-    return { pts, currency: src.currency || currency, credit: credit ? `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` : "", opts: { candles: true, trades } };
+    return { pts, currency: src.currency || currency, credit: credit ? `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` : "", opts: { candles: true, trades, costSteps } };
   });
 }
 

@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=174";
-import { legalDoc } from "./legal.js?v=174";
-import { isCryptoCode } from "./crypto.js?v=174";
-import { renderOverview2 } from "./overview2.js?v=174";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=175";
+import { legalDoc } from "./legal.js?v=175";
+import { isCryptoCode } from "./crypto.js?v=175";
+import { renderOverview2 } from "./overview2.js?v=175";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,7 +59,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=174") : import("./store.js?v=174"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=175") : import("./store.js?v=175"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -198,8 +198,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=174").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=174").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=175").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=175").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1145,13 +1145,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=174");
+  const { CRYPTO } = await import("./crypto.js?v=175");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=174");
+    const { searchInstruments } = await import("./onvista.js?v=175");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1340,10 +1340,10 @@ async function importFiles(files) {
         const pdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf" || new TextDecoder().decode(buf.slice(0, 5)) === "%PDF-";
         let r;
         if (pdf) {
-          const { pdfLines, parseFlatexPdf } = await import("./import-pdf.js?v=174");
+          const { pdfLines, parseFlatexPdf } = await import("./import-pdf.js?v=175");
           r = parseFlatexPdf(await pdfLines(buf));
         } else {
-          const { decode, parseTrades } = await import("./import-csv.js?v=174");
+          const { decode, parseTrades } = await import("./import-csv.js?v=175");
           r = parseTrades(decode(buf));
         }
         trades.push(...r.trades); skipped.push(...r.skipped);
@@ -1695,7 +1695,7 @@ function placeDeskChart(body, kept) {
   node.dataset.sig = sig;
   node.innerHTML = `<div class="pos__chart"></div>`;
   hero.after(node);
-  import("./chart.js?v=174").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions, trades: tradesOf(null, true) }));
+  import("./chart.js?v=175").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions, trades: tradesOf(null, true) }));
 }
 function togglePortfolioChart() {
   if (!state.holdings?.length || isDesk()) return; // on desktop it's always open
@@ -1704,7 +1704,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=174").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions, trades: tradesOf(null, true) }));
+    import("./chart.js?v=175").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions, trades: tradesOf(null, true) }));
     return node;
   });
 }
@@ -1719,7 +1719,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=174").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()], trades: tradesOf(null, true) }));
+  import("./chart.js?v=175").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()], trades: tradesOf(null, true) }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1733,8 +1733,40 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=174");
-  mountPriceChart(host, { id, currency, venue, hint, credit, trades: tradesOf(id) });
+  const { mountPriceChart } = await import("./chart.js?v=175");
+  mountPriceChart(host, { id, currency, venue, hint, credit, trades: tradesOf(id), costSteps: costSteps(id) });
+}
+// Your average buy price of one position over time, for the dashed line on its chart: a step per day
+// with trades ([{ date, avg }], avg null while you hold none). Follows the cost setting on the You
+// page: moving average (each buy blends in, a sale keeps the average) or FIFO (the average of the
+// buys still held, oldest used up first). Same-day order as in the portfolio: sales your units
+// already cover go before that day's buys. Undated buys count from the start.
+function costSteps(key) {
+  const list = (state.holdings || []).filter((h) => (h.isin || h.symbol) === key);
+  if (!list.length) return [];
+  const byDay = new Map();
+  for (const h of list) { const d = h.buyDate || "0000-00-00"; if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(h); }
+  const fifo = state.costMethod === "fifo";
+  let units = 0, cost = 0;
+  const lots = []; // FIFO: { left, px }
+  const steps = [];
+  const buy = (h) => { units += h.quantity; cost += h.quantity * h.buyPrice; lots.push({ left: h.quantity, px: h.buyPrice }); };
+  const sell = (h) => {
+    const q = Math.min(h.quantity, units);
+    if (fifo) {
+      let need = q;
+      for (const l of lots) { if (need <= 1e-9) break; const take = Math.min(l.left, need); l.left -= take; need -= take; cost -= take * l.px; }
+    } else cost -= units > 1e-9 ? q * (cost / units) : 0;
+    units -= q;
+    if (units <= 1e-9) { units = 0; cost = 0; lots.length = 0; }
+  };
+  for (const d of [...byDay.keys()].sort()) {
+    const day = byDay.get(d), sells = day.filter((h) => h.side === "sell"), buys = day.filter((h) => h.side !== "sell");
+    const covered = sells.reduce((n, h) => n + h.quantity, 0) <= units + 1e-9;
+    if (covered) { sells.forEach(sell); buys.forEach(buy); } else { buys.forEach(buy); sells.forEach(sell); }
+    steps.push({ date: d, avg: units > 1e-9 ? cost / units : null });
+  }
+  return steps;
 }
 // your dated buys and sales (of one position, or all), for the markers on the charts; prices as
 // stored (EUR for ISINs, USD for US tickers without one), sold at the price you sold for
@@ -1803,7 +1835,7 @@ function ov2Ctx(rows, t, pos) {
     stamp: state.pricesAt ? stampOf(state.pricesAt) : "", events: ov2Events(pos),
     // the map over 1W … All: each position's price change over that range (onvista / CoinGecko history)
     mapChanges: async (list, range) => {
-      const { changesOver } = await import("./chart.js?v=174");
+      const { changesOver } = await import("./chart.js?v=175");
       return changesOver(list.map((p) => {
         const q = p.isin ? null : state.prices.get(p.key);
         return { key: p.key, id: p.isin || p.key, currency: p.isin ? "EUR" : "USD", venue: p.isin ? state.venues[p.isin] : undefined, hint: p.isin ? undefined : { name: q?.name, price: q?.price } };
@@ -1811,7 +1843,7 @@ function ov2Ctx(rows, t, pos) {
     },
     // month by month (or quarter / year): price change per calendar period
     monthChanges: async (list, opts) => {
-      const { periodChanges } = await import("./chart.js?v=174");
+      const { periodChanges } = await import("./chart.js?v=175");
       return periodChanges(list.map((p) => {
         const q = p.isin ? null : state.prices.get(p.key);
         return { key: p.key, id: p.isin || p.key, currency: p.isin ? "EUR" : "USD", venue: p.isin ? state.venues[p.isin] : undefined, hint: p.isin ? undefined : { name: q?.name, price: q?.price } };
@@ -1859,7 +1891,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=174").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=175").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2579,7 +2611,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=174");
+  const { resetDemo } = await import("./demo-store.js?v=175");
   resetDemo();
   state.demo = true;
   state.names = {};

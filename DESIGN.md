@@ -119,6 +119,10 @@ in big totals (`€28,413.15`).
   outline. Column heads: month initials with the year over January, Q1–Q4 with the year over Q1, or
   ’17-style years. No numbers in cells: tap one for the readout ("Name · Oct 2026 · +4.2%"); tap a
   name for its chart. Below the grid a −x % … +x % scale until a cell is tapped.
+- **Your average on a position's chart**: a dashed `--ink-3` line (like "invested" on the portfolio
+  chart) at your average buy price, stepping on trade days and following the cost setting (moving
+  average or FIFO); a gap while you held none. Labelled "avg €166.80" at the right end unless it would
+  sit on the high/low labels; scrubbing adds "Your average €…" under the readout.
 - **Your trades on charts** (hidden until you tap the chart; the next tap hides them; the choice holds
   for the session): on a position's price chart and the portfolio chart, each dated buy is a
   thin dashed `--accent-2` (cyan) line with a dot on the baseline, each sale the same in `--accent`
