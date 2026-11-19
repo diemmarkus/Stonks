@@ -119,7 +119,8 @@ in big totals (`€28,413.15`).
   outline. Column heads: month initials with the year over January, Q1–Q4 with the year over Q1, or
   ’17-style years. No numbers in cells: tap one for the readout ("Name · Oct 2026 · +4.2%"); tap a
   name for its chart. Below the grid a −x % … +x % scale until a cell is tapped.
-- **Your trades on charts**: on a position's price chart and the portfolio chart, each dated buy is a
+- **Your trades on charts** (hidden until you tap the chart; the next tap hides them; the choice holds
+  for the session): on a position's price chart and the portfolio chart, each dated buy is a
   thin dashed `--accent-2` (cyan) line with a dot on the baseline, each sale the same in `--accent`
   (pink), as in the Latest feed. Scrubbing near one adds "Bought 50 × €166.80" (with the name on the
   portfolio chart) under the readout. Trades outside the shown range aren't drawn.
