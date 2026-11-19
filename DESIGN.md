@@ -101,6 +101,9 @@ in big totals (`€28,413.15`).
 - **ⓘ info**: 28 px circle icon in the card head; opens a cyan-tinted note inside the card.
 - **Fold**: "N more in between ▾" centred between the top 3 and bottom 3; "Show less ▴" folds back.
   Only fold when at least 2 rows would be hidden.
+- **Your setup legend**: per class swatch, name, value, share of the portfolio, and its all-time
+  return in mint/rose with a sign (same rule as Total return: open + realised against everything
+  put in); hovering the return shows it in euros.
 - **Tiles** (Overview): label, big mono value, optional split lines (Put in / Sold for, Open /
   Realised) under a hairline, aligned across both tiles.
 - **Treemap** (Today's map): size = value, colour = the move over the chosen range (rose → surface →
