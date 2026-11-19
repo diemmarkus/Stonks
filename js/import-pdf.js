@@ -11,8 +11,8 @@
 // Crypto confirmations name the coin without an ISIN ("Nr.…/1 Kauf BITCOIN"); the coin is found
 // in the flatex crypto list (js/crypto.js).
 
-import { num, isoDate } from "./import-csv.js?v=173";
-import { CRYPTO } from "./crypto.js?v=173";
+import { num, isoDate } from "./import-csv.js?v=174";
+import { CRYPTO } from "./crypto.js?v=174";
 
 const ISIN = /\b([A-Z]{2}[A-Z0-9]{9}\d)\b/;
 

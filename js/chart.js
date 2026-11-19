@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=173";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=174";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -257,13 +257,28 @@ function placeTrades(trades, count, slotDay) {
   return out;
 }
 const fmtQtyT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
+// Hidden until you tap the chart; the next tap hides them again. Kept for the session, so the
+// next chart (or range) you open looks the same.
+let tradesShown = false;
 function tradeMarkup(marks, x, top, bottom) {
   const seen = new Set();
-  return marks.filter((m) => { const k = `${m.i}|${m.side}`; if (seen.has(k)) return false; seen.add(k); return true; })
-    .map((m) => `<g class="pchart__trade pchart__trade--${m.side}"><line x1="${x(m.i).toFixed(1)}" x2="${x(m.i).toFixed(1)}" y1="${top}" y2="${bottom}"/><circle cx="${x(m.i).toFixed(1)}" cy="${bottom}" r="3.5"/></g>`).join("");
+  return `<g class="pchart__trades"${tradesShown ? "" : " hidden"}>` + marks.filter((m) => { const k = `${m.i}|${m.side}`; if (seen.has(k)) return false; seen.add(k); return true; })
+    .map((m) => `<g class="pchart__trade pchart__trade--${m.side}"><line x1="${x(m.i).toFixed(1)}" x2="${x(m.i).toFixed(1)}" y1="${top}" y2="${bottom}"/><circle cx="${x(m.i).toFixed(1)}" cy="${bottom}" r="3.5"/></g>`).join("") + "</g>";
+}
+// a tap (not a drag) on the chart shows or hides your trades
+function tapToggleTrades(svg, marks) {
+  if (!marks.length) return;
+  let down = null;
+  svg.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+  svg.addEventListener("pointerup", (e) => {
+    if (!down || Date.now() - down.t > 350 || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) return;
+    tradesShown = !tradesShown;
+    svg.querySelector(".pchart__trades")?.toggleAttribute("hidden", !tradesShown);
+  });
 }
 // readout line for the trades near slot i (within `near` slots)
 function tradeNote(marks, i, near, currency) {
+  if (!tradesShown) return "";
   const hit = marks.filter((m) => Math.abs(m.i - i) <= near);
   if (!hit.length) return "";
   return `<span class="pchart__tradenote">${hit.slice(0, 3).map((m) => `<span class="pchart__tradenote--${m.side}">${m.side === "sell" ? "Sold" : "Bought"}</span> ${m.name ? `${m.name} · ` : ""}${fmtQtyT.format(m.qty)} × ${fmtMoney(m.price, currency)}`).join(" · ")}${hit.length > 3 ? ` · +${hit.length - 3} more` : ""}</span>`;
@@ -326,6 +341,7 @@ function drawCandles(plot, pts, range, currency, opts = {}) {
       + `<span class="pchart__ohlc">O ${m(c.o)} · H ${m(c.h)} · L ${m(c.l)}</span>` + tradeNote(marks, i, 0, currency);
   };
   const hide = () => { band.style.display = "none"; read.innerHTML = resting; };
+  tapToggleTrades(svg, marks);
   svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
   svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) show(e); });
   svg.addEventListener("pointerup", hide);
@@ -408,6 +424,7 @@ function draw(plot, pts, range, currency, opts = {}) {
     read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)}</span>` + note;
   };
   const hide = () => { hover.style.display = "none"; read.innerHTML = resting; };
+  tapToggleTrades(svg, marks);
   svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
   svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) show(e); });
   svg.addEventListener("pointerup", hide);
