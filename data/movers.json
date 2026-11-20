@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T02:05:27.824Z",
+  "updatedAt": "2026-11-20T02:20:26.873Z",
   "marketTime": "2026-11-19T21:00:00.000Z",
   "source": "Finnhub",
   "sample": false,
@@ -190,6 +190,21 @@
         "6M": -15.67,
         "1Y": -2.19,
         "5Y": 509.53
+      }
+    },
+    {
+      "symbol": "BRK.B",
+      "name": "Berkshire Hathaway",
+      "kind": "stock",
+      "price": 572.04,
+      "change": -2.58,
+      "changePct": -0.45,
+      "perf": {
+        "1W": -3.02,
+        "1M": 7.48,
+        "6M": 19.06,
+        "1Y": 14.12,
+        "5Y": 104.31
       }
     },
     {
