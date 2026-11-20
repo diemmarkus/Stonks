@@ -1,73 +1,101 @@
 {
-  "updatedAt": "2026-11-20T02:20:26.873Z",
-  "marketTime": "2026-11-19T21:00:00.000Z",
+  "updatedAt": "2026-11-20T15:58:09.656Z",
+  "marketTime": "2026-11-20T15:57:15.000Z",
   "source": "Finnhub",
   "sample": false,
   "stocks": {
     "gainers": [
       {
-        "symbol": "INTC",
-        "name": "Intel",
-        "price": 55.72,
-        "change": 1.05,
-        "changePct": 1.92
+        "symbol": "UNH",
+        "name": "UnitedHealth",
+        "price": 344.19,
+        "change": 13.71,
+        "changePct": 4.15
+      },
+      {
+        "symbol": "WMT",
+        "name": "Walmart",
+        "price": 130.31,
+        "change": 4.27,
+        "changePct": 3.39
+      },
+      {
+        "symbol": "PEP",
+        "name": "PepsiCo",
+        "price": 143.16,
+        "change": 4.16,
+        "changePct": 2.99
       }
     ],
     "losers": [
       {
         "symbol": "AMD",
         "name": "Advanced Micro Devices",
-        "price": 489.19,
-        "change": -40.95,
-        "changePct": -7.72
+        "price": 443.98,
+        "change": -45.21,
+        "changePct": -9.24
       },
       {
-        "symbol": "UNH",
-        "name": "UnitedHealth",
-        "price": 330.48,
-        "change": -19.43,
-        "changePct": -5.55
+        "symbol": "AVGO",
+        "name": "Broadcom",
+        "price": 316.28,
+        "change": -30.37,
+        "changePct": -8.76
       },
       {
-        "symbol": "NKE",
-        "name": "Nike",
-        "price": 34.33,
-        "change": -1.98,
-        "changePct": -5.45
+        "symbol": "TSM",
+        "name": "Taiwan Semiconductor",
+        "price": 328.44,
+        "change": -23.65,
+        "changePct": -6.72
       }
     ]
   },
   "etfs": {
     "gainers": [
       {
+        "symbol": "SCHD",
+        "name": "Schwab US Dividend Equity",
+        "price": 34.57,
+        "change": 0.37,
+        "changePct": 1.08
+      },
+      {
         "symbol": "TLT",
         "name": "iShares 20+ Yr Treasury",
-        "price": 80.35,
-        "change": 0.13,
-        "changePct": 0.16
+        "price": 81.19,
+        "change": 0.84,
+        "changePct": 1.05
+      },
+      {
+        "symbol": "XLV",
+        "name": "Health Care Select Sector",
+        "price": 179.3,
+        "change": 1.84,
+        "changePct": 1.04
       }
     ],
     "losers": [
       {
-        "symbol": "ARKK",
-        "name": "ARK Innovation",
-        "price": 68.93,
-        "change": -2.13,
-        "changePct": -3
-      },
-      {
         "symbol": "SMH",
         "name": "VanEck Semiconductor",
-        "price": 447.48,
-        "change": -12.06,
-        "changePct": -2.62
+        "price": 419.54,
+        "change": -27.94,
+        "changePct": -6.24
       },
       {
         "symbol": "SLV",
         "name": "iShares Silver Trust",
-        "price": 39.64,
-        "change": -1.06,
-        "changePct": -2.6
+        "price": 37.64,
+        "change": -2,
+        "changePct": -5.05
+      },
+      {
+        "symbol": "IBIT",
+        "name": "iShares Bitcoin Trust",
+        "price": 33.67,
+        "change": -1.41,
+        "changePct": -4.02
       }
     ]
   },
@@ -76,851 +104,852 @@
       "symbol": "AAPL",
       "name": "Apple",
       "kind": "stock",
-      "price": 349.21,
-      "change": -3.24,
-      "changePct": -0.92,
+      "price": 348.37,
+      "change": -0.84,
+      "changePct": -0.24,
       "perf": {
-        "1W": -1.6,
-        "1M": 1.83,
-        "6M": 16.8,
-        "1Y": 30.03,
-        "5Y": 117.51
+        "1W": -2.22,
+        "1M": 2.61,
+        "6M": 15.26,
+        "1Y": 30.84,
+        "5Y": 116.99
       }
     },
     {
       "symbol": "MSFT",
       "name": "Microsoft",
       "kind": "stock",
-      "price": 498.3,
-      "change": -9.99,
-      "changePct": -1.97,
+      "price": 494.46,
+      "change": -3.84,
+      "changePct": -0.77,
       "perf": {
-        "1W": -4.72,
-        "1M": -6.6,
-        "6M": 19.38,
-        "1Y": 2.3,
-        "5Y": 45.23
+        "1W": -5.62,
+        "1M": -7.03,
+        "6M": 17.43,
+        "1Y": 3.35,
+        "5Y": 44.11
       }
     },
     {
       "symbol": "NVDA",
       "name": "NVIDIA",
       "kind": "stock",
-      "price": 145.98,
-      "change": -4.98,
-      "changePct": -3.3,
+      "price": 136.67,
+      "change": -9.31,
+      "changePct": -6.38,
       "perf": {
-        "1W": -12.16,
-        "1M": -32.76,
-        "6M": -33.83,
-        "1Y": -21.73,
-        "5Y": 342.56
+        "1W": -16.08,
+        "1M": -36.86,
+        "6M": -38.84,
+        "1Y": -24.34,
+        "5Y": 314.34
       }
     },
     {
       "symbol": "AMZN",
       "name": "Amazon",
       "kind": "stock",
-      "price": 257.37,
-      "change": -10.37,
-      "changePct": -3.87,
+      "price": 254.44,
+      "change": -2.93,
+      "changePct": -1.14,
       "perf": {
-        "1W": -3.77,
-        "1M": -1.94,
-        "6M": -0.76,
-        "1Y": 15.57,
-        "5Y": 40.01
+        "1W": -4.58,
+        "1M": -3.12,
+        "6M": -3.99,
+        "1Y": 17.18,
+        "5Y": 38.41
       }
     },
     {
       "symbol": "GOOGL",
       "name": "Alphabet",
       "kind": "stock",
-      "price": 272.66,
-      "change": -9.78,
-      "changePct": -3.46,
+      "price": 277.04,
+      "change": 4.38,
+      "changePct": 1.61,
       "perf": {
-        "1W": -8.72,
-        "1M": -20.78,
-        "6M": -29.67,
-        "1Y": -6.88,
-        "5Y": 83.08
+        "1W": -6.33,
+        "1M": -18.58,
+        "6M": -28.77,
+        "1Y": -4.29,
+        "5Y": 86.02
       }
     },
     {
       "symbol": "META",
       "name": "Meta Platforms",
       "kind": "stock",
-      "price": 596.22,
-      "change": -20.16,
-      "changePct": -3.27,
+      "price": 576.18,
+      "change": -20.04,
+      "changePct": -3.36,
       "perf": {
-        "1W": -4.39,
-        "1M": -15.48,
-        "6M": -1.06,
-        "1Y": 1,
-        "5Y": 72.67
+        "1W": -10.21,
+        "1M": -17.01,
+        "6M": -4.77,
+        "1Y": -2.2,
+        "5Y": 66.86
       }
     },
     {
       "symbol": "TSLA",
       "name": "Tesla",
       "kind": "stock",
-      "price": 374.41,
-      "change": -9.31,
-      "changePct": -2.43,
+      "price": 363.49,
+      "change": -10.92,
+      "changePct": -2.92,
       "perf": {
-        "1W": -5.8,
-        "1M": 1.73,
-        "6M": -7.35,
-        "1Y": -7.32,
-        "5Y": -1.22
+        "1W": -6.85,
+        "1M": -2.73,
+        "6M": -12.89,
+        "1Y": -8.03,
+        "5Y": -4.1
       }
     },
     {
       "symbol": "AVGO",
       "name": "Broadcom",
       "kind": "stock",
-      "price": 346.65,
-      "change": -7.4,
-      "changePct": -2.09,
+      "price": 316.28,
+      "change": -30.37,
+      "changePct": -8.76,
       "perf": {
-        "1W": -4.86,
-        "1M": 3.6,
-        "6M": -15.67,
-        "1Y": -2.19,
-        "5Y": 509.53
+        "1W": -8.86,
+        "1M": -5.41,
+        "6M": -24.29,
+        "1Y": -8.81,
+        "5Y": 456.13
       }
     },
     {
       "symbol": "BRK.B",
       "name": "Berkshire Hathaway",
       "kind": "stock",
-      "price": 572.04,
-      "change": -2.58,
-      "changePct": -0.45,
+      "price": 573.95,
+      "change": 1.91,
+      "changePct": 0.33,
       "perf": {
-        "1W": -3.02,
-        "1M": 7.48,
-        "6M": 19.06,
-        "1Y": 14.12,
-        "5Y": 104.31
+        "1W": -3.2,
+        "1M": 6.32,
+        "6M": 19.35,
+        "1Y": 14.53,
+        "5Y": 104.99
       }
     },
     {
       "symbol": "JPM",
       "name": "JPMorgan Chase",
       "kind": "stock",
-      "price": 320.22,
-      "change": -3.89,
-      "changePct": -1.2,
+      "price": 316.98,
+      "change": -3.24,
+      "changePct": -1.01,
       "perf": {
-        "1W": -6.59,
-        "1M": -3.99,
-        "6M": 8.29,
-        "1Y": 5.59,
-        "5Y": 98.99
+        "1W": -8.44,
+        "1M": -5.45,
+        "6M": 4.97,
+        "1Y": 6.23,
+        "5Y": 96.98
       }
     },
     {
       "symbol": "V",
       "name": "Visa",
       "kind": "stock",
-      "price": 402.25,
-      "change": -12.97,
-      "changePct": -3.12,
+      "price": 407.81,
+      "change": 5.56,
+      "changePct": 1.38,
       "perf": {
-        "1W": -4.3,
-        "1M": -0.17,
-        "6M": 21.93,
-        "1Y": 24.11,
-        "5Y": 100.26
+        "1W": -4.22,
+        "1M": 0.3,
+        "6M": 23.3,
+        "1Y": 25.96,
+        "5Y": 103.03
       }
     },
     {
       "symbol": "MA",
       "name": "Mastercard",
       "kind": "stock",
-      "price": 626.5,
-      "change": -16.87,
-      "changePct": -2.62,
+      "price": 634.32,
+      "change": 7.82,
+      "changePct": 1.25,
       "perf": {
-        "1W": -4,
-        "1M": 1.64,
-        "6M": 25.38,
-        "1Y": 18.13,
-        "5Y": 84.42
+        "1W": -4.06,
+        "1M": 2.24,
+        "6M": 27.36,
+        "1Y": 20.16,
+        "5Y": 86.72
       }
     },
     {
       "symbol": "LLY",
       "name": "Eli Lilly",
       "kind": "stock",
-      "price": 1351.12,
-      "change": -31.63,
-      "changePct": -2.29,
+      "price": 1357.04,
+      "change": 5.92,
+      "changePct": 0.44,
       "perf": {
-        "1W": -5.34,
-        "1M": 8.93,
-        "6M": 32.28,
-        "1Y": 28.73,
-        "5Y": 418.27
+        "1W": -5.99,
+        "1M": 5.72,
+        "6M": 33.19,
+        "1Y": 30.07,
+        "5Y": 420.54
       }
     },
     {
       "symbol": "UNH",
       "name": "UnitedHealth",
       "kind": "stock",
-      "price": 330.48,
-      "change": -19.43,
-      "changePct": -5.55,
+      "price": 344.19,
+      "change": 13.71,
+      "changePct": 4.15,
       "perf": {
-        "1W": -18.43,
-        "1M": -18.78,
-        "6M": -15.1,
-        "1Y": 6.92,
-        "5Y": -24.89
+        "1W": -15.53,
+        "1M": -17.91,
+        "6M": -10.2,
+        "1Y": 10.48,
+        "5Y": -21.77
       }
     },
     {
       "symbol": "JNJ",
       "name": "Johnson & Johnson",
       "kind": "stock",
-      "price": 267.14,
-      "change": -5.56,
-      "changePct": -2.04,
+      "price": 271.98,
+      "change": 4.84,
+      "changePct": 1.81,
       "perf": {
-        "1W": -5.78,
-        "1M": 5.26,
-        "6M": 16.15,
-        "1Y": 31.91,
-        "5Y": 64
+        "1W": -4.82,
+        "1M": 4.87,
+        "6M": 18.6,
+        "1Y": 33.93,
+        "5Y": 66.97
       }
     },
     {
       "symbol": "XOM",
       "name": "Exxon Mobil",
       "kind": "stock",
-      "price": 158.93,
-      "change": -1.65,
-      "changePct": -1.03,
+      "price": 161.18,
+      "change": 2.25,
+      "changePct": 1.42,
       "perf": {
-        "1W": -6.39,
-        "1M": -10.85,
-        "6M": -2.23,
-        "1Y": 35.43,
-        "5Y": 161.96
+        "1W": -5.52,
+        "1M": -9.38,
+        "6M": 3.14,
+        "1Y": 37.74,
+        "5Y": 165.67
       }
     },
     {
       "symbol": "WMT",
       "name": "Walmart",
       "kind": "stock",
-      "price": 126.04,
-      "change": -1.32,
-      "changePct": -1.04,
+      "price": 130.31,
+      "change": 4.27,
+      "changePct": 3.39,
       "perf": {
-        "1W": -0.12,
-        "1M": 6.18,
-        "6M": -6.08,
-        "1Y": 25.28,
-        "5Y": 165.55
+        "1W": 1.73,
+        "1M": 10.57,
+        "6M": -0.41,
+        "1Y": 21.66,
+        "5Y": 174.55
       }
     },
     {
       "symbol": "COST",
       "name": "Costco",
       "kind": "stock",
-      "price": 1093.83,
-      "change": -2.79,
-      "changePct": -0.25,
+      "price": 1120.05,
+      "change": 26.22,
+      "changePct": 2.4,
       "perf": {
-        "1W": 0.15,
-        "1M": 9.87,
-        "6M": -0.04,
-        "1Y": 22.82,
-        "5Y": 104.92
+        "1W": 1.25,
+        "1M": 12.61,
+        "6M": 4.29,
+        "1Y": 25.38,
+        "5Y": 109.83
       }
     },
     {
       "symbol": "KO",
       "name": "Coca-Cola",
       "kind": "stock",
-      "price": 96.09,
-      "change": -2,
-      "changePct": -2.04,
+      "price": 97.51,
+      "change": 1.42,
+      "changePct": 1.48,
       "perf": {
-        "1W": -1.39,
-        "1M": 2.86,
-        "6M": 17.3,
-        "1Y": 35.13,
-        "5Y": 74.3
+        "1W": -1.75,
+        "1M": 4.3,
+        "6M": 19.57,
+        "1Y": 36.93,
+        "5Y": 76.87
       }
     },
     {
       "symbol": "PEP",
       "name": "PepsiCo",
       "kind": "stock",
-      "price": 139,
-      "change": -2.87,
-      "changePct": -2.02,
+      "price": 143.16,
+      "change": 4.16,
+      "changePct": 2.99,
       "perf": {
-        "1W": -2.29,
-        "1M": 4.07,
-        "6M": -7.56,
-        "1Y": -5.51,
-        "5Y": -15.15
+        "1W": -1.57,
+        "1M": 6.82,
+        "6M": -4.11,
+        "1Y": -2.01,
+        "5Y": -12.61
       }
     },
     {
       "symbol": "NFLX",
       "name": "Netflix",
       "kind": "stock",
-      "price": 58.46,
-      "change": -1.36,
-      "changePct": -2.27,
+      "price": 58.18,
+      "change": -0.28,
+      "changePct": -0.48,
       "perf": {
-        "1W": -6.75,
-        "1M": -16.31,
-        "6M": -34.56,
-        "1Y": -46.85,
-        "5Y": -13.88
+        "1W": -6.39,
+        "1M": -15.3,
+        "6M": -33.95,
+        "1Y": -44.94,
+        "5Y": -14.29
       }
     },
     {
       "symbol": "AMD",
       "name": "Advanced Micro Devices",
       "kind": "stock",
-      "price": 489.19,
-      "change": -40.95,
-      "changePct": -7.72,
+      "price": 443.98,
+      "change": -45.21,
+      "changePct": -9.24,
       "perf": {
-        "1W": -16.42,
-        "1M": -9.08,
-        "6M": 18.15,
-        "1Y": 118.83,
-        "5Y": 214.77
+        "1W": -16.87,
+        "1M": -16.97,
+        "6M": -0.8,
+        "1Y": 115.5,
+        "5Y": 185.68
       }
     },
     {
       "symbol": "ORCL",
       "name": "Oracle",
       "kind": "stock",
-      "price": 110.57,
-      "change": -3.32,
-      "changePct": -2.92,
+      "price": 104.35,
+      "change": -6.22,
+      "changePct": -5.63,
       "perf": {
-        "1W": -13.01,
-        "1M": -14.68,
-        "6M": -39.07,
-        "1Y": -50.97,
-        "5Y": 17.67
+        "1W": -16.75,
+        "1M": -20.43,
+        "6M": -44.54,
+        "1Y": -50.47,
+        "5Y": 11.05
       }
     },
     {
       "symbol": "CRM",
       "name": "Salesforce",
       "kind": "stock",
-      "price": 183.31,
-      "change": -7.09,
-      "changePct": -3.72,
+      "price": 186.35,
+      "change": 3.04,
+      "changePct": 1.66,
       "perf": {
-        "1W": -15.75,
-        "1M": -24.39,
-        "6M": 2.17,
-        "1Y": -19.56,
-        "5Y": -39.13
+        "1W": -14.46,
+        "1M": -23.13,
+        "6M": 3.47,
+        "1Y": -17.31,
+        "5Y": -38.12
       }
     },
     {
       "symbol": "ADBE",
       "name": "Adobe",
       "kind": "stock",
-      "price": 221.68,
-      "change": -4.52,
-      "changePct": -2,
+      "price": 225.87,
+      "change": 4.19,
+      "changePct": 1.89,
       "perf": {
-        "1W": -7.07,
-        "1M": -10.28,
-        "6M": -13.06,
-        "1Y": -30.31,
-        "5Y": -67.8
+        "1W": -7.08,
+        "1M": -12.02,
+        "6M": -10.85,
+        "1Y": -27.7,
+        "5Y": -67.19
       }
     },
     {
       "symbol": "INTC",
       "name": "Intel",
       "kind": "stock",
-      "price": 55.72,
-      "change": 1.05,
-      "changePct": 1.92,
+      "price": 54.34,
+      "change": -1.38,
+      "changePct": -2.48,
       "perf": {
-        "1W": -8.95,
-        "1M": -39.45,
-        "6M": -49.71,
-        "1Y": 58.7,
-        "5Y": 12.52
+        "1W": -8.92,
+        "1M": -40.74,
+        "6M": -54.32,
+        "1Y": 61.63,
+        "5Y": 9.73
       }
     },
     {
       "symbol": "DIS",
       "name": "Walt Disney",
       "kind": "stock",
-      "price": 120.25,
-      "change": -2.11,
-      "changePct": -1.72,
+      "price": 119.54,
+      "change": -0.71,
+      "changePct": -0.59,
       "perf": {
-        "1W": 1.71,
-        "1M": 9.73,
-        "6M": 17.56,
-        "1Y": 14.88,
-        "5Y": -21.92
+        "1W": 0.48,
+        "1M": 7.05,
+        "6M": 14.85,
+        "1Y": 16.4,
+        "5Y": -22.38
       }
     },
     {
       "symbol": "BA",
       "name": "Boeing",
       "kind": "stock",
-      "price": 160.51,
-      "change": -2.4,
-      "changePct": -1.47,
+      "price": 162.12,
+      "change": 1.61,
+      "changePct": 1,
       "perf": {
-        "1W": -6.44,
-        "1M": -16.15,
-        "6M": -25.35,
-        "1Y": -13.56,
-        "5Y": -25.04
+        "1W": -5.47,
+        "1M": -14.88,
+        "6M": -27.04,
+        "1Y": -9.62,
+        "5Y": -24.29
       }
     },
     {
       "symbol": "PLTR",
       "name": "Palantir",
       "kind": "stock",
-      "price": 153.68,
-      "change": -2.99,
-      "changePct": -1.91,
+      "price": 147.34,
+      "change": -6.34,
+      "changePct": -4.13,
       "perf": {
-        "1W": -10.43,
-        "1M": -20.84,
-        "6M": 13.62,
-        "1Y": -7.1,
-        "5Y": 617.8
+        "1W": -12.29,
+        "1M": -23.5,
+        "6M": 7.43,
+        "1Y": -5.4,
+        "5Y": 588.18
       }
     },
     {
       "symbol": "UBER",
       "name": "Uber",
       "kind": "stock",
-      "price": 65.6,
-      "change": -3.16,
-      "changePct": -4.6,
+      "price": 66.83,
+      "change": 1.23,
+      "changePct": 1.88,
       "perf": {
-        "1W": -5.09,
-        "1M": -6.23,
-        "6M": -11.46,
-        "1Y": -26.73,
-        "5Y": 48.32
+        "1W": -4.1,
+        "1M": -3.06,
+        "6M": -10.42,
+        "1Y": -19.83,
+        "5Y": 51.1
       }
     },
     {
       "symbol": "NKE",
       "name": "Nike",
       "kind": "stock",
-      "price": 34.33,
-      "change": -1.98,
-      "changePct": -5.45,
+      "price": 34.1,
+      "change": -0.23,
+      "changePct": -0.67,
       "perf": {
-        "1W": -9.08,
-        "1M": -7.74,
-        "6M": -19.07,
-        "1Y": -45.19,
-        "5Y": -80.37
+        "1W": -10.24,
+        "1M": -9.98,
+        "6M": -22.83,
+        "1Y": -44.49,
+        "5Y": -80.5
       }
     },
     {
       "symbol": "SAP",
       "name": "SAP",
       "kind": "stock",
-      "price": 203.23,
-      "change": -7.53,
-      "changePct": -3.57,
+      "price": 202.22,
+      "change": -1.01,
+      "changePct": -0.5,
       "perf": {
-        "1W": -13.15,
-        "1M": -9.68,
-        "6M": 14.51,
-        "1Y": -14.09,
-        "5Y": 44.05
+        "1W": -13.86,
+        "1M": -11.88,
+        "6M": 12.03,
+        "1Y": -14.39,
+        "5Y": 43.34
       }
     },
     {
       "symbol": "ASML",
       "name": "ASML",
       "kind": "stock",
-      "price": 1356.2,
-      "change": -39.07,
-      "changePct": -2.8,
+      "price": 1291.39,
+      "change": -64.81,
+      "changePct": -4.78,
       "perf": {
-        "1W": -9.59,
-        "1M": -18.35,
-        "6M": -7.36,
-        "1Y": 31.1,
-        "5Y": 58.79
+        "1W": -12.86,
+        "1M": -20.78,
+        "6M": -16.59,
+        "1Y": 31.04,
+        "5Y": 51.2
       }
     },
     {
       "symbol": "NVO",
       "name": "Novo Nordisk",
       "kind": "stock",
-      "price": 38.87,
-      "change": -0.56,
-      "changePct": -1.42,
+      "price": 38.93,
+      "change": 0.06,
+      "changePct": 0.15,
       "perf": {
-        "1W": -5.17,
-        "1M": 1.63,
-        "6M": -12.93,
-        "1Y": -18.79,
-        "5Y": -31.81
+        "1W": -5.61,
+        "1M": -0.09,
+        "6M": -10.51,
+        "1Y": -18.71,
+        "5Y": -31.71
       }
     },
     {
       "symbol": "TSM",
       "name": "Taiwan Semiconductor",
       "kind": "stock",
-      "price": 352.09,
-      "change": -10.53,
-      "changePct": -2.9,
+      "price": 328.44,
+      "change": -23.65,
+      "changePct": -6.72,
       "perf": {
-        "1W": -13.17,
-        "1M": -16.21,
-        "6M": -10.32,
-        "1Y": 24.69,
-        "5Y": 183.35
+        "1W": -17.63,
+        "1M": -22.73,
+        "6M": -18.22,
+        "1Y": 18.36,
+        "5Y": 164.32
       }
     },
     {
       "symbol": "SPY",
       "name": "SPDR S&P 500",
       "kind": "etf",
-      "price": 715.87,
-      "change": -14.33,
-      "changePct": -1.96,
+      "price": 707.54,
+      "change": -8.33,
+      "changePct": -1.16,
       "perf": {
-        "1W": -3.62,
-        "1M": -7.54,
-        "6M": -4.11,
-        "1Y": 8.65,
-        "5Y": 52.31
+        "1W": -4.74,
+        "1M": -8.61,
+        "6M": -4.92,
+        "1Y": 7.38,
+        "5Y": 50.54
       }
     },
     {
       "symbol": "VOO",
       "name": "Vanguard S&P 500",
       "kind": "etf",
-      "price": 658.01,
-      "change": -13.3,
-      "changePct": -1.98,
+      "price": 650.36,
+      "change": -7.65,
+      "changePct": -1.16,
       "perf": {
-        "1W": -5.46,
-        "1M": -6.61,
-        "6M": -2.46,
-        "1Y": 8.01,
-        "5Y": 52.65
+        "1W": -6.2,
+        "1M": -7.99,
+        "6M": -4.58,
+        "1Y": 8.4,
+        "5Y": 50.88
       }
     },
     {
       "symbol": "QQQ",
       "name": "Invesco QQQ (Nasdaq-100)",
       "kind": "etf",
-      "price": 645.04,
-      "change": -14.47,
-      "changePct": -2.19,
+      "price": 628.45,
+      "change": -16.59,
+      "changePct": -2.57,
       "perf": {
-        "1W": -7.17,
-        "1M": -11.07,
-        "6M": -9.14,
-        "1Y": 6.58
+        "1W": -7.29,
+        "1M": -13.35,
+        "6M": -11.86,
+        "1Y": 3.84
       }
     },
     {
       "symbol": "VTI",
       "name": "Vanguard Total Stock Market",
       "kind": "etf",
-      "price": 352.41,
-      "change": -7.07,
-      "changePct": -1.97,
+      "price": 348.35,
+      "change": -4.06,
+      "changePct": -1.15,
       "perf": {
-        "1W": -5.42,
-        "1M": -6.16,
-        "6M": -2.12,
-        "1Y": 8.34,
-        "5Y": 45.94
+        "1W": -6.13,
+        "1M": -7.62,
+        "6M": -4.35,
+        "1Y": 8.83,
+        "5Y": 44.26
       }
     },
     {
       "symbol": "VT",
       "name": "Vanguard Total World Stock",
       "kind": "etf",
-      "price": 147.17,
-      "change": -2.76,
-      "changePct": -1.84,
+      "price": 145.22,
+      "change": -1.95,
+      "changePct": -1.32,
       "perf": {
-        "1W": -5.51,
-        "1M": -6.33,
-        "6M": -3.58,
-        "1Y": 7.56,
-        "5Y": 35.99
+        "1W": -6.49,
+        "1M": -7.97,
+        "6M": -6.09,
+        "1Y": 7.79,
+        "5Y": 34.19
       }
     },
     {
       "symbol": "IWM",
       "name": "iShares Russell 2000",
       "kind": "etf",
-      "price": 264.22,
-      "change": -5.9,
-      "changePct": -2.18,
+      "price": 262.09,
+      "change": -2.13,
+      "changePct": -0.81,
       "perf": {
-        "1W": -5.11,
-        "1M": -2.6,
-        "6M": -3.22,
-        "1Y": 13.19,
-        "5Y": 13.54
+        "1W": -5.57,
+        "1M": -4.96,
+        "6M": -6.35,
+        "1Y": 14.39,
+        "5Y": 12.62
       }
     },
     {
       "symbol": "DIA",
       "name": "SPDR Dow Jones Industrial",
       "kind": "etf",
-      "price": 490.79,
-      "change": -10.94,
-      "changePct": -2.18,
+      "price": 491.01,
+      "change": 0.22,
+      "changePct": 0.04,
       "perf": {
-        "1W": -6.06,
-        "1M": -5.42,
-        "6M": -0.65,
-        "1Y": 6.29,
-        "5Y": 37.9
+        "1W": -6.14,
+        "1M": -6.36,
+        "6M": -1.85,
+        "1Y": 7.18,
+        "5Y": 37.96
       }
     },
     {
       "symbol": "VEA",
       "name": "Vanguard Developed Markets",
       "kind": "etf",
-      "price": 65.7,
-      "change": -0.98,
-      "changePct": -1.47,
+      "price": 64.69,
+      "change": -1.01,
+      "changePct": -1.54,
       "perf": {
-        "1W": -5.37,
-        "1M": -5.28,
-        "6M": -4.77,
-        "1Y": 10.03,
-        "5Y": 26.37
+        "1W": -6.84,
+        "1M": -7.29,
+        "6M": -7.85,
+        "1Y": 9.83,
+        "5Y": 24.43
       }
     },
     {
       "symbol": "VWO",
       "name": "Vanguard Emerging Markets",
       "kind": "etf",
-      "price": 52.66,
-      "change": -1.1,
-      "changePct": -2.05,
+      "price": 51.49,
+      "change": -1.17,
+      "changePct": -2.22,
       "perf": {
-        "1W": -16.13,
-        "1M": -14.66,
-        "6M": -15.73,
-        "1Y": -15.56
+        "1W": -17.99,
+        "1M": -16.65,
+        "6M": -17.6,
+        "1Y": -17.54
       }
     },
     {
       "symbol": "EFA",
       "name": "iShares MSCI EAFE",
       "kind": "etf",
-      "price": 98.78,
-      "change": -1.48,
-      "changePct": -1.48,
+      "price": 97.5,
+      "change": -1.28,
+      "changePct": -1.3,
       "perf": {
-        "1W": 2.09,
-        "1M": 2.94,
-        "6M": 3.58,
-        "1Y": 14.54,
-        "5Y": 29.55
+        "1W": 0.63,
+        "1M": 0.82,
+        "6M": 0.61,
+        "1Y": 14.62,
+        "5Y": 27.87
       }
     },
     {
       "symbol": "EWG",
       "name": "iShares MSCI Germany",
       "kind": "etf",
-      "price": 40.19,
-      "change": -0.84,
-      "changePct": -2.05,
+      "price": 39.69,
+      "change": -0.5,
+      "changePct": -1.24,
       "perf": {
-        "1W": -6.12,
-        "1M": -2.07,
-        "6M": -4.4,
-        "1Y": 1.72,
-        "5Y": 18.94
+        "1W": -7.48,
+        "1M": -4.2,
+        "6M": -7.44,
+        "1Y": 2.06,
+        "5Y": 17.46
       }
     },
     {
       "symbol": "VGK",
       "name": "Vanguard FTSE Europe",
       "kind": "etf",
-      "price": 84.57,
-      "change": -1.28,
-      "changePct": -1.49
+      "price": 83.58,
+      "change": -0.99,
+      "changePct": -1.17
     },
     {
       "symbol": "GLD",
       "name": "SPDR Gold Shares",
       "kind": "etf",
-      "price": 335.18,
-      "change": -6.01,
-      "changePct": -1.76,
+      "price": 325.26,
+      "change": -9.92,
+      "changePct": -2.96,
       "perf": {
-        "1W": -5.55,
-        "1M": -11.72,
-        "6M": -18.55,
-        "1Y": -10.61,
-        "5Y": 94.18
+        "1W": -8.49,
+        "1M": -13.87,
+        "6M": -22.07,
+        "1Y": -13.23,
+        "5Y": 88.44
       }
     },
     {
       "symbol": "SLV",
       "name": "iShares Silver Trust",
       "kind": "etf",
-      "price": 39.64,
-      "change": -1.06,
-      "changePct": -2.6,
+      "price": 37.64,
+      "change": -2,
+      "changePct": -5.05,
       "perf": {
-        "1W": -12.15,
-        "1M": -23.09,
-        "6M": -40.75,
-        "1Y": -14.66,
-        "5Y": 74.24
+        "1W": -14.71,
+        "1M": -27.78,
+        "6M": -45.23,
+        "1Y": -17.78,
+        "5Y": 65.45
       }
     },
     {
       "symbol": "TLT",
       "name": "iShares 20+ Yr Treasury",
       "kind": "etf",
-      "price": 80.35,
-      "change": 0.13,
-      "changePct": 0.16
+      "price": 81.19,
+      "change": 0.84,
+      "changePct": 1.05
     },
     {
       "symbol": "XLK",
       "name": "Technology Select Sector",
       "kind": "etf",
-      "price": 160.69,
-      "change": -3.12,
-      "changePct": -1.9,
+      "price": 154.5,
+      "change": -6.19,
+      "changePct": -3.85,
       "perf": {
-        "1W": -6.39,
-        "1M": -18.4,
-        "1Y": 7.19
+        "1W": -10,
+        "1M": -21.55,
+        "1Y": 3.06
       }
     },
     {
       "symbol": "XLF",
       "name": "Financial Select Sector",
       "kind": "etf",
-      "price": 55.58,
-      "change": -0.84,
-      "changePct": -1.49,
+      "price": 55.64,
+      "change": 0.06,
+      "changePct": 0.11,
       "perf": {
-        "1W": -19.43,
-        "1M": -16.45,
-        "6M": -8.67,
-        "1Y": -8.27,
-        "5Y": 27.48
+        "1W": -19.34,
+        "1M": -16.36,
+        "6M": -8.58,
+        "1Y": -8.17,
+        "5Y": 27.61
       }
     },
     {
       "symbol": "XLE",
       "name": "Energy Select Sector",
       "kind": "etf",
-      "price": 60.89,
-      "change": -0.4,
-      "changePct": -0.65,
+      "price": 61.42,
+      "change": 0.53,
+      "changePct": 0.87,
       "perf": {
-        "1M": 11.02,
-        "6M": 25.28,
-        "1Y": 69.08,
-        "5Y": 203.24
+        "1W": 17.21,
+        "1M": 11.99,
+        "6M": 26.37,
+        "1Y": 70.56,
+        "5Y": 205.87
       }
     },
     {
       "symbol": "XLV",
       "name": "Health Care Select Sector",
       "kind": "etf",
-      "price": 177.46,
-      "change": -3.71,
-      "changePct": -2.05,
+      "price": 179.3,
+      "change": 1.84,
+      "changePct": 1.04,
       "perf": {
-        "1W": -5.52,
-        "1M": 1.03,
-        "6M": 20.46,
-        "1Y": 16.5,
-        "5Y": 33.46
+        "1W": -5.06,
+        "1M": -0.29,
+        "6M": 21.87,
+        "1Y": 18.41,
+        "5Y": 34.84
       }
     },
     {
       "symbol": "SMH",
       "name": "VanEck Semiconductor",
       "kind": "etf",
-      "price": 447.48,
-      "change": -12.06,
-      "changePct": -2.62,
+      "price": 419.54,
+      "change": -27.94,
+      "changePct": -6.24,
       "perf": {
-        "1W": -10.81,
-        "1M": -18.41,
-        "6M": -17.74,
-        "1Y": 31.83,
-        "5Y": 186.66
+        "1W": -13.81,
+        "1M": -23.21,
+        "6M": -25.7,
+        "1Y": 29.05,
+        "5Y": 168.76
       }
     },
     {
       "symbol": "ARKK",
       "name": "ARK Innovation",
       "kind": "etf",
-      "price": 68.93,
-      "change": -2.13,
-      "changePct": -3,
+      "price": 66.49,
+      "change": -2.44,
+      "changePct": -3.54,
       "perf": {
-        "1W": -9.9,
-        "1M": -16.26,
-        "6M": -6.65,
-        "1Y": -7.34,
-        "5Y": -39.13
+        "1W": -11.33,
+        "1M": -20.29,
+        "6M": -12.33,
+        "1Y": -7.33,
+        "5Y": -41.28
       }
     },
     {
       "symbol": "SCHD",
       "name": "Schwab US Dividend Equity",
       "kind": "etf",
-      "price": 34.2,
-      "change": -0.5,
-      "changePct": -1.44
+      "price": 34.57,
+      "change": 0.37,
+      "changePct": 1.08
     },
     {
       "symbol": "ICLN",
       "name": "iShares Global Clean Energy",
       "kind": "etf",
-      "price": 14.49,
-      "change": -0.23,
-      "changePct": -1.56
+      "price": 14.17,
+      "change": -0.32,
+      "changePct": -2.21
     },
     {
       "symbol": "IBIT",
       "name": "iShares Bitcoin Trust",
       "kind": "etf",
-      "price": 35.08,
-      "change": -0.28,
-      "changePct": -0.79,
+      "price": 33.67,
+      "change": -1.41,
+      "changePct": -4.02,
       "perf": {
-        "1W": -13.08,
-        "1M": -24.23,
-        "6M": -19.36,
-        "1Y": -30.85
+        "1W": -13.53,
+        "1M": -27.92,
+        "6M": -23.46,
+        "1Y": -31.23
       }
     }
   ],
