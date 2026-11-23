@@ -65,6 +65,7 @@ export async function lookupIsin(isin, fetchOpts = {}) {
     price: round(price),
     change: round(change),
     changePct: round(changePct, 2),
+    time: q.datetimeLast || null, // when that price traded (the chart's last point)
     quotes: venueQuotes(snapUsed),
   };
 }
@@ -84,6 +85,7 @@ function venueQuotes(snap) {
       change: prev != null ? round(v.last - prev) : 0,
       changePct: prev ? round(((v.last - prev) / prev) * 100, 2) : 0,
       notation: v.market.idNotation || null,
+      time: v.datetimeLast || null,
     });
   }
   return out;

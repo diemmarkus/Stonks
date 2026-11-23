@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=177";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=178";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -526,11 +526,21 @@ function mountRanged(host, ranges, loader) {
 // One security. opts: { id: ISIN / crypto code / US ticker, currency: "EUR" | "USD", venue }
 // trades: your buys and sales of it, marked on the chart (see placeTrades)
 // costSteps: your average buy price over time ([{ date, avg | null }]), drawn as a dashed line
-export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credit = true, trades = [], costSteps = [] }) {
+// History from onvista lags behind (today's daily bar isn't in it yet, intraday bars come late):
+// the latest price we already show joins as the last point when it's newer. 1D stays on its day.
+function withLive(pts, live, range, key = "v") {
+  if (!live || !isFinite(live.t) || !pts.length) return pts;
+  const last = pts[pts.length - 1];
+  if (live.t <= last.t + 60e3 || live.t > Date.now() + 5 * 60e3) return pts;
+  if (range === "1D" && new Date(live.t).toDateString() !== new Date(last.t).toDateString()) return pts;
+  return [...pts, { t: live.t, [key]: live.value ?? live.price, v: live.value ?? live.price }];
+}
+
+export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credit = true, live = null, trades = [], costSteps = [] }) {
   const ranges = Object.keys(RANGES).filter((r) => !isCryptoCode(id) || RANGES[r].cg);
   mountRanged(host, ranges, async (range) => {
     const src = await resolve(id, currency, venue, hint);
-    const pts = await history(src, range);
+    const pts = withLive(await history(src, range), live, range);
     return { pts, currency: src.currency || currency, credit: credit ? `Price data: ${src.credit}${venue ? ` · ${venue}` : ""}` : "", opts: { candles: true, trades, costSteps } };
   });
 }
@@ -539,7 +549,7 @@ export function mountPriceChart(host, { id, currency = "EUR", venue, hint, credi
 // with the amount invested so far as a dashed line.
 // positions: [{ id, currency, venue, toEur, lots: [{ qty, buyEur, date: "YYYY-MM-DD" | "" }] }]
 // trades: every buy and sale ({ date, side, qty, price in EUR, name }), marked on the chart
-export function mountPortfolioChart(host, { positions, vsInvested = true, trades = [] }) {
+export function mountPortfolioChart(host, { positions, vsInvested = true, trades = [], live = null }) {
   const fmt = (v) => fmtMoney(v, "EUR");
   mountRanged(host, Object.keys(RANGES), async (range) => {
     const loaded = await Promise.allSettled(positions.map(async (p) => {
@@ -578,9 +588,12 @@ export function mountPortfolioChart(host, { positions, vsInvested = true, trades
       });
       if (value > 0) { pts.push({ t, v: value }); ref.push(invested); }
     }
-    const thinned = thin(pts, 1500);
+    let thinned = thin(pts, 1500);
     const keep = new Set(thinned.map((q) => q.t));
     const refThin = pts.map((q, i) => (keep.has(q.t) ? ref[i] : null)).filter((v) => v != null);
+    // your portfolio right now as the last point (the invested line carries on flat)
+    const withNow = withLive(thinned, live, range);
+    if (withNow.length > thinned.length) { thinned = withNow; refThin.push(refThin[refThin.length - 1]); }
 
     return {
       pts: thinned,
