@@ -1,7 +1,7 @@
-import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=178";
-import { legalDoc } from "./legal.js?v=178";
-import { isCryptoCode } from "./crypto.js?v=178";
-import { renderOverview2 } from "./overview2.js?v=178";
+import { isConfigured, signIn, signOutUser, onUser, clearLocalData } from "./firebase.js?v=179";
+import { legalDoc } from "./legal.js?v=179";
+import { isCryptoCode } from "./crypto.js?v=179";
+import { renderOverview2 } from "./overview2.js?v=179";
 
 const $ = (id) => document.getElementById(id);
 const fmt2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,7 +59,7 @@ const state = {
 };
 
 // Real Firestore store, or the in-memory demo portfolio (nothing saved, safe to show friends).
-const loadStore = () => (state.demo ? import("./demo-store.js?v=178") : import("./store.js?v=178"));
+const loadStore = () => (state.demo ? import("./demo-store.js?v=179") : import("./store.js?v=179"));
 const DEMO_USER = { uid: "demo", displayName: "Demo portfolio", email: "Sample data · nothing is saved", photoURL: "img/logo.svg", isDemo: true };
 
 /* ---------- toast ---------- */
@@ -198,8 +198,8 @@ function lookupLive(isin) {
   if ((known && !known.stale) || !isValidId(isin)) return Promise.resolve(known || null);
   {
     const lookup = isCryptoCode(isin)
-      ? import("./crypto.js?v=178").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
-      : import("./onvista.js?v=178").then(({ lookupIsin }) => lookupIsin(isin));
+      ? import("./crypto.js?v=179").then(({ lookupCrypto }) => lookupCrypto([isin])).then((r) => r[isin] || null)
+      : import("./onvista.js?v=179").then(({ lookupIsin }) => lookupIsin(isin));
     liveTried.set(isin, lookup
       .then((q) => {
         if (q) {
@@ -1154,13 +1154,13 @@ function pickResult(isin) {
 async function runSearch(text) {
   const mine = ++searchToken;
   const q = text.trim().toLowerCase();
-  const { CRYPTO } = await import("./crypto.js?v=178");
+  const { CRYPTO } = await import("./crypto.js?v=179");
   const coins = Object.entries(CRYPTO)
     .filter(([, c]) => c.name.toLowerCase().includes(q) || c.ticker.toLowerCase() === q)
     .map(([code, c]) => ({ isin: code, name: `${c.name} (${c.ticker})`, type: "crypto" }));
   let found = [];
   try {
-    const { searchInstruments } = await import("./onvista.js?v=178");
+    const { searchInstruments } = await import("./onvista.js?v=179");
     found = await searchInstruments(text.trim());
   } catch (e) { console.warn("Search failed", e); }
   if (mine !== searchToken) return;
@@ -1349,10 +1349,10 @@ async function importFiles(files) {
         const pdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf" || new TextDecoder().decode(buf.slice(0, 5)) === "%PDF-";
         let r;
         if (pdf) {
-          const { pdfLines, parseFlatexPdf } = await import("./import-pdf.js?v=178");
+          const { pdfLines, parseFlatexPdf } = await import("./import-pdf.js?v=179");
           r = parseFlatexPdf(await pdfLines(buf));
         } else {
-          const { decode, parseTrades } = await import("./import-csv.js?v=178");
+          const { decode, parseTrades } = await import("./import-csv.js?v=179");
           r = parseTrades(decode(buf));
         }
         trades.push(...r.trades); skipped.push(...r.skipped);
@@ -1704,7 +1704,7 @@ function placeDeskChart(body, kept) {
   node.dataset.sig = sig;
   node.innerHTML = `<div class="pos__chart"></div>`;
   hero.after(node);
-  import("./chart.js?v=178").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions, trades: tradesOf(null, true), live: liveTotal() }));
+  import("./chart.js?v=179").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions, trades: tradesOf(null, true), live: liveTotal() }));
 }
 // the portfolio's value right now, stamped with the newest price time (the chart's last point)
 function liveTotal() {
@@ -1721,7 +1721,7 @@ function togglePortfolioChart() {
     node.className = "inline inline--total";
     node.innerHTML = `<div class="pos__chart"></div>`;
     const positions = portfolioChartPositions();
-    import("./chart.js?v=178").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions, trades: tradesOf(null, true), live: liveTotal() }));
+    import("./chart.js?v=179").then(({ mountPortfolioChart }) => mountPortfolioChart(node.querySelector(".pos__chart"), { positions, trades: tradesOf(null, true), live: liveTotal() }));
     return node;
   });
 }
@@ -1736,7 +1736,7 @@ function openPortfolioChartSheetUnused() {
   pill.hidden = false;
   pill.className = `pill ${dir(t.day)}`;
   pill.textContent = `${fmtEurSigned(t.day)} · ${fmtPct(t.dayPct)}`;
-  import("./chart.js?v=178").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()], trades: tradesOf(null, true), live: liveTotal() }));
+  import("./chart.js?v=179").then(({ mountPortfolioChart }) => mountPortfolioChart($("sheet-chart"), { positions: [...byKey.values()], trades: tradesOf(null, true), live: liveTotal() }));
   lastFocus = document.activeElement;
   sheet.hidden = false;
   document.body.classList.add("sheet-open");
@@ -1750,7 +1750,7 @@ document.addEventListener("keydown", (e) => {
 
 // Our own chart (js/chart.js): onvista history for securities, CoinGecko for crypto.
 async function mountChart(host, id, currency, venue, hint, credit = true) {
-  const { mountPriceChart } = await import("./chart.js?v=178");
+  const { mountPriceChart } = await import("./chart.js?v=179");
   // the latest price we show above the chart is its last point (history lags behind it)
   const q = currency === "EUR" ? quoteFor(id) : null;
   const live = q?.price && q.time ? { price: q.price, t: Date.parse(q.time) } : null;
@@ -1855,7 +1855,7 @@ function ov2Ctx(rows, t, pos) {
     stamp: state.pricesAt ? stampOf(state.pricesAt) : "", events: ov2Events(pos),
     // the map over 1W … All: each position's price change over that range (onvista / CoinGecko history)
     mapChanges: async (list, range) => {
-      const { changesOver } = await import("./chart.js?v=178");
+      const { changesOver } = await import("./chart.js?v=179");
       return changesOver(list.map((p) => {
         const q = p.isin ? null : state.prices.get(p.key);
         return { key: p.key, id: p.isin || p.key, currency: p.isin ? "EUR" : "USD", venue: p.isin ? state.venues[p.isin] : undefined, hint: p.isin ? undefined : { name: q?.name, price: q?.price } };
@@ -1863,7 +1863,7 @@ function ov2Ctx(rows, t, pos) {
     },
     // month by month (or quarter / year): price change per calendar period
     monthChanges: async (list, opts) => {
-      const { periodChanges } = await import("./chart.js?v=178");
+      const { periodChanges } = await import("./chart.js?v=179");
       return periodChanges(list.map((p) => {
         const q = p.isin ? null : state.prices.get(p.key);
         return { key: p.key, id: p.isin || p.key, currency: p.isin ? "EUR" : "USD", venue: p.isin ? state.venues[p.isin] : undefined, hint: p.isin ? undefined : { name: q?.name, price: q?.price } };
@@ -1911,7 +1911,7 @@ function yearsCard(rows) {
   if (yearsState.sig !== sig && !yearsState.loading) {
     yearsState.loading = true;
     const positions = portfolioChartPositions();
-    track(import("./chart.js?v=178").then(({ portfolioYears }) => portfolioYears(positions))
+    track(import("./chart.js?v=179").then(({ portfolioYears }) => portfolioYears(positions))
       .then((d) => { yearsState.data = d; yearsState.sig = sig; })
       .catch((e) => { console.warn("Year by year failed", e); yearsState.sig = sig; yearsState.data = null; })
       .finally(() => { yearsState.loading = false; renderCurrent(); }));
@@ -2631,7 +2631,7 @@ function showCachedUser(user) {
 
 /* Demo portfolio: a sample portfolio in memory, to show the app without your own holdings. */
 async function enterDemo() {
-  const { resetDemo } = await import("./demo-store.js?v=178");
+  const { resetDemo } = await import("./demo-store.js?v=179");
   resetDemo();
   state.demo = true;
   state.names = {};

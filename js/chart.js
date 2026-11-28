@@ -1,7 +1,7 @@
 // Our own price chart: history from onvista (stocks, ETFs, certificates) or CoinGecko (crypto),
 // drawn as an SVG area chart with range buttons and a touch/mouse crosshair.
 // Both APIs allow browser requests, so no third-party widget, logo or consent prompt is needed.
-import { CRYPTO, isCryptoCode } from "./crypto.js?v=178";
+import { CRYPTO, isCryptoCode } from "./crypto.js?v=179";
 
 const OV = "https://api.onvista.de/api/v1";
 const RANGES = {
@@ -267,13 +267,15 @@ function tradeMarkup(marks, x, top, bottom) {
 }
 // a tap (not a drag) on the chart shows or hides your trades
 // (your average line too: everything about your own trades comes and goes together)
-function tapToggleTrades(svg, marks, cost) {
+// redraw: when your average line comes or goes, the chart rescales (hidden, it mustn't squash the prices)
+function tapToggleTrades(svg, marks, cost, redraw) {
   if (!marks.length && !cost) return;
   let down = null;
   svg.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: Date.now() }; });
   svg.addEventListener("pointerup", (e) => {
     if (!down || Date.now() - down.t > 350 || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) return;
     tradesShown = !tradesShown;
+    if (cost?.some((v) => v != null) && redraw) { redraw(); return; }
     svg.querySelectorAll(".pchart__mine").forEach((g) => g.toggleAttribute("hidden", !tradesShown));
   });
 }
@@ -331,7 +333,8 @@ function drawCandles(plot, pts, range, currency, opts = {}) {
   const padT = 42, padB = 36, padR = inset ? 0 : 4; // room for the low label under its line
   const labR = W - padR - inset;
   const cost = costSeries(opts.costSteps, cs.length, (i) => localDay(cs[i].t1));
-  const costVals = cost ? cost.filter((v) => v != null) : [];
+  // the average line only widens the scale while it's shown
+  const costVals = cost && tradesShown ? cost.filter((v) => v != null) : [];
   let lo = Math.min(...cs.map((c) => c.l), ...costVals), hi = Math.max(...cs.map((c) => c.h), ...costVals);
   if (hi === lo) { hi += hi * 0.01 || 1; lo -= lo * 0.01 || 1; }
   // even slots, like the line (nights and weekends take no room); a little air at both ends
@@ -381,7 +384,7 @@ function drawCandles(plot, pts, range, currency, opts = {}) {
       + `<span class="pchart__ohlc">O ${m(c.o)} · H ${m(c.h)} · L ${m(c.l)}</span>` + costNote(cost, i, currency) + tradeNote(marks, i, 0, currency);
   };
   const hide = () => { band.style.display = "none"; read.innerHTML = resting; };
-  tapToggleTrades(svg, marks, cost);
+  tapToggleTrades(svg, marks, cost, () => drawCandles(plot, pts, range, currency, opts));
   svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
   svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) show(e); });
   svg.addEventListener("pointerup", hide);
@@ -401,7 +404,7 @@ function draw(plot, pts, range, currency, opts = {}) {
   const labR = W - padR - inset;
   const vals = pts.map((p) => p.v);
   const cost = ref ? null : costSeries(opts.costSteps, pts.length, (i) => localDay(pts[i].t));
-  const all = ref ? vals.concat(ref) : cost ? vals.concat(cost.filter((v) => v != null)) : vals;
+  const all = ref ? vals.concat(ref) : cost && tradesShown ? vals.concat(cost.filter((v) => v != null)) : vals;
   let lo = Math.min(...all), hi = Math.max(...all);
   if (hi === lo) { hi += hi * 0.01 || 1; lo -= lo * 0.01 || 1; }
   const t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1;
@@ -467,7 +470,7 @@ function draw(plot, pts, range, currency, opts = {}) {
     read.innerHTML = `<b>${fmtMoney(p.v, currency)}</b> <span class="${d >= 0 ? "up" : "down"}">${dp > 0 ? "+" : dp < 0 ? "−" : ""}${Math.abs(dp).toFixed(2)}%</span> <span>${fmtWhen(p.t, range === "1D" || range === "1W" ? "1W+time" : range)}</span>` + costNote(cost, i, currency) + note;
   };
   const hide = () => { hover.style.display = "none"; read.innerHTML = resting; };
-  tapToggleTrades(svg, marks, cost);
+  tapToggleTrades(svg, marks, cost, () => draw(plot, pts, range, currency, opts));
   svg.addEventListener("pointerdown", (e) => { svg.setPointerCapture?.(e.pointerId); show(e); });
   svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) show(e); });
   svg.addEventListener("pointerup", hide);
